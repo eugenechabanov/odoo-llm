@@ -95,17 +95,6 @@ class ResUsers(models.Model):
                 raise ValidationError(_("AI Agents must have an LLM model configured."))
 
     @api.model
-    def create_agent(self, vals):
-        """Helper method to create an agent user programmatically"""
-        return self.with_context(default_is_agent=True).create({
-            'name': vals.get('name'),
-            'login': vals.get('email'),
-            'model_id': vals.get('model_id'),
-            'system_prompt': vals.get('system_prompt'),
-            'is_active': True,
-        })
-
-    @api.model
     def _get_available_user_types(self):
         """Hide agent type from regular user creation"""
         types = super()._get_available_user_types()
