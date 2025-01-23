@@ -8,13 +8,21 @@
             <field name="arch" type="xml">
                 <form string="LLM Agent">
                     <sheet>
+                        <field name="image_1920" widget="image" class="oe_avatar"/>
+                        <div class="oe_title">
+                            <label for="name" class="oe_edit_only"/>
+                            <h1><field name="name" required="1"/></h1>
+                        </div>
                         <group>
-                            <field name="name" required="1"/>
-                            <field name="login" required="1"/>
-                            <field name="model_id" required="1" options="{'no_create': True}"/>
-                            <field name="system_prompt" required="1"/>
-                            <field name="is_active"/>
-                            <field name="is_agent" invisible="1"/>
+                            <group>
+                                <field name="login" required="1"/>
+                                <field name="model_id" required="1" options="{'no_create': True}"/>
+                                <field name="is_active"/>
+                            </group>
+                            <group>
+                                <field name="system_prompt" required="1"/>
+                                <field name="is_agent" invisible="1"/>
+                            </group>
                         </group>
                     </sheet>
                 </form>
@@ -27,6 +35,7 @@
             <field name="model">res.users</field>
             <field name="arch" type="xml">
                 <tree string="LLM Agents">
+                    <field name="image_1920" widget="image" options="{'size': [32, 32]}"/>
                     <field name="name"/>
                     <field name="login"/>
                     <field name="model_id"/>

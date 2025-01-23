@@ -47,10 +47,10 @@ class ResUsers(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Override create to properly set up agents when created through UI"""
+        """Override create to set up agents with proper groups, partner, and logo."""
         for vals in vals_list:
-            if self.env.context.get('default_is_agent'):
-                # Create partner with email
+            if vals.get('is_agent') or self.env.context.get('default_is_agent'):
+                # Create partner with email if needed
                 if not vals.get('partner_id'):
                     vals['partner_id'] = self.env['res.partner'].create({
                         'name': vals.get('name'),
@@ -68,7 +68,13 @@ class ResUsers(models.Model):
                 
                 if groups:
                     vals['groups_id'] = [(6, 0, groups)]
-
+                    
+                # Copy publisher logo if available
+                if vals.get('model_id') and not vals.get('image_1920'):
+                    model = self.env['llm.model'].browse(vals['model_id'])
+                    if model.publisher_id.logo:
+                        vals['image_1920'] = model.publisher_id.logo
+        
         return super().create(vals_list)
 
     @api.constrains('is_agent', 'model_id')
