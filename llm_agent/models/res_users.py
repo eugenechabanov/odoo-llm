@@ -9,11 +9,11 @@ class ResUsers(models.Model):
     _inherit = 'res.users'
 
     model_id = fields.Many2one('llm.model', string='LLM Model',
-        groups='base.group_system')
+        groups='base.group_user')  # Allow all users to read
     system_prompt = fields.Text('System Prompt',
-        groups='base.group_system')
+        groups='base.group_user')
     is_active = fields.Boolean('Active', default=True,
-        groups='base.group_system')
+        groups='base.group_user')
     is_agent = fields.Boolean('Is AI Agent', compute='_compute_is_agent', store=True)
 
     @api.model

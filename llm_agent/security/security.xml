@@ -24,24 +24,48 @@
             <field name="users" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
             <field name="comment">Users in this group can manage AI agents.</field>
         </record>
+    </data>
 
-        <!-- Record Rules -->
+    <!-- Record Rules -->
+    <data noupdate="1">
+        <!-- Multi-company rule -->
         <record id="agent_comp_rule" model="ir.rule">
             <field name="name">Agent: multi-company</field>
             <field name="model_id" ref="base.model_res_users"/>
             <field name="domain_force">[('company_id', 'in', company_ids)]</field>
             <field name="groups" eval="[(4, ref('group_agent'))]"/>
         </record>
-    </data>
 
-    <!-- Access Rights -->
-    <data noupdate="1">
-        <!-- Restrict agent access -->
-        <record id="agent_access_restriction" model="ir.rule">
-            <field name="name">Agents: restricted access</field>
+        <!-- Allow reading agent fields for all users -->
+        <record id="agent_read_all" model="ir.rule">
+            <field name="name">Users can read agent fields</field>
+            <field name="model_id" ref="base.model_res_users"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <!-- Allow managers to write agent fields -->
+        <record id="agent_write_manager" model="ir.rule">
+            <field name="name">Managers can write agent fields</field>
+            <field name="model_id" ref="base.model_res_users"/>
+            <field name="domain_force">[('is_agent', '=', True)]</field>
+            <field name="groups" eval="[(4, ref('group_agent_manager'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <!-- Prevent non-managers from writing agent fields -->
+        <record id="agent_no_write_user" model="ir.rule">
+            <field name="name">Users cannot write agent fields</field>
             <field name="model_id" ref="base.model_res_users"/>
             <field name="domain_force">[('is_agent', '=', False)]</field>
-            <field name="groups" eval="[(4, ref('group_agent'))]"/>
+            <field name="groups" eval="[(4, ref('base.group_user'))]"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="False"/>
             <field name="perm_create" eval="False"/>
