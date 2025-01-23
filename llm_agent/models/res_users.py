@@ -37,11 +37,7 @@ class ResUsers(models.Model):
             
         agent_group = self.get_agent_group()
         is_agent = agent_group and agent_group.id in self.groups_id.ids
-        _logger.info(
-            "Checking if user %s (id: %s) is agent: %s. Groups: %s",
-            self.name, self.id, is_agent,
-            ', '.join(self.groups_id.mapped('name'))
-        )
+        
         return is_agent
 
     @api.depends('groups_id')
