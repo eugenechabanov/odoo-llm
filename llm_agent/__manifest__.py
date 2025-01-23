@@ -2,9 +2,9 @@
     'name': 'LLM Agent',
     'version': '1.0',
     'category': 'Productivity/Discuss',
-    'summary': 'AI Agents powered by LLM',
+    'summary': 'LLM Agents powered by language models',
     'description': """
-        Create and manage AI agents powered by LLM models.
+        Create and manage LLM agents powered by language models.
         Agents can interact with users through Odoo's chat interface.
     """,
     'depends': [
