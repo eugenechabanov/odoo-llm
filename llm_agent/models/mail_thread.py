@@ -13,14 +13,14 @@ class MailThread(models.AbstractModel):
     def _message_post_after_hook(self, message, msg_vals):
         """Handle AI agent responses to messages."""
         res = super()._message_post_after_hook(message, msg_vals)
-
+    
         # Skip if we're installing the module
         if self.env.context.get('module') == 'llm_agent':
             return res
 
         # Skip if message is from an agent (to avoid loops)
-        author = message.author_id.user_ids and message.author_id.user_ids[0]
-        if not author or author.is_user_agent():
+        author = message.author_id.user_ids[:1]
+        if author.is_user_agent():
             return res
 
         # Find mentioned agents
