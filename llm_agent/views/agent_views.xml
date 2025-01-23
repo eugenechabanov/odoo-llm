@@ -1,6 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <data>
         <!-- Agent Form View -->
         <record id="view_agent_form" model="ir.ui.view">
             <field name="name">res.users.agent.form</field>
@@ -8,20 +7,28 @@
             <field name="arch" type="xml">
                 <form string="LLM Agent">
                     <sheet>
-                        <field name="image_1920" widget="image" class="oe_avatar"/>
+                        <field
+            name="image_1920"
+            widget="image"
+            class="oe_avatar"
+          />
                         <div class="oe_title">
-                            <label for="name" class="oe_edit_only"/>
-                            <h1><field name="name" required="1"/></h1>
+                            <label for="name" class="oe_edit_only" />
+                            <h1><field name="name" required="1" /></h1>
                         </div>
                         <group>
                             <group>
-                                <field name="login" required="1"/>
-                                <field name="model_id" required="1" options="{'no_create': True}"/>
-                                <field name="is_active"/>
+                                <field name="login" required="1" />
+                                <field
+                name="model_id"
+                required="1"
+                options="{'no_create': True}"
+              />
+                                <field name="is_active" />
                             </group>
                             <group>
-                                <field name="system_prompt" required="1"/>
-                                <field name="is_agent" invisible="1"/>
+                                <field name="system_prompt" required="1" />
+                                <field name="is_agent" invisible="1" />
                             </group>
                         </group>
                     </sheet>
@@ -34,12 +41,16 @@
             <field name="name">res.users.agent.tree</field>
             <field name="model">res.users</field>
             <field name="arch" type="xml">
-                <tree string="LLM Agents">
-                    <field name="image_1920" widget="image" options="{'size': [32, 32]}"/>
-                    <field name="name"/>
-                    <field name="login"/>
-                    <field name="model_id"/>
-                    <field name="is_active"/>
+                <tree>
+                    <field
+          name="image_1920"
+          widget="image"
+          options="{'size': [32, 32]}"
+        />
+                    <field name="name" />
+                    <field name="login" />
+                    <field name="model_id" />
+                    <field name="is_active" />
                 </tree>
             </field>
         </record>
@@ -51,17 +62,21 @@
             <field name="view_mode">tree,form</field>
             <field name="domain">[('is_agent', '=', True)]</field>
             <field name="context">{'default_is_agent': True}</field>
-            <field name="view_ids" eval="[(5, 0, 0),
+            <field
+      name="view_ids"
+      eval="[(5, 0, 0),
                 (0, 0, {'view_mode': 'tree', 'view_id': ref('view_agent_tree')}),
-                (0, 0, {'view_mode': 'form', 'view_id': ref('view_agent_form')})]"/>
+                (0, 0, {'view_mode': 'form', 'view_id': ref('view_agent_form')})]"
+    />
         </record>
 
         <!-- Menu Item -->
-        <menuitem id="menu_agent"
-            name="LLM Agents"
-            parent="base.menu_administration"
-            action="action_agent_form"
-            sequence="100"
-            groups="base.group_system"/>
-    </data>
+        <menuitem
+    id="menu_agent"
+    name="LLM Agents"
+    parent="base.menu_administration"
+    action="action_agent_form"
+    sequence="100"
+    groups="base.group_system"
+  />
 </odoo>

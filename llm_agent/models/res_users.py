@@ -1,27 +1,27 @@
-from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
 import logging
+
+from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
 
 
 class ResUsers(models.Model):
-    _inherit = 'res.users'
+    _inherit = "res.users"
 
-    model_id = fields.Many2one('llm.model', string='LLM Model',
-        groups='base.group_user')  # Allow all users to read
-    system_prompt = fields.Text('System Prompt',
-        groups='base.group_user')
-    is_active = fields.Boolean('Active', default=True,
-        groups='base.group_user')
-    is_agent = fields.Boolean('Is AI Agent', compute='_compute_is_agent', store=True)
+    model_id = fields.Many2one(
+        "llm.model", string="LLM Model", groups="base.group_user"
+    )  # Allow all users to read
+    system_prompt = fields.Text("System Prompt", groups="base.group_user")
+    is_active = fields.Boolean("Active", default=True, groups="base.group_user")
+    is_agent = fields.Boolean("Is AI Agent", compute="_compute_is_agent", store=True)
 
     @api.model
     def get_agent_group(self):
         """Helper method to safely get the agent group.
         Returns False if the group doesn't exist yet (e.g. during installation)."""
         try:
-            group = self.env.ref('llm_agent.group_agent')
+            group = self.env.ref("llm_agent.group_agent")
             _logger.info("Agent group found: %s (id: %s)", group.name, group.id)
             return group
         except ValueError:
@@ -31,16 +31,16 @@ class ResUsers(models.Model):
     def is_user_agent(self):
         """Check if the user is an AI agent.
         Returns False during installation or if group doesn't exist yet."""
-        if self.env.context.get('module') == 'llm_agent':
+        if self.env.context.get("module") == "llm_agent":
             _logger.info("Skipping agent check during module installation")
             return False
-            
+
         agent_group = self.get_agent_group()
         is_agent = agent_group and agent_group.id in self.groups_id.ids
-        
+
         return is_agent
 
-    @api.depends('groups_id')
+    @api.depends("groups_id")
     def _compute_is_agent(self):
         for user in self:
             user.is_agent = user.is_user_agent()
@@ -49,35 +49,41 @@ class ResUsers(models.Model):
     def create(self, vals_list):
         """Override create to set up agents with proper groups, partner, and logo."""
         for vals in vals_list:
-            if vals.get('is_agent') or self.env.context.get('default_is_agent'):
+            if vals.get("is_agent") or self.env.context.get("default_is_agent"):
                 # Create partner with email if needed
-                if not vals.get('partner_id'):
-                    vals['partner_id'] = self.env['res.partner'].create({
-                        'name': vals.get('name'),
-                        'email': vals.get('login'),
-                        'type': 'other',
-                    }).id
-                
+                if not vals.get("partner_id"):
+                    vals["partner_id"] = (
+                        self.env["res.partner"]
+                        .create(
+                            {
+                                "name": vals.get("name"),
+                                "email": vals.get("login"),
+                                "type": "other",
+                            }
+                        )
+                        .id
+                    )
+
                 # Add to required groups
                 groups = []
-                for xml_id in ['llm_agent.group_agent', 'base.group_user']:
+                for xml_id in ["llm_agent.group_agent", "base.group_user"]:
                     try:
                         groups.append(self.env.ref(xml_id).id)
                     except ValueError:
                         _logger.warning("Could not find group: %s", xml_id)
-                
+
                 if groups:
-                    vals['groups_id'] = [(6, 0, groups)]
-                    
+                    vals["groups_id"] = [(6, 0, groups)]
+
                 # Copy publisher logo if available
-                if vals.get('model_id') and not vals.get('image_1920'):
-                    model = self.env['llm.model'].browse(vals['model_id'])
+                if vals.get("model_id") and not vals.get("image_1920"):
+                    model = self.env["llm.model"].browse(vals["model_id"])
                     if model.publisher_id.logo:
-                        vals['image_1920'] = model.publisher_id.logo
-        
+                        vals["image_1920"] = model.publisher_id.logo
+
         return super().create(vals_list)
 
-    @api.constrains('is_agent', 'model_id')
+    @api.constrains("is_agent", "model_id")
     def _check_agent_configuration(self):
         for user in self:
             if user.is_agent and not user.model_id:
@@ -87,4 +93,4 @@ class ResUsers(models.Model):
     def _get_available_user_types(self):
         """Hide agent type from regular user creation"""
         types = super()._get_available_user_types()
-        return [t for t in types if t[0] != 'agent']
+        return [t for t in types if t[0] != "agent"]
