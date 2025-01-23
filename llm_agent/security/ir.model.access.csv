@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_res_users_agent_manager,res.users agent manager,base.model_res_users,llm_agent.group_agent_manager,1,1,1,1
+access_res_users_agent,res.users agent,base.model_res_users,llm_agent.group_agent,1,0,0,0
+access_llm_model_agent,llm.model agent,llm.model_llm_model,llm_agent.group_agent,1,0,0,0
+access_llm_model_agent_manager,llm.model agent manager,llm.model_llm_model,llm_agent.group_agent_manager,1,1,1,1

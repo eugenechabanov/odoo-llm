@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Agent Form View -->
+        <record id="view_agent_form" model="ir.ui.view">
+            <field name="name">res.users.agent.form</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <form string="AI Agent">
+                    <sheet>
+                        <group>
+                            <field name="name" required="1"/>
+                            <field name="login" required="1"/>
+                            <field name="model_id" required="1"/>
+                            <field name="system_prompt" required="1"/>
+                            <field name="is_active"/>
+                            <field name="is_agent" invisible="1"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Agent Tree View -->
+        <record id="view_agent_tree" model="ir.ui.view">
+            <field name="name">res.users.agent.tree</field>
+            <field name="model">res.users</field>
+            <field name="arch" type="xml">
+                <tree string="AI Agents">
+                    <field name="name"/>
+                    <field name="login"/>
+                    <field name="model_id"/>
+                    <field name="is_active"/>
+                </tree>
+            </field>
+        </record>
+
+        <!-- Agent Action -->
+        <record id="action_agent_form" model="ir.actions.act_window">
+            <field name="name">AI Agents</field>
+            <field name="res_model">res.users</field>
+            <field name="view_mode">tree,form</field>
+            <field name="domain">[('is_agent', '=', True)]</field>
+            <field name="context">{'default_is_agent': True}</field>
+            <field name="view_ids" eval="[(5, 0, 0),
+                (0, 0, {'view_mode': 'tree', 'view_id': ref('view_agent_tree')}),
+                (0, 0, {'view_mode': 'form', 'view_id': ref('view_agent_form')})]"/>
+        </record>
+
+        <!-- Menu Item -->
+        <menuitem id="menu_agent"
+            name="AI Agents"
+            parent="base.menu_administration"
+            action="action_agent_form"
+            sequence="100"
+            groups="base.group_system"/>
+    </data>
+</odoo>
