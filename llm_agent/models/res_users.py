@@ -52,41 +52,28 @@ class ResUsers(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         """Override create to properly set up agents when created through UI"""
-        agent_group = self.get_agent_group()
         for vals in vals_list:
-            # Check if being created from AI Agents menu
             if self.env.context.get('default_is_agent'):
-                _logger.info("Creating user as agent from UI: %s", vals.get('name'))
-                # Ensure email is set on partner
-                partner_vals = {
-                    'name': vals.get('name'),
-                    'email': vals.get('login'),  # Use login as email
-                    'type': 'other',
-                }
-                partner = self.env['res.partner'].create(partner_vals)
-                vals['partner_id'] = partner.id
+                # Create partner with email
+                if not vals.get('partner_id'):
+                    vals['partner_id'] = self.env['res.partner'].create({
+                        'name': vals.get('name'),
+                        'email': vals.get('login'),
+                        'type': 'other',
+                    }).id
                 
-                # Add to agent group and internal user group
+                # Add to required groups
                 groups = []
-                if agent_group:
-                    groups.append(agent_group.id)
-                    _logger.info("Added user to agent group")
-                else:
-                    _logger.warning("Could not find agent group")
+                for xml_id in ['llm_agent.group_agent', 'base.group_user']:
+                    try:
+                        groups.append(self.env.ref(xml_id).id)
+                    except ValueError:
+                        _logger.warning("Could not find group: %s", xml_id)
                 
-                # Add internal user group
-                try:
-                    internal_group = self.env.ref('base.group_user')
-                    groups.append(internal_group.id)
-                    _logger.info("Added user to internal user group")
-                except ValueError:
-                    _logger.warning("Could not find internal user group")
-
                 if groups:
                     vals['groups_id'] = [(6, 0, groups)]
 
-        users = super().create(vals_list)
-        return users
+        return super().create(vals_list)
 
     @api.constrains('is_agent', 'model_id')
     def _check_agent_configuration(self):
