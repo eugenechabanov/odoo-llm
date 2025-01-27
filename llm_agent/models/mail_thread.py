@@ -99,7 +99,7 @@ class MailThread(models.AbstractModel):
                 mentioned_partners = self.env['res.partner'].browse(msg_vals['partner_ids'])
                 mentioned_users = self.env['res.users'].search([
                     ('partner_id', 'in', mentioned_partners.ids),
-                    ('is_llm_agent', '=', True)
+                    ('is_agent', '=', True)
                 ])
                 
                 if mentioned_users:

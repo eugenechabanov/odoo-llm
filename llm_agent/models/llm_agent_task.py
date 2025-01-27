@@ -64,7 +64,7 @@ class LLMAgentTask(models.Model):
         string='Assigned Agent', 
         required=True, 
         tracking=True,
-        domain=[('is_llm_agent', '=', True)]
+        domain=[('is_agent', '=', True)]
     )
     parent_task_id = fields.Many2one(
         'llm.agent.task', 
