@@ -5,7 +5,7 @@ from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
 
-
+agent_group_name = "llm_agent.group_llm_agent"
 class ResUsers(models.Model):
     _inherit = "res.users"
 
@@ -28,11 +28,11 @@ class ResUsers(models.Model):
     def get_agent_group(self):
         """Helper method to safely get the agent group."""
         try:
-            group = self.env.ref("llm_agent.group_agent")
+            group = self.env.ref(agent_group_name)
             _logger.info("Agent group found: %s (id: %s)", group.name, group.id)
             return group
         except ValueError:
-            _logger.warning("Agent group 'llm_agent.group_agent' not found")
+            _logger.warning("Agent group '%s' not found", agent_group_name)
             return False
 
     def is_user_agent(self):
@@ -70,7 +70,7 @@ class ResUsers(models.Model):
 
                 # Add to required groups
                 groups = []
-                for xml_id in ["llm_agent.group_agent", "base.group_user"]:
+                for xml_id in [agent_group_name, "base.group_user"]:
                     try:
                         groups.append(self.env.ref(xml_id).id)
                     except ValueError:
