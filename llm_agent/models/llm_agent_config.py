@@ -41,23 +41,22 @@ class LLMAgentConfig(models.Model):
                 if not config.goal:
                     raise ValidationError(_("Active agents must have a goal defined."))
 
-    def get_llm_response(self, prompt, **kwargs):
-        """Get LLM response with full context"""
+    def get_context_prompt(self):
+        """Get the full context prompt for this agent configuration."""
         if not self.is_active:
-            raise ValidationError(_("Cannot get response from inactive agent."))
+            raise ValidationError(_("Cannot get context from inactive agent."))
             
         # Get parent and child roles for context
         parent_role = self.user_id.parent_agent_id.agent_config_id.role if self.user_id.parent_agent_id else "none"
         child_roles = self.user_id.child_agent_ids.mapped('agent_config_id.role')
         
-        context_prompt = f"""As a {self.role} with the goal of {self.goal}.
+        context = f"""As a {self.role} with the goal of {self.goal}.
 
 Background: {self.backstory or 'No specific background provided.'}
 
 Organizational Context:
 - You report to: {parent_role}
-- You manage: {', '.join(child_roles) if child_roles else 'No direct reports'}
+- You manage: {', '.join(child_roles) if child_roles else 'No direct reports'}"""
 
-Task: {prompt}"""
-
-        return self.user_id._get_llm_response(context_prompt, **kwargs)
+        return context
+  

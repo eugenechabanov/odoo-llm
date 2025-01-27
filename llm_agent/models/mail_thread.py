@@ -5,6 +5,7 @@ import markdown2
 
 from odoo import models
 from odoo.tools import html2plaintext
+from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
 
@@ -52,7 +53,12 @@ class MailThread(models.AbstractModel):
 
         # Generate AI response for each mentioned agent
         for agent in mentioned_agents:
-            if agent.model_id:  # Only respond if agent has a model configured
+            agent_config = agent.agent_config_id
+            if not agent_config:
+                _logger.warning("Agent %s has no configuration, skipping response", agent.name)
+                continue
+                
+            if agent_config.model_id:  # Only respond if agent has a model configured
                 try:
                     # Get AI response (non-streaming for hook)
                     accumulated_content = ""
@@ -81,7 +87,7 @@ class MailThread(models.AbstractModel):
                     _logger.exception("Failed to generate AI response")
             else:
                 _logger.warning(
-                    "Agent %s has no model configured, skipping response", agent.name
+                    "Agent %s has no model configured in their configuration, skipping response", agent.name
                 )
 
         return res
@@ -153,10 +159,18 @@ class MailThread(models.AbstractModel):
             list: List of message dictionaries for chat completion
         """
         messages = []
+        
+        # Get agent configuration
+        agent_config = agent.agent_config_id
+        if not agent_config:
+            raise ValidationError(_("Agent %s has no configuration") % agent.name)
+            
+        # Add system context as first message
+        messages.append({"role": "system", "content": agent_config.get_context_prompt()})
 
-        # Add system prompt if configured
-        if agent.system_prompt:
-            messages.append({"role": "system", "content": agent.system_prompt})
+        # Add custom system prompt if configured
+        if agent_config.system_prompt:
+            messages.append({"role": "system", "content": agent_config.system_prompt})
 
         # Get last 20 messages from the thread
         domain = self._get_message_history_domain(agent)
@@ -169,10 +183,6 @@ class MailThread(models.AbstractModel):
             content = self._clean_message_content(msg.body)
             if content:
                 messages.append({"role": role, "content": content})
-
-        # Add the current message
-        message_author = message.author_id.user_ids[:1]
-        role = self._get_message_role(message_author, agent)
 
         return messages
 
@@ -190,8 +200,12 @@ class MailThread(models.AbstractModel):
         try:
             # Prepare messages for the LLM
             messages = self._prepare_chat_messages(agent, message, msg_vals)
+            
+            agent_config = agent.agent_config_id
+            if not agent_config or not agent_config.model_id:
+                return {"error": f"Agent {agent.name} has no model configured"}
 
-            return agent.model_id.chat(messages=messages)
+            return agent_config.model_id.chat(messages=messages)
         except Exception as e:
             _logger.exception("Failed to generate AI response")
             return {"error": str(e)}
