@@ -135,6 +135,7 @@ class MailThread(models.AbstractModel):
                                 'expected_output': "Provide a helpful response to the user's message",
                                 'output_format': 'raw',
                                 'state': 'pending',
+                                'input': body,  # Using the same body as input
                                 'prompt_context': f"""This task was created in response to a mention in a {self._description}.
                                 Model: {self._name}
                                 Record ID: {self.id}
