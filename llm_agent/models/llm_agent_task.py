@@ -5,7 +5,6 @@ from odoo.exceptions import ValidationError
 import uuid
 import json
 import hashlib
-from datetime import datetime
 
 class LLMAgentTask(models.Model):
     _name = 'llm.agent.task'
@@ -86,7 +85,7 @@ class LLMAgentTask(models.Model):
         ('completed', 'Completed'),
         ('failed', 'Failed'),
         ('cancelled', 'Cancelled')
-    ], string='Status', default='draft', tracking=True)
+    ], string='Status', default='draft', tracking=True, required=True)
     is_async = fields.Boolean(
         string='Asynchronous Execution', 
         default=False,
@@ -186,7 +185,18 @@ class LLMAgentTask(models.Model):
         default=dict,
         help="Set of agent IDs that have processed this task"
     )
-
+    user_id = fields.Many2one(
+        'res.users', 
+        string='Requested By',  
+        default=lambda self: self.env.user,
+        tracking=True
+    )
+    message_id = fields.Many2one(
+        'mail.message', 
+        string='Source Message', 
+        readonly=True
+    )
+    
     @api.depends('start_time', 'end_time')
     def _compute_duration(self):
         for task in self:
@@ -206,8 +216,8 @@ class LLMAgentTask(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
-            if not vals.get('name') and vals.get('description'):
-                vals['name'] = vals['description'][:50] + ('...' if len(vals['description']) > 50 else '')
+            if not vals.get('name'):
+                vals['name'] = _("Task for %s") % self.env['res.users'].browse(vals.get('agent_id')).name
         return super().create(vals_list)
 
     def action_start(self):

@@ -11,7 +11,6 @@
                 <field name="user_id"/>
                 <field name="state"/>
                 <field name="create_date"/>
-                <field name="write_date"/>
             </tree>
         </field>
     </record>
@@ -106,8 +105,7 @@
     <!-- Menu Items -->
     <menuitem id="menu_llm_agent_root" 
               name="LLM Agents" 
-              sequence="100" 
-              web_icon="llm_agent,static/description/icon.png"/>
+              sequence="100"/>
 
     <menuitem id="menu_llm_agent_task" 
               name="Tasks" 
