@@ -19,19 +19,24 @@ class MailThread(models.AbstractModel):
     def _message_post_after_hook(self, message, msg_vals):
         """Handle AI agent responses to messages and LLM agent mentions."""
         res = super()._message_post_after_hook(message, msg_vals)
+        _logger.info("Starting _message_post_after_hook for message ID: %s", message.id)
 
         try:
             # Skip if we're installing the module
             if self.env.context.get("module") == "llm_agent":
+                _logger.info("Skipping hook - module installation context detected")
                 return res
 
             # Skip if message is from an agent (to avoid loops)
             author = message.author_id.user_ids[:1]
+            _logger.info("Message author: %s (is_agent: %s)", author.name, author.is_user_agent())
             if author.is_user_agent():
+                _logger.info("Skipping hook - message is from an agent")
                 return res
 
             # Find mentioned agents
             mentioned_partners = message.partner_ids
+            _logger.info("Mentioned partners: %s", mentioned_partners.mapped('name'))
             mentioned_agents = (
                 self.env["res.users"]
                 .search(
@@ -39,6 +44,7 @@ class MailThread(models.AbstractModel):
                 )
                 .filtered(lambda u: u.is_user_agent())
             )
+            _logger.info("Found mentioned agents: %s", mentioned_agents.mapped('name'))
 
             # Also check for private chat with agent
             if (
@@ -46,26 +52,32 @@ class MailThread(models.AbstractModel):
                 and self._name == "mail.channel"
                 and self.channel_type == "chat"
             ):
+                _logger.info("Checking private chat channel")
                 if len(self.channel_partner_ids) == 2:
                     other_partner = self.channel_partner_ids - message.author_id
+                    _logger.info("Found other chat partner: %s", other_partner.name)
                     other_user = self.env["res.users"].search(
                         [("partner_id", "=", other_partner.id), ("is_active", "=", True)],
                         limit=1,
                     )
                     if other_user and other_user.is_user_agent():
+                        _logger.info("Other chat partner is an agent: %s", other_user.name)
                         mentioned_agents = other_user
 
             # Generate AI response for each mentioned agent
             for agent in mentioned_agents:
+                _logger.info("Processing agent: %s", agent.name)
                 agent_config = agent.agent_config_id
                 if not agent_config:
                     _logger.warning("Agent %s has no configuration, skipping response", agent.name)
                     continue
                     
                 if agent_config.model_id:  # Only respond if agent has a model configured
+                    _logger.info("Agent model: %s", agent_config.model_id.name)
                     try:
                         # Get AI response (non-streaming for hook)
                         accumulated_content = ""
+                        _logger.info("Generating AI response for agent %s", agent.name)
                         for response in self.generate_ai_response(agent, message, msg_vals):
                             if response.get("error"):
                                 _logger.error(
@@ -75,10 +87,12 @@ class MailThread(models.AbstractModel):
 
                             content = response.get("content", "")
                             if content:
+                                _logger.info("Received content chunk of length: %d", len(content))
                                 accumulated_content += content
 
                         # Post accumulated response
                         if accumulated_content:
+                            _logger.info("Posting AI response of length: %d", len(accumulated_content))
                             self.with_context(
                                 mail_create_nosubscribe=True
                             )._post_ai_response(
@@ -86,9 +100,11 @@ class MailThread(models.AbstractModel):
                                 author=agent,
                                 parent_id=message.id,
                             )
+                        else:
+                            _logger.warning("No content accumulated for agent %s", agent.name)
 
                     except Exception:
-                        _logger.exception("Failed to generate AI response")
+                        _logger.exception("Failed to generate AI response for agent %s", agent.name)
                 else:
                     _logger.warning(
                         "Agent %s has no model configured in their configuration, skipping response", agent.name
@@ -96,11 +112,13 @@ class MailThread(models.AbstractModel):
 
             # Check for LLM agent mentions
             if msg_vals.get('partner_ids'):
+                _logger.info("Checking LLM agent mentions in partner_ids")
                 mentioned_partners = self.env['res.partner'].browse(msg_vals['partner_ids'])
                 mentioned_users = self.env['res.users'].search([
                     ('partner_id', 'in', mentioned_partners.ids),
                     ('is_agent', '=', True)
                 ])
+                _logger.info("Found mentioned LLM agents: %s", mentioned_users.mapped('name'))
                 
                 if mentioned_users:
                     # Get the message content without HTML tags
@@ -221,33 +239,29 @@ class MailThread(models.AbstractModel):
         return text.strip()
 
     def _prepare_chat_messages(self, agent, message, msg_vals):
-        """Prepare messages for chat completion.
-
-        Args:
-            agent (res.users): The AI agent user
-            message (mail.message): Current message
-            msg_vals (dict): Message values
-
-        Returns:
-            list: List of message dictionaries for chat completion
-        """
+        """Prepare messages for chat completion."""
+        _logger.info("Preparing chat messages for agent %s", agent.name)
         messages = []
         
         # Get agent configuration
         agent_config = agent.agent_config_id
         if not agent_config:
+            _logger.error("Agent %s has no configuration", agent.name)
             raise ValidationError(_("Agent %s has no configuration") % agent.name)
             
         # Add system context as first message
+        _logger.info("Adding system context from agent configuration")
         messages.append({"role": "system", "content": agent_config.get_context_prompt()})
 
         # Add custom system prompt if configured
         if agent_config.system_prompt:
+            _logger.info("Adding custom system prompt")
             messages.append({"role": "system", "content": agent_config.system_prompt})
 
         # Get last 20 messages from the thread
         domain = self._get_message_history_domain(agent)
         history = self.env["mail.message"].search(domain, order="id DESC", limit=20)
+        _logger.info("Found %d historical messages", len(history))
 
         # Add messages in chronological order (oldest first)
         for msg in reversed(history):
@@ -255,8 +269,10 @@ class MailThread(models.AbstractModel):
             role = self._get_message_role(msg_author, agent)
             content = self._clean_message_content(msg.body)
             if content:
+                _logger.debug("Adding message: role=%s, content_length=%d", role, len(content))
                 messages.append({"role": role, "content": content})
 
+        _logger.info("Prepared total of %d messages for chat completion", len(messages))
         return messages
 
     def generate_ai_response(self, agent, message, msg_vals):
@@ -271,17 +287,28 @@ class MailThread(models.AbstractModel):
             generator: Yields response chunks with content or error
         """
         try:
+            _logger.info("Starting AI response generation for agent %s", agent.name)
+            
             # Prepare messages for the LLM
             messages = self._prepare_chat_messages(agent, message, msg_vals)
+            _logger.info("Prepared %d messages for chat completion", len(messages))
             
             agent_config = agent.agent_config_id
             if not agent_config or not agent_config.model_id:
+                _logger.error("Agent %s has no model configured", agent.name)
                 return {"error": f"Agent {agent.name} has no model configured"}
 
-            return agent_config.model_id.chat(messages=messages)
+            _logger.info("Using model %s for response generation", agent_config.model_id.name)
+            response_generator = agent_config.model_id.chat(messages=messages)
+            _logger.info("Successfully initiated chat completion")
+            
+            for response in response_generator:
+                _logger.debug("Received response chunk: %s", response)
+                yield response
+
         except Exception as e:
-            _logger.exception("Failed to generate AI response")
-            return {"error": str(e)}
+            _logger.exception("Failed to generate AI response for agent %s", agent.name)
+            yield {"error": str(e)}
 
     def _markdown_to_html(self, content):
         """Convert markdown content to HTML suitable for Odoo messages.
