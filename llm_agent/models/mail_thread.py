@@ -170,7 +170,8 @@ class MailThread(models.AbstractModel):
                             self.message_post(
                                 body=_("Error processing request for agent %s: %s") % (agent.name, str(e)),
                                 message_type='comment',
-                                subtype_xmlid='mail.mt_comment'
+                                subtype_xmlid='mail.mt_comment',
+                                author_id=agent.partner_id.id
                             )
                             
         except Exception as e:
@@ -196,16 +197,22 @@ class MailThread(models.AbstractModel):
         """
         return "assistant" if message_author == agent else "user"
 
-    def _get_message_history_domain(self, agent):
+    def _get_message_history_domain(self, agent, message=None):
         """Get domain for fetching message history.
 
         Args:
             agent (res.users): The AI agent user
+            message (mail.message): Optional message to get thread info from
 
         Returns:
             list: Domain for message search
         """
-        domain = [("model", "=", self._name), ("res_id", "=", self.id)]
+        if message:
+            # If we have a message, get history from its thread
+            domain = [("model", "=", message.model), ("res_id", "=", message.res_id)]
+        else:
+            # Otherwise get from current record's thread
+            domain = [("model", "=", self._name), ("res_id", "=", self.id)]
 
         if self._name == "mail.channel":
             # For channels, only include messages after the agent joined
@@ -260,7 +267,7 @@ class MailThread(models.AbstractModel):
             messages.append({"role": "system", "content": agent_config.system_prompt})
 
         # Get last 20 messages from the thread
-        domain = self._get_message_history_domain(agent)
+        domain = self._get_message_history_domain(agent, message)
         history = self.env["mail.message"].search(domain, order="id DESC", limit=20)
         _logger.info("Found %d historical messages", len(history))
 
@@ -272,6 +279,10 @@ class MailThread(models.AbstractModel):
             if content:
                 _logger.debug("Adding message: role=%s, content_length=%d", role, len(content))
                 messages.append({"role": role, "content": content})
+
+        # Add current message if we have msg_vals
+        if msg_vals and msg_vals.get('body'):
+            messages.append({"role": "user", "content": self._clean_message_content(msg_vals['body'])})
 
         _logger.info("Prepared total of %d messages for chat completion", len(messages))
         return messages

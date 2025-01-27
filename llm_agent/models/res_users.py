@@ -155,16 +155,8 @@ class ResUsers(models.Model):
         if not self.agent_config_id:
             raise ValidationError(_("Agent has no configuration"))
             
-        # Create a temporary message for the task
-        message = self.env['mail.message'].create({
-            'body': task.input,
-            'author_id': task.user_id.partner_id.id,
-            'model': task._name,
-            'res_id': task.id,
-        })
-        
         # Generate response using mail_thread's generate_ai_response
-        for response in task._message_generate_ai_response(self, message, {'body': task.input}):
+        for response in task._message_generate_ai_response(self, None, {'body': task.input}):
             if 'error' in response:
                 raise ValidationError(response['error'])
             if 'content' in response:
