@@ -37,8 +37,9 @@ class ResUsers(models.Model):
 
     def is_user_agent(self):
         """Check if the user is an AI agent."""
-        if self.env.context.get("module") == "llm_agent":
-            _logger.info("Skipping agent check during module installation")
+        # Skip during module installation or loading
+        if self.env.context.get("module") == "llm_agent" or \
+           self.env.context.get("install_mode"):
             return False
 
         agent_group = self.get_agent_group()
@@ -48,12 +49,25 @@ class ResUsers(models.Model):
 
     @api.depends("groups_id")
     def _compute_is_agent(self):
+        """Compute if user is an agent based on group membership"""
+        # Skip during module installation or loading
+        if self.env.context.get("module") == "llm_agent" or \
+           self.env.context.get("install_mode"):
+            for user in self:
+                user.is_agent = False
+            return
+
         for user in self:
             user.is_agent = user.is_user_agent()
 
     @api.model_create_multi
     def create(self, vals_list):
         """Override create to set up agents with proper groups and partner."""
+        # Skip agent setup during module installation
+        if self.env.context.get("module") == "llm_agent" or \
+           self.env.context.get("install_mode"):
+            return super().create(vals_list)
+
         for vals in vals_list:
             if vals.get("is_agent") or self.env.context.get("default_is_agent"):
                 # Create partner if needed
@@ -84,6 +98,11 @@ class ResUsers(models.Model):
     @api.constrains('agent_config_id', 'is_agent')
     def _check_agent_configuration(self):
         """Ensure agents have configuration"""
+        # Skip all validation during module installation or loading
+        if self.env.context.get("module") == "llm_agent" or \
+           self.env.context.get("install_mode"):
+            return
+
         for user in self:
             # Skip validation during wizard creation
             if self.env.context.get('creating_agent_from_wizard'):
