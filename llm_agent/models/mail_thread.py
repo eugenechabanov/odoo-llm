@@ -64,51 +64,13 @@ class MailThread(models.AbstractModel):
                         _logger.info("Other chat partner is an agent: %s", other_user.name)
                         mentioned_agents = other_user
 
-            # Generate AI response for each mentioned agent
+            # Process mentioned agents
             for agent in mentioned_agents:
-                _logger.info("Processing agent: %s", agent.name)
-                agent_config = agent.agent_config_id
-                if not agent_config:
-                    _logger.warning("Agent %s has no configuration, skipping response", agent.name)
-                    continue
-                    
-                if agent_config.model_id:  # Only respond if agent has a model configured
-                    _logger.info("Agent model: %s", agent_config.model_id.name)
-                    try:
-                        # Get AI response (non-streaming for hook)
-                        accumulated_content = ""
-                        _logger.info("Generating AI response for agent %s", agent.name)
-                        for response in self.generate_ai_response(agent, message, msg_vals):
-                            if response.get("error"):
-                                _logger.error(
-                                    "Error getting AI response: %s", response["error"]
-                                )
-                                break
-
-                            content = response.get("content", "")
-                            if content:
-                                _logger.info("Received content chunk of length: %d", len(content))
-                                accumulated_content += content
-
-                        # Post accumulated response
-                        if accumulated_content:
-                            _logger.info("Posting AI response of length: %d", len(accumulated_content))
-                            self.with_context(
-                                mail_create_nosubscribe=True
-                            )._post_ai_response(
-                                content=accumulated_content,
-                                author=agent,
-                                parent_id=message.id,
-                            )
-                        else:
-                            _logger.warning("No content accumulated for agent %s", agent.name)
-
-                    except Exception:
-                        _logger.exception("Failed to generate AI response for agent %s", agent.name)
-                else:
-                    _logger.warning(
-                        "Agent %s has no model configured in their configuration, skipping response", agent.name
-                    )
+                try:
+                    _logger.info("Processing agent: %s", agent.name)
+                    self._process_agent_response(agent, message, msg_vals)
+                except Exception as e:
+                    _logger.error("Error processing agent %s: %s", agent.name, str(e))
 
         except Exception as e:
             # Log any unexpected errors
@@ -120,6 +82,91 @@ class MailThread(models.AbstractModel):
             )
 
         return res
+
+    def _validate_agent_config(self, agent):
+        """Validate agent configuration and model.
+        
+        Args:
+            agent (res.users): The AI agent user
+            
+        Returns:
+            tuple: (agent_config, error_message)
+        """
+        agent_config = agent.agent_config_id
+        if not agent_config:
+            error = f"Agent {agent.name} has no configuration"
+            _logger.error(error)
+            return None, error
+            
+        if not agent_config.model_id:
+            error = f"Agent {agent.name} has no model configured"
+            _logger.error(error)
+            return None, error
+            
+        return agent_config, None
+
+    def generate_ai_response(self, agent, message, msg_vals):
+        """Generate AI response using the agent's configured model."""
+        try:
+            _logger.info("Starting AI response generation for agent %s", agent.name)
+            
+            # Validate agent configuration
+            agent_config, error = self._validate_agent_config(agent)
+            if error:
+                yield {"error": error}
+                return
+
+            # Prepare messages and generate response
+            messages = self._prepare_chat_messages(agent, message, msg_vals)
+            _logger.info("Prepared %d messages for chat completion", len(messages))
+            response_generator = agent_config.model_id.chat(messages=messages)
+            _logger.info("Successfully initiated chat completion")
+            
+            for response in response_generator:
+                _logger.debug("Received response chunk: %s", response)
+                yield response
+
+        except Exception as e:
+            _logger.exception("Failed to generate AI response for agent %s", agent.name)
+            yield {"error": str(e)}
+
+    def _process_agent_response(self, agent, message, msg_vals):
+        """Process agent response using direct response flow."""
+        try:
+            _logger.info("Processing agent response for agent %s", agent.name)
+            
+            # Validate agent configuration
+            agent_config, error = self._validate_agent_config(agent)
+            if error:
+                raise ValidationError(error)
+
+            # Generate and accumulate response
+            accumulated_content = ""
+            for response in self.generate_ai_response(agent, message, msg_vals):
+                if response.get("error"):
+                    raise ValidationError(response["error"])
+                    
+                content = response.get("content", "")
+                if content:
+                    _logger.info("Received content chunk of length: %d", len(content))
+                    accumulated_content += content
+
+            # Post accumulated response
+            if accumulated_content:
+                _logger.info("Posting AI response of length: %d", len(accumulated_content))
+                self.with_context(
+                    mail_create_nosubscribe=True
+                )._post_ai_response(
+                    content=accumulated_content,
+                    author=agent,
+                    parent_id=message.id,
+                )
+            else:
+                _logger.warning("No content accumulated for agent %s", agent.name)
+
+        except Exception as e:
+            _logger.exception("Failed to process agent response for agent %s", agent.name)
+            raise e
 
     def _get_message_role(self, message_author, agent):
         """Determine the role of a message based on its author.
@@ -217,41 +264,6 @@ class MailThread(models.AbstractModel):
         _logger.info("Prepared total of %d messages for chat completion", len(messages))
         return messages
 
-    def generate_ai_response(self, agent, message, msg_vals):
-        """Generate AI response using the agent's configured model.
-
-        Args:
-            agent (res.users): The AI agent user
-            message (mail.message): The message to respond to
-            msg_vals (dict): Message values including body
-
-        Returns:
-            generator: Yields response chunks with content or error
-        """
-        try:
-            _logger.info("Starting AI response generation for agent %s", agent.name)
-            
-            # Prepare messages for the LLM
-            messages = self._prepare_chat_messages(agent, message, msg_vals)
-            _logger.info("Prepared %d messages for chat completion", len(messages))
-            
-            agent_config = agent.agent_config_id
-            if not agent_config or not agent_config.model_id:
-                _logger.error("Agent %s has no model configured", agent.name)
-                return {"error": f"Agent {agent.name} has no model configured"}
-
-            _logger.info("Using model %s for response generation", agent_config.model_id.name)
-            response_generator = agent_config.model_id.chat(messages=messages)
-            _logger.info("Successfully initiated chat completion")
-            
-            for response in response_generator:
-                _logger.debug("Received response chunk: %s", response)
-                yield response
-
-        except Exception as e:
-            _logger.exception("Failed to generate AI response for agent %s", agent.name)
-            yield {"error": str(e)}
-
     def _markdown_to_html(self, content):
         """Convert markdown content to HTML suitable for Odoo messages.
 
@@ -304,43 +316,3 @@ class MailThread(models.AbstractModel):
             parent_id=parent_id,
             partner_ids=[],  # No additional notifications
         )
-
-    def _process_agent_response(self, agent, message, msg_vals):
-        """Process agent response using the same direct response flow."""
-        try:
-            _logger.info("Processing agent response for agent %s", agent.name)
-            agent_config = agent.agent_config_id
-            if not agent_config or not agent_config.model_id:
-                _logger.error("Agent %s has no model configured", agent.name)
-                return {"error": f"Agent {agent.name} has no model configured"}
-
-            _logger.info("Using model %s for response generation", agent_config.model_id.name)
-            messages = self._prepare_chat_messages(agent, message, msg_vals)
-            _logger.info("Prepared %d messages for chat completion", len(messages))
-            response_generator = agent_config.model_id.chat(messages=messages)
-            _logger.info("Successfully initiated chat completion")
-            
-            accumulated_content = ""
-            for response in response_generator:
-                _logger.debug("Received response chunk: %s", response)
-                content = response.get("content", "")
-                if content:
-                    _logger.info("Received content chunk of length: %d", len(content))
-                    accumulated_content += content
-
-            # Post accumulated response
-            if accumulated_content:
-                _logger.info("Posting AI response of length: %d", len(accumulated_content))
-                self.with_context(
-                    mail_create_nosubscribe=True
-                )._post_ai_response(
-                    content=accumulated_content,
-                    author=agent,
-                    parent_id=message.id,
-                )
-            else:
-                _logger.warning("No content accumulated for agent %s", agent.name)
-
-        except Exception as e:
-            _logger.exception("Failed to process agent response for agent %s", agent.name)
-            raise e
