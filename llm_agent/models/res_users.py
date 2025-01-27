@@ -136,3 +136,38 @@ class ResUsers(models.Model):
             hierarchy |= current.parent_agent_id
             current = current.parent_agent_id
         return hierarchy
+
+    def _execute_task(self, task, context=None, tools=None):
+        """Execute a task using the agent's configuration.
+        
+        Args:
+            task (llm.agent.task): Task to execute
+            context (dict): Additional context for task execution
+            tools (llm.agent.tool): Tools allowed for this task
+            
+        Returns:
+            str: Task output
+        """
+        self.ensure_one()
+        if not self.is_agent:
+            raise ValidationError(_("Only AI agents can execute tasks"))
+            
+        if not self.agent_config_id:
+            raise ValidationError(_("Agent has no configuration"))
+            
+        # Create a temporary message for the task
+        message = self.env['mail.message'].create({
+            'body': task.input,
+            'author_id': task.user_id.partner_id.id,
+            'model': task._name,
+            'res_id': task.id,
+        })
+        
+        # Generate response using mail_thread's generate_ai_response
+        for response in task._message_generate_ai_response(self, message, {'body': task.input}):
+            if 'error' in response:
+                raise ValidationError(response['error'])
+            if 'content' in response:
+                return response['content']
+                
+        return ''

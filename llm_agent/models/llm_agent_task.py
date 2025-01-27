@@ -241,17 +241,28 @@ class LLMAgentTask(models.Model):
         self.ensure_one()
         if self.state != 'pending':
             raise ValidationError(_("Only pending tasks can be started"))
-        self.write({'state': 'running'})
+            
+        self.write({
+            'state': 'running',
+            'start_time': fields.Datetime.now()
+        })
+        
         try:
-            # TODO: Implement actual task execution logic
+            # Execute the task
+            result = self._execute()
+            
+            # Update task with result
             self.write({
                 'state': 'done',
-                'output': 'Task completed successfully'
+                'end_time': fields.Datetime.now()
             })
+            
+            return result
         except Exception as e:
             self.write({
                 'state': 'failed',
-                'error': str(e)
+                'error': str(e),
+                'end_time': fields.Datetime.now()
             })
             raise
 
@@ -440,3 +451,17 @@ class LLMAgentTask(models.Model):
                 return input_string.format(**inputs)
             except KeyError as e:
                 raise ValidationError(_("Missing required variable: %s") % str(e))
+
+    def _message_generate_ai_response(self, agent, message, msg_vals):
+        """Generate AI response using mail_thread's generate_ai_response.
+        
+        Args:
+            agent (res.users): The AI agent user
+            message (mail.message): The message to respond to
+            msg_vals (dict): Message values including body
+            
+        Returns:
+            generator: Yields response chunks with content or error
+        """
+        # Use mail_thread's generate_ai_response
+        yield from self.env['mail.thread'].generate_ai_response(agent, message, msg_vals)
