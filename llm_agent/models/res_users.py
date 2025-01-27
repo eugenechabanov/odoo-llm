@@ -9,17 +9,24 @@ _logger = logging.getLogger(__name__)
 class ResUsers(models.Model):
     _inherit = "res.users"
 
-    model_id = fields.Many2one(
-        "llm.model", string="LLM Model", groups="base.group_user"
-    )  # Allow all users to read
-    system_prompt = fields.Text("System Prompt", groups="base.group_user")
-    is_active = fields.Boolean("Active", default=True, groups="base.group_user")
+    # Hierarchy fields
+    parent_agent_id = fields.Many2one('res.users', 
+                                     string='Parent Agent',
+                                     domain=[('is_agent', '=', True)])
+    child_agent_ids = fields.One2many('res.users', 
+                                     'parent_agent_id',
+                                     string='Child Agents',
+                                     domain=[('is_agent', '=', True)])
+    
+    # Agent configuration
+    agent_config_id = fields.One2many('llm.agent.config', 'user_id', 
+                                     string='Agent Configuration')
     is_agent = fields.Boolean("Is AI Agent", compute="_compute_is_agent", store=True)
+    is_active = fields.Boolean("Active", default=True, groups="base.group_user")
 
     @api.model
     def get_agent_group(self):
-        """Helper method to safely get the agent group.
-        Returns False if the group doesn't exist yet (e.g. during installation)."""
+        """Helper method to safely get the agent group."""
         try:
             group = self.env.ref("llm_agent.group_agent")
             _logger.info("Agent group found: %s (id: %s)", group.name, group.id)
@@ -29,8 +36,7 @@ class ResUsers(models.Model):
             return False
 
     def is_user_agent(self):
-        """Check if the user is an AI agent.
-        Returns False during installation or if group doesn't exist yet."""
+        """Check if the user is an AI agent."""
         if self.env.context.get("module") == "llm_agent":
             _logger.info("Skipping agent check during module installation")
             return False
@@ -47,20 +53,18 @@ class ResUsers(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Override create to set up agents with proper groups, partner, and logo."""
+        """Override create to set up agents with proper groups and partner."""
         for vals in vals_list:
             if vals.get("is_agent") or self.env.context.get("default_is_agent"):
-                # Create partner with email if needed
+                # Create partner if needed
                 if not vals.get("partner_id"):
                     vals["partner_id"] = (
                         self.env["res.partner"]
-                        .create(
-                            {
-                                "name": vals.get("name"),
-                                "email": vals.get("login"),
-                                "type": "other",
-                            }
-                        )
+                        .create({
+                            "name": vals.get("name"),
+                            "email": vals.get("login"),
+                            "type": "other",
+                        })
                         .id
                     )
 
@@ -75,22 +79,36 @@ class ResUsers(models.Model):
                 if groups:
                     vals["groups_id"] = [(6, 0, groups)]
 
-                # Copy publisher logo if available
-                if vals.get("model_id") and not vals.get("image_1920"):
-                    model = self.env["llm.model"].browse(vals["model_id"])
-                    if model.publisher_id.logo:
-                        vals["image_1920"] = model.publisher_id.logo
-
         return super().create(vals_list)
 
-    @api.constrains("is_agent", "model_id")
+    @api.constrains('agent_config_id', 'is_agent')
     def _check_agent_configuration(self):
         for user in self:
-            if user.is_agent and not user.model_id:
-                raise ValidationError(_("AI Agents must have an LLM model configured."))
+            if user.is_agent and not user.agent_config_id:
+                raise ValidationError(_("AI Agents must have a configuration."))
 
-    @api.model
-    def _get_available_user_types(self):
-        """Hide agent type from regular user creation"""
-        types = super()._get_available_user_types()
-        return [t for t in types if t[0] != "agent"]
+    @api.constrains('parent_agent_id', 'child_agent_ids', 'is_agent')
+    def _check_agent_hierarchy(self):
+        for user in self:
+            if user.parent_agent_id and not user.parent_agent_id.is_agent:
+                raise ValidationError(_("Parent must be an AI agent."))
+            if user.parent_agent_id == user:
+                raise ValidationError(_("An agent cannot be its own parent."))
+            if any(child.is_agent == False for child in user.child_agent_ids):
+                raise ValidationError(_("Only AI agents can be added as child agents."))
+
+    def get_all_subordinates(self):
+        """Get all agents reporting to this agent (direct and indirect)"""
+        subordinates = self.child_agent_ids
+        for child in self.child_agent_ids:
+            subordinates |= child.get_all_subordinates()
+        return subordinates
+
+    def get_full_hierarchy_up(self):
+        """Get all parent agents up to the top"""
+        hierarchy = self.env['res.users']
+        current = self
+        while current.parent_agent_id:
+            hierarchy |= current.parent_agent_id
+            current = current.parent_agent_id
+        return hierarchy

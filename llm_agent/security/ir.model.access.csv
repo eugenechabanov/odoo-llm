@@ -3,3 +3,5 @@ access_res_users_agent_manager,res.users agent manager,base.model_res_users,llm_
 access_res_users_agent,res.users agent,base.model_res_users,llm_agent.group_agent,1,0,0,0
 access_llm_model_agent,llm.model agent,llm.model_llm_model,llm_agent.group_agent,1,0,0,0
 access_llm_model_agent_manager,llm.model agent manager,llm.model_llm_model,llm_agent.group_agent_manager,1,1,1,1
+access_llm_agent_config_user,llm.agent.config.user,model_llm_agent_config,base.group_user,1,0,0,0
+access_llm_agent_config_admin,llm.agent.config.admin,model_llm_agent_config,base.group_system,1,1,1,1
