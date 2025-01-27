@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form View -->
+    <record id="view_create_agent_wizard_form" model="ir.ui.view">
+        <field name="name">create.agent.wizard.form</field>
+        <field name="model">create.agent.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Create Agent">
+                <sheet>
+                    <group>
+                        <group string="User Information">
+                            <field name="name" placeholder="e.g. Project Manager"/>
+                            <field name="login" placeholder="e.g. pm@example.com"/>
+                            <field name="parent_agent_id"/>
+                        </group>
+                        <group string="Configuration">
+                            <field name="use_existing_config"/>
+                            <field name="existing_config_id" 
+                                   attrs="{'invisible': [('use_existing_config', '=', False)],
+                                          'required': [('use_existing_config', '=', True)]}"/>
+                        </group>
+                    </group>
+                    <group string="New Configuration" 
+                           attrs="{'invisible': [('use_existing_config', '=', True)]}">
+                        <group>
+                            <field name="model_id" 
+                                   attrs="{'required': [('use_existing_config', '=', False)]}"/>
+                            <field name="role" placeholder="e.g. Project Manager"
+                                   attrs="{'required': [('use_existing_config', '=', False)]}"/>
+                        </group>
+                        <group>
+                            <field name="goal" placeholder="The agent's primary objective..."
+                                   attrs="{'required': [('use_existing_config', '=', False)]}"/>
+                            <field name="backstory" placeholder="Optional background story..."/>
+                        </group>
+                        <field name="system_prompt" placeholder="Detailed instructions for the agent..."
+                               attrs="{'required': [('use_existing_config', '=', False)]}"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Create Agent" 
+                            name="action_create_agent" 
+                            type="object" 
+                            class="btn-primary" 
+                            data-hotkey="q"/>
+                    <button string="Cancel" 
+                            class="btn-secondary" 
+                            special="cancel" 
+                            data-hotkey="z"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_create_agent_wizard" model="ir.actions.act_window">
+        <field name="name">Create Agent</field>
+        <field name="res_model">create.agent.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="view_create_agent_wizard_form"/>
+    </record>
+
+    <!-- Menu Action -->
+    <record id="action_menu_create_agent_wizard" model="ir.actions.act_window">
+        <field name="name">Create Agent</field>
+        <field name="res_model">create.agent.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="view_id" ref="view_create_agent_wizard_form"/>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="menu_create_agent_wizard"
+              name="Create New Agent"
+              parent="llm.menu_llm_root"
+              action="action_menu_create_agent_wizard"
+              sequence="10"/>
+</odoo>

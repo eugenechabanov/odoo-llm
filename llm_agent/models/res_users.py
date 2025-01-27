@@ -83,7 +83,12 @@ class ResUsers(models.Model):
 
     @api.constrains('agent_config_id', 'is_agent')
     def _check_agent_configuration(self):
+        """Ensure agents have configuration"""
         for user in self:
+            # Skip validation during wizard creation
+            if self.env.context.get('creating_agent_from_wizard'):
+                continue
+                
             if user.is_agent and not user.agent_config_id:
                 raise ValidationError(_("AI Agents must have a configuration."))
 

@@ -17,6 +17,7 @@
         "security/ir.model.access.csv",
         "views/agent_views.xml",
         "views/llm_agent_config_views.xml",
+        "views/create_agent_wizard_views.xml",
     ],
     "installable": True,
     "application": False,
