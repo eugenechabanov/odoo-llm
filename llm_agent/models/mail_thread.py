@@ -131,7 +131,7 @@ class MailThread(models.AbstractModel):
             yield {"error": str(e)}
 
     def _process_agent_response(self, agent, message, msg_vals):
-        """Process agent response using direct response flow."""
+        """Process agent response using task system."""
         try:
             _logger.info("Processing agent response for agent %s", agent.name)
             
@@ -140,29 +140,46 @@ class MailThread(models.AbstractModel):
             if error:
                 raise ValidationError(error)
 
-            # Generate and accumulate response
-            accumulated_content = ""
-            for response in self.generate_ai_response(agent, message, msg_vals):
-                if response.get("error"):
-                    raise ValidationError(response["error"])
-                    
-                content = response.get("content", "")
-                if content:
-                    _logger.info("Received content chunk of length: %d", len(content))
-                    accumulated_content += content
-
-            # Post accumulated response
-            if accumulated_content:
-                _logger.info("Posting AI response of length: %d", len(accumulated_content))
+            # Create and execute task
+            task = self.env['llm.agent.task'].create({
+                'name': f"Response to message in {self._description}",
+                'description': self._clean_message_content(msg_vals.get('body', '')),
+                'agent_id': agent.id,
+                'expected_output': "Provide a helpful response to the user's message",
+                'output_format': 'raw',
+                'state': 'pending',
+                'input': msg_vals.get('body', ''),
+                'prompt_context': f"""This task was created in response to a message in {self._description}.
+                Model: {self._name}
+                Record ID: {self.id if hasattr(self, 'id') else 'N/A'}
+                Message ID: {message.id}
+                """,
+                'conversation_history': self._prepare_chat_messages(agent, message, msg_vals),
+                'message_id': message.id,
+            })
+            
+            # Execute task synchronously
+            task.action_start()
+            
+            if task.state == 'failed':
+                error_msg = _("Task execution failed for agent %s") % agent.name
+                if task.error:
+                    error_msg += f": {task.error}"
+                raise ValidationError(error_msg)
+            
+            # Post the response
+            if task.state == 'done' and task.output:
                 self.with_context(
                     mail_create_nosubscribe=True
                 )._post_ai_response(
-                    content=accumulated_content,
+                    content=task.output,
                     author=agent,
                     parent_id=message.id,
                 )
             else:
-                _logger.warning("No content accumulated for agent %s", agent.name)
+                _logger.warning("Task state is not 'done' or 'failed': %s", task.state)
+                _logger.info("Task output: %s", task.output)
+                raise ValidationError(_("Task completed but no output was generated for agent %s") % agent.name)
 
         except Exception as e:
             _logger.exception("Failed to process agent response for agent %s", agent.name)
