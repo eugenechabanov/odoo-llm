@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tree View -->
+    <record id="view_llm_agent_task_tree" model="ir.ui.view">
+        <field name="name">llm.agent.task.tree</field>
+        <field name="model">llm.agent.task</field>
+        <field name="arch" type="xml">
+            <tree string="LLM Agent Tasks" decoration-info="state == 'pending'" decoration-success="state == 'done'" decoration-danger="state == 'failed'">
+                <field name="name"/>
+                <field name="agent_id"/>
+                <field name="user_id"/>
+                <field name="state"/>
+                <field name="create_date"/>
+                <field name="write_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_llm_agent_task_form" model="ir.ui.view">
+        <field name="name">llm.agent.task.form</field>
+        <field name="model">llm.agent.task</field>
+        <field name="arch" type="xml">
+            <form string="LLM Agent Task">
+                <header>
+                    <button name="action_start" type="object" string="Start" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'pending')]}"/>
+                    <button name="action_retry" type="object" string="Retry" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'failed')]}"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,running,done,failed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Task Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="agent_id"/>
+                            <field name="user_id"/>
+                            <field name="message_id"/>
+                        </group>
+                        <group>
+                            <field name="create_date"/>
+                            <field name="write_date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Input">
+                            <field name="input" widget="text"/>
+                        </page>
+                        <page string="Output">
+                            <field name="output" widget="text"/>
+                        </page>
+                        <page string="Error" attrs="{'invisible': [('error', '=', False)]}">
+                            <field name="error" widget="text"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_llm_agent_task_search" model="ir.ui.view">
+        <field name="name">llm.agent.task.search</field>
+        <field name="model">llm.agent.task</field>
+        <field name="arch" type="xml">
+            <search string="Search LLM Agent Tasks">
+                <field name="name"/>
+                <field name="agent_id"/>
+                <field name="user_id"/>
+                <field name="state"/>
+                <filter string="Pending" name="pending" domain="[('state', '=', 'pending')]"/>
+                <filter string="Running" name="running" domain="[('state', '=', 'running')]"/>
+                <filter string="Done" name="done" domain="[('state', '=', 'done')]"/>
+                <filter string="Failed" name="failed" domain="[('state', '=', 'failed')]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Agent" name="group_by_agent" context="{'group_by': 'agent_id'}"/>
+                    <filter string="User" name="group_by_user" context="{'group_by': 'user_id'}"/>
+                    <filter string="State" name="group_by_state" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_llm_agent_task" model="ir.actions.act_window">
+        <field name="name">LLM Agent Tasks</field>
+        <field name="res_model">llm.agent.task</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{'search_default_pending': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No tasks found!
+            </p>
+            <p>
+                Tasks will be created when users mention LLM agents in chat messages.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Items -->
+    <menuitem id="menu_llm_agent_root" 
+              name="LLM Agents" 
+              sequence="100" 
+              web_icon="llm_agent,static/description/icon.png"/>
+
+    <menuitem id="menu_llm_agent_task" 
+              name="Tasks" 
+              parent="menu_llm_agent_root" 
+              action="action_llm_agent_task" 
+              sequence="20"/>
+</odoo>

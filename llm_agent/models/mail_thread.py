@@ -3,9 +3,8 @@ import re
 
 import markdown2
 
-from odoo import models
-from odoo.tools import html2plaintext
-from odoo.exceptions import ValidationError
+from odoo import models, api, tools, _
+from odoo.exceptions import ValidationError, UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -13,82 +12,156 @@ _logger = logging.getLogger(__name__)
 class MailThread(models.AbstractModel):
     _inherit = "mail.thread"
 
+    @api.returns('mail.message', lambda value: value.id)
+    def message_post(self, **kwargs):
+        return super(MailThread, self).message_post(**kwargs)
+
     def _message_post_after_hook(self, message, msg_vals):
-        """Handle AI agent responses to messages."""
+        """Handle AI agent responses to messages and LLM agent mentions."""
         res = super()._message_post_after_hook(message, msg_vals)
 
-        # Skip if we're installing the module
-        if self.env.context.get("module") == "llm_agent":
-            return res
+        try:
+            # Skip if we're installing the module
+            if self.env.context.get("module") == "llm_agent":
+                return res
 
-        # Skip if message is from an agent (to avoid loops)
-        author = message.author_id.user_ids[:1]
-        if author.is_user_agent():
-            return res
+            # Skip if message is from an agent (to avoid loops)
+            author = message.author_id.user_ids[:1]
+            if author.is_user_agent():
+                return res
 
-        # Find mentioned agents
-        mentioned_partners = message.partner_ids
-        mentioned_agents = (
-            self.env["res.users"]
-            .search(
-                [("partner_id", "in", mentioned_partners.ids), ("is_active", "=", True)]
+            # Find mentioned agents
+            mentioned_partners = message.partner_ids
+            mentioned_agents = (
+                self.env["res.users"]
+                .search(
+                    [("partner_id", "in", mentioned_partners.ids), ("is_active", "=", True)]
+                )
+                .filtered(lambda u: u.is_user_agent())
             )
-            .filtered(lambda u: u.is_user_agent())
-        )
 
-        # Also check for private chat with agent
-        if (
-            not mentioned_agents
-            and self._name == "mail.channel"
-            and self.channel_type == "chat"
-        ):
-            if len(self.channel_partner_ids) == 2:
-                other_partner = self.channel_partner_ids - message.author_id
-                other_user = self.env["res.users"].search(
-                    [("partner_id", "=", other_partner.id), ("is_active", "=", True)],
-                    limit=1,
-                )
-                if other_user and other_user.is_user_agent():
-                    mentioned_agents = other_user
+            # Also check for private chat with agent
+            if (
+                not mentioned_agents
+                and self._name == "mail.channel"
+                and self.channel_type == "chat"
+            ):
+                if len(self.channel_partner_ids) == 2:
+                    other_partner = self.channel_partner_ids - message.author_id
+                    other_user = self.env["res.users"].search(
+                        [("partner_id", "=", other_partner.id), ("is_active", "=", True)],
+                        limit=1,
+                    )
+                    if other_user and other_user.is_user_agent():
+                        mentioned_agents = other_user
 
-        # Generate AI response for each mentioned agent
-        for agent in mentioned_agents:
-            agent_config = agent.agent_config_id
-            if not agent_config:
-                _logger.warning("Agent %s has no configuration, skipping response", agent.name)
-                continue
-                
-            if agent_config.model_id:  # Only respond if agent has a model configured
-                try:
-                    # Get AI response (non-streaming for hook)
-                    accumulated_content = ""
-                    for response in self.generate_ai_response(agent, message, msg_vals):
-                        if response.get("error"):
-                            _logger.error(
-                                "Error getting AI response: %s", response["error"]
+            # Generate AI response for each mentioned agent
+            for agent in mentioned_agents:
+                agent_config = agent.agent_config_id
+                if not agent_config:
+                    _logger.warning("Agent %s has no configuration, skipping response", agent.name)
+                    continue
+                    
+                if agent_config.model_id:  # Only respond if agent has a model configured
+                    try:
+                        # Get AI response (non-streaming for hook)
+                        accumulated_content = ""
+                        for response in self.generate_ai_response(agent, message, msg_vals):
+                            if response.get("error"):
+                                _logger.error(
+                                    "Error getting AI response: %s", response["error"]
+                                )
+                                break
+
+                            content = response.get("content", "")
+                            if content:
+                                accumulated_content += content
+
+                        # Post accumulated response
+                        if accumulated_content:
+                            self.with_context(
+                                mail_create_nosubscribe=True
+                            )._post_ai_response(
+                                content=accumulated_content,
+                                author=agent,
+                                parent_id=message.id,
                             )
-                            break
 
-                        content = response.get("content", "")
-                        if content:
-                            accumulated_content += content
+                    except Exception:
+                        _logger.exception("Failed to generate AI response")
+                else:
+                    _logger.warning(
+                        "Agent %s has no model configured in their configuration, skipping response", agent.name
+                    )
 
-                    # Post accumulated response
-                    if accumulated_content:
-                        self.with_context(
-                            mail_create_nosubscribe=True
-                        )._post_ai_response(
-                            content=accumulated_content,
-                            author=agent,
-                            parent_id=message.id,
-                        )
-
-                except Exception:
-                    _logger.exception("Failed to generate AI response")
-            else:
-                _logger.warning(
-                    "Agent %s has no model configured in their configuration, skipping response", agent.name
-                )
+            # Check for LLM agent mentions
+            if msg_vals.get('partner_ids'):
+                mentioned_partners = self.env['res.partner'].browse(msg_vals['partner_ids'])
+                mentioned_users = self.env['res.users'].search([
+                    ('partner_id', 'in', mentioned_partners.ids),
+                    ('is_llm_agent', '=', True)
+                ])
+                
+                if mentioned_users:
+                    # Get the message content without HTML tags
+                    body = tools.html2plaintext(msg_vals['body'])
+                    
+                    # Create and execute task for each mentioned agent
+                    for agent in mentioned_users:
+                        try:
+                            # Create task
+                            task = self.env['llm.agent.task'].create({
+                                'name': f"Response to mention in {self._description}",
+                                'description': body,
+                                'agent_id': agent.id,
+                                'expected_output': "Provide a helpful response to the user's message",
+                                'output_format': 'raw',
+                                'state': 'pending',
+                                'prompt_context': f"""This task was created in response to a mention in a {self._description}.
+                                Model: {self._name}
+                                Record ID: {self.id}
+                                Message ID: {message.id}
+                                """,
+                                'conversation_history': f"Original message: {body}"
+                            })
+                            
+                            # Execute task synchronously
+                            task.action_start()
+                            
+                            if task.state == 'failed':
+                                error_msg = _("Task execution failed for agent %s") % agent.name
+                                if task.output_raw:
+                                    error_msg += f": {task.output_raw}"
+                                raise UserError(error_msg)
+                            
+                            # Post the response
+                            if task.state == 'completed' and task.output_raw:
+                                self.message_post(
+                                    body=task.output_raw,
+                                    message_type='comment',
+                                    subtype_xmlid='mail.mt_comment',
+                                    author_id=agent.partner_id.id
+                                )
+                            else:
+                                raise UserError(_("Task completed but no output was generated for agent %s") % agent.name)
+                                
+                        except Exception as e:
+                            # Log the error and notify in the thread
+                            _logger.error("Error processing LLM agent task: %s", str(e))
+                            self.message_post(
+                                body=_("Error processing request for agent %s: %s") % (agent.name, str(e)),
+                                message_type='comment',
+                                subtype_xmlid='mail.mt_comment'
+                            )
+                            
+        except Exception as e:
+            # Log any unexpected errors
+            _logger.error("Unexpected error in _message_post_after_hook: %s", str(e))
+            self.message_post(
+                body=_("An unexpected error occurred while processing the LLM agent mention: %s") % str(e),
+                message_type='comment',
+                subtype_xmlid='mail.mt_comment'
+            )
 
         return res
 
@@ -142,7 +215,7 @@ class MailThread(models.AbstractModel):
             return ""
 
         # Convert HTML to plain text using Odoo's built-in function
-        text = html2plaintext(str(content))
+        text = tools.html2plaintext(str(content))
         # Clean up any remaining markup artifacts
         text = text.replace("Markup(", "").replace(")", "")
         return text.strip()

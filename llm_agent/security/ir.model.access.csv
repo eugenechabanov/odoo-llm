@@ -1,8 +1,11 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_res_users_agent_manager,res.users agent manager,base.model_res_users,llm_agent.group_agent_manager,1,1,1,1
-access_res_users_agent,res.users agent,base.model_res_users,llm_agent.group_agent,1,0,0,0
-access_llm_model_agent,llm.model agent,llm.model_llm_model,llm_agent.group_agent,1,0,0,0
-access_llm_model_agent_manager,llm.model agent manager,llm.model_llm_model,llm_agent.group_agent_manager,1,1,1,1
+access_res_users_agent_manager,res.users agent manager,base.model_res_users,llm_agent.group_llm_agent_manager,1,1,1,1
+access_res_users_agent,res.users agent,base.model_res_users,llm_agent.group_llm_agent,1,0,0,0
+access_llm_model_agent,llm.model agent,llm.model_llm_model,llm_agent.group_llm_agent,1,0,0,0
+access_llm_model_agent_manager,llm.model agent manager,llm.model_llm_model,llm_agent.group_llm_agent_manager,1,1,1,1
 access_llm_agent_config_user,llm.agent.config.user,model_llm_agent_config,base.group_user,1,1,1,1
 access_llm_agent_config_admin,llm.agent.config.admin,model_llm_agent_config,base.group_system,1,1,1,1
 access_create_agent_wizard_user,create.agent.wizard.user,model_create_agent_wizard,base.group_user,1,1,1,1
+access_llm_agent_task_agent,llm.agent.task.agent,model_llm_agent_task,llm_agent.group_llm_agent,1,1,1,1
+access_llm_agent_task_user,llm.agent.task.user,model_llm_agent_task,base.group_user,1,0,0,0
+access_llm_agent_task_manager,llm.agent.task.manager,model_llm_agent_task,llm_agent.group_llm_agent_manager,1,1,1,1
