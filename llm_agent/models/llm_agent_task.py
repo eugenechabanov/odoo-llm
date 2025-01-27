@@ -293,9 +293,6 @@ class LLMAgentTask(models.Model):
         """Core task execution logic"""
         self.ensure_one()
         try:
-            # Get agent's LLM configuration
-            llm_config = self.agent_id.llm_agent_config_id
-
             # Prepare context
             context = self._prepare_context()
 
@@ -305,15 +302,16 @@ class LLMAgentTask(models.Model):
                 context=context,
                 tools=self.allowed_tool_ids,
             )
+            if not result:
+                raise ValidationError(_("No output generated from agent"))
 
-            # Process output based on format
-            self._process_output(result)
-
+            # Store output and update state atomically
             self.write({
+                'output': result,
+                'output_raw': result,
                 'state': 'done',
                 'end_time': fields.Datetime.now()
             })
-
             return result
 
         except Exception as e:

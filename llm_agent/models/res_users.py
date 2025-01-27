@@ -156,10 +156,10 @@ class ResUsers(models.Model):
             raise ValidationError(_("Agent has no configuration"))
             
         # Generate response using mail_thread's generate_ai_response
+        content_chunks = []
         for response in task._message_generate_ai_response(self, None, {'body': task.input}):
             if 'error' in response:
                 raise ValidationError(response['error'])
             if 'content' in response:
-                return response['content']
-                
-        return ''
+                content_chunks.append(response['content'])
+        return ''.join(content_chunks) if content_chunks else ''

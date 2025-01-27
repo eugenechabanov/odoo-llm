@@ -110,70 +110,6 @@ class MailThread(models.AbstractModel):
                         "Agent %s has no model configured in their configuration, skipping response", agent.name
                     )
 
-            # Check for LLM agent mentions
-            if msg_vals.get('partner_ids'):
-                _logger.info("Checking LLM agent mentions in partner_ids")
-                mentioned_partners = self.env['res.partner'].browse(msg_vals['partner_ids'])
-                mentioned_users = self.env['res.users'].search([
-                    ('partner_id', 'in', mentioned_partners.ids),
-                    ('is_agent', '=', True)
-                ])
-                _logger.info("Found mentioned LLM agents: %s", mentioned_users.mapped('name'))
-                
-                if mentioned_users:
-                    # Get the message content without HTML tags
-                    body = tools.html2plaintext(msg_vals['body'])
-                    
-                    # Create and execute task for each mentioned agent
-                    for agent in mentioned_users:
-                        try:
-                            # Create task
-                            task = self.env['llm.agent.task'].create({
-                                'name': f"Response to mention in {self._description}",
-                                'description': body,
-                                'agent_id': agent.id,
-                                'expected_output': "Provide a helpful response to the user's message",
-                                'output_format': 'raw',
-                                'state': 'pending',
-                                'input': body,  # Using the same body as input
-                                'prompt_context': f"""This task was created in response to a mention in a {self._description}.
-                                Model: {self._name}
-                                Record ID: {self.id}
-                                Message ID: {message.id}
-                                """,
-                                'conversation_history': f"Original message: {body}"
-                            })
-                            
-                            # Execute task synchronously
-                            task.action_start()
-                            
-                            if task.state == 'failed':
-                                error_msg = _("Task execution failed for agent %s") % agent.name
-                                if task.output_raw:
-                                    error_msg += f": {task.output_raw}"
-                                raise UserError(error_msg)
-                            
-                            # Post the response
-                            if task.state == 'completed' and task.output_raw:
-                                self.message_post(
-                                    body=task.output_raw,
-                                    message_type='comment',
-                                    subtype_xmlid='mail.mt_comment',
-                                    author_id=agent.partner_id.id
-                                )
-                            else:
-                                raise UserError(_("Task completed but no output was generated for agent %s") % agent.name)
-                                
-                        except Exception as e:
-                            # Log the error and notify in the thread
-                            _logger.error("Error processing LLM agent task: %s", str(e))
-                            self.message_post(
-                                body=_("Error processing request for agent %s: %s") % (agent.name, str(e)),
-                                message_type='comment',
-                                subtype_xmlid='mail.mt_comment',
-                                author_id=agent.partner_id.id
-                            )
-                            
         except Exception as e:
             # Log any unexpected errors
             _logger.error("Unexpected error in _message_post_after_hook: %s", str(e))
@@ -198,23 +134,17 @@ class MailThread(models.AbstractModel):
         return "assistant" if message_author == agent else "user"
 
     def _get_message_history_domain(self, agent, message=None):
-        """Get domain for fetching message history.
-
-        Args:
-            agent (res.users): The AI agent user
-            message (mail.message): Optional message to get thread info from
-
-        Returns:
-            list: Domain for message search
-        """
         if message:
             # If we have a message, get history from its thread
             domain = [("model", "=", message.model), ("res_id", "=", message.res_id)]
-        else:
-            # Otherwise get from current record's thread
+        elif hasattr(self, 'id') and self.id:
+            # Get from current record's thread if it exists
             domain = [("model", "=", self._name), ("res_id", "=", self.id)]
+        else:
+            # Return empty domain if no valid thread context
+            domain = [("id", "=", False)]  # Will return no messages
 
-        if self._name == "mail.channel":
+        if self._name == "mail.channel" and hasattr(self, 'id') and self.id:
             # For channels, only include messages after the agent joined
             membership = self.env["mail.channel.member"].search(
                 [
@@ -374,3 +304,43 @@ class MailThread(models.AbstractModel):
             parent_id=parent_id,
             partner_ids=[],  # No additional notifications
         )
+
+    def _process_agent_response(self, agent, message, msg_vals):
+        """Process agent response using the same direct response flow."""
+        try:
+            _logger.info("Processing agent response for agent %s", agent.name)
+            agent_config = agent.agent_config_id
+            if not agent_config or not agent_config.model_id:
+                _logger.error("Agent %s has no model configured", agent.name)
+                return {"error": f"Agent {agent.name} has no model configured"}
+
+            _logger.info("Using model %s for response generation", agent_config.model_id.name)
+            messages = self._prepare_chat_messages(agent, message, msg_vals)
+            _logger.info("Prepared %d messages for chat completion", len(messages))
+            response_generator = agent_config.model_id.chat(messages=messages)
+            _logger.info("Successfully initiated chat completion")
+            
+            accumulated_content = ""
+            for response in response_generator:
+                _logger.debug("Received response chunk: %s", response)
+                content = response.get("content", "")
+                if content:
+                    _logger.info("Received content chunk of length: %d", len(content))
+                    accumulated_content += content
+
+            # Post accumulated response
+            if accumulated_content:
+                _logger.info("Posting AI response of length: %d", len(accumulated_content))
+                self.with_context(
+                    mail_create_nosubscribe=True
+                )._post_ai_response(
+                    content=accumulated_content,
+                    author=agent,
+                    parent_id=message.id,
+                )
+            else:
+                _logger.warning("No content accumulated for agent %s", agent.name)
+
+        except Exception as e:
+            _logger.exception("Failed to process agent response for agent %s", agent.name)
+            raise e
