@@ -5,7 +5,11 @@
         <field name="name">llm.agent.task.tree</field>
         <field name="model">llm.agent.task</field>
         <field name="arch" type="xml">
-            <tree string="LLM Agent Tasks" decoration-info="state == 'pending'" decoration-success="state == 'done'" decoration-danger="state == 'failed'">
+            <tree string="LLM Agent Tasks" 
+                  decoration-info="state == 'pending'" 
+                  decoration-muted="state == 'running'"
+                  decoration-success="state == 'done'" 
+                  decoration-danger="state == 'failed'">
                 <field name="name"/>
                 <field name="agent_id"/>
                 <field name="user_id"/>
@@ -22,8 +26,16 @@
         <field name="arch" type="xml">
             <form string="LLM Agent Task">
                 <header>
-                    <button name="action_start" type="object" string="Start" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'pending')]}"/>
-                    <button name="action_retry" type="object" string="Retry" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'failed')]}"/>
+                    <button name="action_start" 
+                            string="Start" 
+                            type="object" 
+                            class="oe_highlight"
+                            attrs="{'invisible': [('state', '!=', 'pending')]}"/>
+                    <button name="action_retry" 
+                            string="Retry" 
+                            type="object" 
+                            class="oe_highlight"
+                            attrs="{'invisible': [('state', '!=', 'failed')]}"/>
                     <field name="state" widget="statusbar" statusbar_visible="pending,running,done,failed"/>
                 </header>
                 <sheet>
@@ -45,13 +57,13 @@
                     </group>
                     <notebook>
                         <page string="Input">
-                            <field name="input" widget="text"/>
+                            <field name="input" widget="text" placeholder="Input prompt or request for the LLM agent"/>
                         </page>
-                        <page string="Output">
-                            <field name="output" widget="text"/>
+                        <page string="Output" attrs="{'invisible': [('output', '=', False)]}">
+                            <field name="output" widget="text" readonly="1"/>
                         </page>
                         <page string="Error" attrs="{'invisible': [('error', '=', False)]}">
-                            <field name="error" widget="text"/>
+                            <field name="error" widget="text" readonly="1"/>
                         </page>
                     </notebook>
                 </sheet>

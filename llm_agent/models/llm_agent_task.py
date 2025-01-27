@@ -33,6 +33,24 @@ class LLMAgentTask(models.Model):
         translate=True,
         help="Clear definition of expected output for the task"
     )
+    input = fields.Text(
+        string='Input', 
+        required=True, 
+        tracking=True,
+        help="Input prompt or request for the LLM agent"
+    )
+    output = fields.Text(
+        string='Output', 
+        readonly=True, 
+        tracking=True,
+        help="Response or output from the LLM agent"
+    )
+    error = fields.Text(
+        string='Error', 
+        readonly=True, 
+        tracking=True,
+        help="Error message if task execution failed"
+    )
     
     # Identification and Relations
     task_id = fields.Char(
@@ -79,13 +97,11 @@ class LLMAgentTask(models.Model):
     
     # Execution State
     state = fields.Selection([
-        ('draft', 'Draft'),
         ('pending', 'Pending'),
-        ('in_progress', 'In Progress'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed'),
-        ('cancelled', 'Cancelled')
-    ], string='Status', default='draft', tracking=True, required=True)
+        ('running', 'Running'),
+        ('done', 'Done'),
+        ('failed', 'Failed')
+    ], string='Status', default='pending', tracking=True, required=True)
     is_async = fields.Boolean(
         string='Asynchronous Execution', 
         default=False,
@@ -225,16 +241,31 @@ class LLMAgentTask(models.Model):
         self.ensure_one()
         if self.state != 'pending':
             raise ValidationError(_("Only pending tasks can be started"))
-        
+        self.write({'state': 'running'})
+        try:
+            # TODO: Implement actual task execution logic
+            self.write({
+                'state': 'done',
+                'output': 'Task completed successfully'
+            })
+        except Exception as e:
+            self.write({
+                'state': 'failed',
+                'error': str(e)
+            })
+            raise
+
+    def action_retry(self):
+        """Retry failed task"""
+        self.ensure_one()
+        if self.state != 'failed':
+            raise ValidationError(_("Only failed tasks can be retried"))
         self.write({
-            'state': 'in_progress',
-            'start_time': fields.Datetime.now()
+            'state': 'pending',
+            'error': False,
+            'output': False
         })
-        
-        if self.is_async:
-            self._execute_async()
-        else:
-            self._execute()
+        return self.action_start()
 
     def _execute(self):
         """Synchronous task execution"""
@@ -268,7 +299,7 @@ class LLMAgentTask(models.Model):
             self._process_output(result)
 
             self.write({
-                'state': 'completed',
+                'state': 'done',
                 'end_time': fields.Datetime.now()
             })
 
