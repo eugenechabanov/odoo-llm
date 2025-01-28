@@ -51,6 +51,12 @@ class LLMAgentTask(models.Model):
         tracking=True,
         help="Error message if task execution failed"
     )
+    message_id = fields.Many2one(
+        'mail.message',
+        string='Original Message',
+        help="Reference to the original message that triggered this task",
+        readonly=True,  # Can be set during creation but not modified afterwards
+    )
     
     # Identification and Relations
     task_id = fields.Char(
@@ -219,11 +225,6 @@ class LLMAgentTask(models.Model):
         string='Requested By',  
         default=lambda self: self.env.user,
         tracking=True
-    )
-    message_id = fields.Many2one(
-        'mail.message', 
-        string='Source Message', 
-        readonly=True
     )
     
     @api.depends('start_time', 'end_time')

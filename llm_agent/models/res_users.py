@@ -157,7 +157,7 @@ class ResUsers(models.Model):
             
         # Generate response using mail_thread's generate_ai_response
         content_chunks = []
-        for response in task._message_generate_ai_response(self, None, {'body': task.input}):
+        for response in task._message_generate_ai_response(self, task.message_id, {'body': task.input}):
             if 'error' in response:
                 raise ValidationError(response['error'])
             if 'content' in response:

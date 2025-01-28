@@ -155,7 +155,7 @@ class MailThread(models.AbstractModel):
                 Message ID: {message.id}
                 """,
                 'conversation_history': self._prepare_chat_messages(agent, message, msg_vals),
-                'message_id': message.id,
+                'message_id': message.id if message else None,
             })
             
             # Execute task synchronously
