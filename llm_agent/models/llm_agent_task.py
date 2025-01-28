@@ -195,6 +195,26 @@ class LLMAgentTask(models.Model):
         help="Original output file path before variable interpolation"
     )
     
+    # Memory integration
+    short_term_memory_ids = fields.One2many('llm.memory.short_term', 'task_id', string='Short Term Memories')
+    memory_context = fields.Text(compute='_compute_memory_context', store=False)
+
+    @api.depends('description', 'input')
+    def _compute_memory_context(self):
+        """Compute memory context for the task"""
+        for record in self:
+            record.memory_context = self.env['llm.memory.contextual'].build_context_for_task(record.id)
+
+    def _save_task_result(self):
+        """Save task result to memory"""
+        self.ensure_one()
+        if self.output:
+            self.env['llm.memory.contextual'].save_task_result(
+                self.id,
+                self.output,
+                quality_score=0.5  # Default score, can be adjusted based on feedback
+            )
+    
     # Technical Fields
     processed_by_agents = fields.Json(
         string='Processed By Agents', 
