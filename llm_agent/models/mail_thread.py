@@ -34,6 +34,15 @@ class MailThread(models.AbstractModel):
                 _logger.info("Skipping hook - message is from an agent")
                 return res
 
+            # Detect and save user preferences
+            contextual_memory = self.env['llm.memory.contextual']
+            message_data = {
+                'body': message.body,
+                'subject': message.subject,
+                'email_from': message.email_from,
+            }
+            contextual_memory.detect_and_save_preferences('message', message_data, author)
+
             # Find mentioned agents
             mentioned_partners = message.partner_ids
             _logger.info("Mentioned partners: %s", mentioned_partners.mapped('name'))

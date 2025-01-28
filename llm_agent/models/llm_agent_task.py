@@ -253,6 +253,16 @@ class LLMAgentTask(models.Model):
     def action_start(self):
         """Start task execution"""
         self.ensure_one()
+        
+        # Detect and save user preferences from task
+        contextual_memory = self.env['llm.memory.contextual']
+        task_data = {
+            'name': self.name,
+            'description': self.description,
+            'expected_output': self.expected_output,
+        }
+        contextual_memory.detect_and_save_preferences('task', task_data, self.create_uid)
+        
         if self.state != 'pending':
             raise ValidationError(_("Only pending tasks can be started"))
             

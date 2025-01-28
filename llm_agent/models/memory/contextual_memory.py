@@ -85,3 +85,85 @@ class LLMContextualMemory(models.AbstractModel):
                 quality=quality_score,
                 metadata={'task_id': task_id}
             )
+
+    @api.model
+    def detect_and_save_preferences(self, source_type, data, user):
+        """Centralized method to detect and save user preferences from various sources.
+        
+        Args:
+            source_type: Type of source ('message', 'task', 'profile_update')
+            data: Data to analyze (e.g., message body, task details)
+            user: res.users record
+        """
+        if not user:
+            return
+
+        um = self.env['llm.memory.user']
+        preferences = []
+
+        if source_type == 'message':
+            # Detect preferences from message content
+            msg_body = data.get('body', '')
+            msg_length = len(msg_body)
+
+            # Communication style preference
+            if msg_length > 500:
+                preferences.append({
+                    'value': "User prefers detailed communication",
+                    'category': 'communication_style'
+                })
+            elif msg_length < 100:
+                preferences.append({
+                    'value': "User prefers concise communication",
+                    'category': 'communication_style'
+                })
+
+            # Technical expertise
+            technical_terms = ['code', 'function', 'class', 'method', 'api']
+            if any(term in msg_body.lower() for term in technical_terms):
+                preferences.append({
+                    'value': "User demonstrates technical knowledge in their communication",
+                    'category': 'expertise'
+                })
+
+        elif source_type == 'task':
+            # Detect preferences from task details
+            task_name = data.get('name', '')
+            task_description = data.get('description', '')
+            expected_output = data.get('expected_output', '')
+
+            # Domain expertise
+            preferences.append({
+                'value': f"User works with tasks related to: {task_name}",
+                'category': 'domain_expertise'
+            })
+
+            # Output preference
+            if expected_output:
+                preferences.append({
+                    'value': f"User expects outputs in format: {expected_output}",
+                    'category': 'output_preference'
+                })
+
+        elif source_type == 'profile_update':
+            # Save preferences from profile updates
+            if data.get('lang'):
+                preferences.append({
+                    'value': f"User prefers language: {data['lang']}",
+                    'category': 'language'
+                })
+            if data.get('tz'):
+                preferences.append({
+                    'value': f"User is in timezone: {data['tz']}",
+                    'category': 'timezone'
+                })
+
+        # Save detected preferences
+        for pref in preferences:
+            um.save(
+                pref['value'],
+                user.id,
+                metadata={'category': pref['category']}
+            )
+
+        return preferences
