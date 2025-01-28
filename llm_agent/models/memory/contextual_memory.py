@@ -5,8 +5,15 @@ class LLMContextualMemory(models.AbstractModel):
     _description = 'Contextual Memory Manager'
     
     @api.model
-    def build_context_for_task(self, task_id, context=""):
-        """Build context for a task using various memory sources"""
+    def build_context_for_task(self, task_id, context="", user=None, message_content=None):
+        """Build context for a task using various memory sources
+        
+        Args:
+            task_id: ID of the task to build context for
+            context: Additional context string to include in the search
+            user: res.users record for user-specific context
+            message_content: Optional message content to search for relevant memories
+        """
         task = self.env['llm.agent.task'].browse(task_id)
         query = f"{task.description} {context}".strip()
         
@@ -35,14 +42,24 @@ class LLMContextualMemory(models.AbstractModel):
             for mem in stm_results:
                 context_parts.append(f"- {mem.data}")
         
-        # Get user preferences if available
-        if task.create_uid:
+        # Get user-related context if a user is provided
+        if user:
             um = self.env['llm.memory.user']
-            user_prefs = um.get_user_preferences(task.create_uid.id)
+            
+            # Get user preferences using search_memory
+            user_prefs = um.search_memory("user preference", limit=5)
             if user_prefs:
                 context_parts.append("\nUser preferences:")
                 for pref in user_prefs:
-                    context_parts.append(f"- {pref.preference_type}: {pref.data}")
+                    context_parts.append(f"- {pref.data}")
+            
+            # Get message-specific memories if message content is provided
+            if message_content:
+                context_memories = um.search_memory(message_content, limit=3)
+                if context_memories:
+                    context_parts.append("\nRelevant user context:")
+                    for mem in context_memories:
+                        context_parts.append(f"- {mem.data}")
         
         return "\n".join(context_parts)
     

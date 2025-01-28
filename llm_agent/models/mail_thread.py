@@ -272,26 +272,30 @@ class MailThread(models.AbstractModel):
             if hasattr(self, 'memory_context'):
                 memory_context = self.memory_context
             else:
-                memory_context = self.env['llm.memory.contextual'].build_context_for_task(self.id)
+                # Determine the user for context
+                message_user = None
+                if message.author_id:
+                    if hasattr(message, 'create_uid') and message.create_uid:
+                        message_user = message.create_uid
+                    elif message.author_id.user_id:
+                        message_user = message.author_id.user_id
+                
+                # If no message user or the user is an agent, use the task creator
+                if not message_user or message_user.is_agent:
+                    message_user = self.create_uid
+                
+                message_content = self._get_message_content(message, msg_vals) if message_user else None
+                
+                memory_context = self.env['llm.memory.contextual'].build_context_for_task(
+                    self.id,
+                    user=message_user,
+                    message_content=message_content
+                )
             
             if memory_context:
                 messages.append({
                     "role": "system",
                     "content": f"Previous relevant context:\n{memory_context}"
-                })
-        
-        # Get user-specific memories
-        if message.author_id.user_ids:
-            message_content = self._get_message_content(message, msg_vals)
-            user_memories = self.env['llm.memory.user'].search_memory(
-                message_content,
-                limit=3
-            )
-            if user_memories:
-                user_context = "\n".join(m.data for m in user_memories)
-                messages.append({
-                    "role": "system",
-                    "content": f"User context:\n{user_context}"
                 })
 
         # Get last 20 messages from the thread
