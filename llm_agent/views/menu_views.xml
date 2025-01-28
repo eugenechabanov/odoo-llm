@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Root Menu -->
+    <menuitem
+        id="menu_llm_agent_root"
+        name="LLM Agents"
+        web_icon="llm_agent,static/description/icon.png"
+        sequence="10"/>
+
+    <!-- Agents Menu -->
+    <menuitem
+        id="menu_llm_agent"
+        name="Agents"
+        parent="menu_llm_agent_root"
+        action="action_agent_form"
+        sequence="10"
+        groups="base.group_system"/>
+    <menuitem 
+        id="menu_llm_agent_task" 
+        name="Tasks" 
+        parent="menu_llm_agent_root" 
+        action="action_llm_agent_task" 
+        sequence="20"/>
+
+    <!-- Memories Menu -->
+    <menuitem 
+        id="menu_llm_memory"
+        name="Memories"
+        parent="menu_llm_agent_root"
+        sequence="20"/>
+
+    <menuitem 
+        id="menu_llm_memory_long_term"
+        name="Long Term"
+        parent="menu_llm_memory"
+        action="action_llm_memory_long_term"
+        sequence="10"/>
+
+    <menuitem 
+        id="menu_llm_memory_short_term"
+        name="Short Term"
+        parent="menu_llm_memory"
+        action="action_llm_memory_short_term"
+        sequence="20"/>
+
+    <menuitem 
+        id="menu_llm_memory_user"
+        name="User"
+        parent="menu_llm_memory"
+        action="action_llm_memory_user"
+        sequence="30"/>
+</odoo>

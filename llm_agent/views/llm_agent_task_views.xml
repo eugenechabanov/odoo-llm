@@ -113,15 +113,4 @@
             </p>
         </field>
     </record>
-
-    <!-- Menu Items -->
-    <menuitem id="menu_llm_agent_root" 
-              name="LLM Agents" 
-              sequence="100"/>
-
-    <menuitem id="menu_llm_agent_task" 
-              name="Tasks" 
-              parent="menu_llm_agent_root" 
-              action="action_llm_agent_task" 
-              sequence="20"/>
 </odoo>

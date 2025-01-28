@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Long Term Memory Views -->
+    <record id="view_llm_memory_long_term_tree" model="ir.ui.view">
+        <field name="name">llm.memory.long_term.tree</field>
+        <field name="model">llm.memory.long_term</field>
+        <field name="arch" type="xml">
+            <tree string="Long Term Memories">
+                <field name="name"/>
+                <field name="task_description"/>
+                <field name="quality_score"/>
+                <field name="execution_date"/>
+                <field name="agent_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_llm_memory_long_term_form" model="ir.ui.view">
+        <field name="name">llm.memory.long_term.form</field>
+        <field name="model">llm.memory.long_term</field>
+        <field name="arch" type="xml">
+            <form string="Long Term Memory">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="agent_id"/>
+                            <field name="quality_score"/>
+                            <field name="execution_date"/>
+                        </group>
+                        <group>
+                            <field name="metadata" widget="json"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Task Details">
+                            <group>
+                                <field name="task_description"/>
+                                <field name="expected_output"/>
+                                <field name="data"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_llm_memory_long_term_search" model="ir.ui.view">
+        <field name="name">llm.memory.long_term.search</field>
+        <field name="model">llm.memory.long_term</field>
+        <field name="arch" type="xml">
+            <search string="Search Long Term Memories">
+                <field name="name"/>
+                <field name="task_description"/>
+                <field name="agent_id"/>
+                <filter string="High Quality" name="high_quality" domain="[('quality_score', '>=', 0.8)]"/>
+                <filter string="Low Quality" name="low_quality" domain="[('quality_score', '&lt;', 0.5)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Agent" name="group_by_agent" context="{'group_by': 'agent_id'}"/>
+                    <filter string="Execution Date" name="group_by_date" context="{'group_by': 'execution_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Short Term Memory Views -->
+    <record id="view_llm_memory_short_term_tree" model="ir.ui.view">
+        <field name="name">llm.memory.short_term.tree</field>
+        <field name="model">llm.memory.short_term</field>
+        <field name="arch" type="xml">
+            <tree string="Short Term Memories" decoration-danger="expiry &lt; current_date">
+                <field name="name"/>
+                <field name="data"/>
+                <field name="agent_id"/>
+                <field name="task_id"/>
+                <field name="expiry"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_llm_memory_short_term_form" model="ir.ui.view">
+        <field name="name">llm.memory.short_term.form</field>
+        <field name="model">llm.memory.short_term</field>
+        <field name="arch" type="xml">
+            <form string="Short Term Memory">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="agent_id"/>
+                            <field name="task_id"/>
+                        </group>
+                        <group>
+                            <field name="expiry"/>
+                            <field name="metadata" widget="json"/>
+                        </group>
+                    </group>
+                    <group string="Memory Data">
+                        <field name="data" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_llm_memory_short_term_search" model="ir.ui.view">
+        <field name="name">llm.memory.short_term.search</field>
+        <field name="model">llm.memory.short_term</field>
+        <field name="arch" type="xml">
+            <search string="Search Short Term Memories">
+                <field name="name"/>
+                <field name="data"/>
+                <field name="agent_id"/>
+                <field name="task_id"/>
+                <filter string="Expired" name="expired" domain="[('expiry', '&lt;', context_today())]"/>
+                <filter string="Valid" name="valid" domain="[('expiry', '>=', context_today())]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Agent" name="group_by_agent" context="{'group_by': 'agent_id'}"/>
+                    <filter string="Task" name="group_by_task" context="{'group_by': 'task_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- User Memory Views -->
+    <record id="view_llm_memory_user_tree" model="ir.ui.view">
+        <field name="name">llm.memory.user.tree</field>
+        <field name="model">llm.memory.user</field>
+        <field name="arch" type="xml">
+            <tree string="User Memories">
+                <field name="name"/>
+                <field name="data"/>
+                <field name="user_id"/>
+                <field name="create_date"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_llm_memory_user_form" model="ir.ui.view">
+        <field name="name">llm.memory.user.form</field>
+        <field name="model">llm.memory.user</field>
+        <field name="arch" type="xml">
+            <form string="User Memory">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="user_id"/>
+                        </group>
+                        <group>
+                            <field name="metadata" widget="json"/>
+                        </group>
+                    </group>
+                    <group string="Memory Data">
+                        <field name="data" nolabel="1"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_llm_memory_user_search" model="ir.ui.view">
+        <field name="name">llm.memory.user.search</field>
+        <field name="model">llm.memory.user</field>
+        <field name="arch" type="xml">
+            <search string="Search User Memories">
+                <field name="name"/>
+                <field name="data"/>
+                <field name="user_id"/>
+                <group expand="0" string="Group By">
+                    <filter string="User" name="group_by_user" context="{'group_by': 'user_id'}"/>
+                    <filter string="Creation Date" name="group_by_date" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Menu Actions -->
+    <record id="action_llm_memory_long_term" model="ir.actions.act_window">
+        <field name="name">Long Term Memories</field>
+        <field name="res_model">llm.memory.long_term</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{'search_default_group_by_agent': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No long-term memories found.
+            </p>
+            <p>
+                Long-term memories store persistent knowledge about tasks and their outcomes.
+                They help agents learn from past experiences and improve future responses.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_llm_memory_short_term" model="ir.actions.act_window">
+        <field name="name">Short Term Memories</field>
+        <field name="res_model">llm.memory.short_term</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{'search_default_valid': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No short-term memories found.
+            </p>
+            <p>
+                Short-term memories store temporary context for ongoing tasks.
+                They automatically expire after 1 hour.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_llm_memory_user" model="ir.actions.act_window">
+        <field name="name">User Memories</field>
+        <field name="res_model">llm.memory.user</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{'search_default_group_by_user': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No user memories found.
+            </p>
+            <p>
+                User memories store information about user preferences and interactions.
+                They help agents provide more personalized responses.
+            </p>
+        </field>
+    </record>
+</odoo>

@@ -197,13 +197,6 @@ class LLMAgentTask(models.Model):
     
     # Memory integration
     short_term_memory_ids = fields.One2many('llm.memory.short_term', 'task_id', string='Short Term Memories')
-    memory_context = fields.Text(compute='_compute_memory_context', store=False)
-
-    @api.depends('description', 'input')
-    def _compute_memory_context(self):
-        """Compute memory context for the task"""
-        for record in self:
-            record.memory_context = self.env['llm.memory.contextual'].build_context_for_task(record.id)
 
     def _save_task_result(self):
         """Save task result to memory"""
@@ -332,6 +325,10 @@ class LLMAgentTask(models.Model):
                 'state': 'done',
                 'end_time': fields.Datetime.now()
             })
+            
+            # Save task result to memory
+            self._save_task_result()
+            
             return result
 
         except Exception as e:

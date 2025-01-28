@@ -9,13 +9,16 @@
     "depends": ["base", "mail", "llm"],
     "data": [
         "security/security.xml",
+        "security/memory_security.xml",
         "security/ir.model.access.csv",
         "views/agent_views.xml",
         "views/llm_agent_config_views.xml",
         "views/create_agent_wizard_views.xml",
         "views/llm_agent_task_views.xml",
+        "views/memory_views.xml",
+        "views/menu_views.xml",
     ],
     "installable": True,
-    "application": False,
+    "application": True,
     "auto_install": False,
 }

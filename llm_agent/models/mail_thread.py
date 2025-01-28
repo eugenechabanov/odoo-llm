@@ -240,6 +240,12 @@ class MailThread(models.AbstractModel):
         text = text.replace("Markup(", "").replace(")", "")
         return text.strip()
 
+    def _get_message_content(self, message, msg_vals):
+        """Get message content from either msg_vals or message."""
+        return self._clean_message_content(
+            msg_vals.get('body', '') if msg_vals else message.body
+        )
+
     def _prepare_chat_messages(self, agent, message, msg_vals):
         """Prepare messages for chat completion."""
         _logger.info("Preparing chat messages for agent %s", agent.name)
@@ -260,6 +266,34 @@ class MailThread(models.AbstractModel):
             _logger.info("Adding custom system prompt")
             messages.append({"role": "system", "content": agent_config.system_prompt})
 
+        # Get relevant memories if this is a task
+        if hasattr(self, '_name') and self._name == 'llm.agent.task':
+            _logger.info("Adding memory context for task")
+            if hasattr(self, 'memory_context'):
+                memory_context = self.memory_context
+            else:
+                memory_context = self.env['llm.memory.contextual'].build_context_for_task(self.id)
+            
+            if memory_context:
+                messages.append({
+                    "role": "system",
+                    "content": f"Previous relevant context:\n{memory_context}"
+                })
+        
+        # Get user-specific memories
+        if message.author_id.user_ids:
+            message_content = self._get_message_content(message, msg_vals)
+            user_memories = self.env['llm.memory.user'].search_memory(
+                message_content,
+                limit=3
+            )
+            if user_memories:
+                user_context = "\n".join(m.data for m in user_memories)
+                messages.append({
+                    "role": "system",
+                    "content": f"User context:\n{user_context}"
+                })
+
         # Get last 20 messages from the thread
         domain = self._get_message_history_domain(agent, message)
         history = self.env["mail.message"].search(domain, order="id DESC", limit=20)
@@ -276,7 +310,10 @@ class MailThread(models.AbstractModel):
 
         # Add current message if we have msg_vals
         if msg_vals and msg_vals.get('body'):
-            messages.append({"role": "user", "content": self._clean_message_content(msg_vals['body'])})
+            messages.append({
+                "role": "user", 
+                "content": self._get_message_content(message, msg_vals)
+            })
 
         _logger.info("Prepared total of %d messages for chat completion", len(messages))
         return messages

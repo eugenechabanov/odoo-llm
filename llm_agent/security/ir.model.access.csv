@@ -9,3 +9,12 @@ access_create_agent_wizard_user,create.agent.wizard.user,model_create_agent_wiza
 access_llm_agent_task_agent,llm.agent.task.agent,model_llm_agent_task,llm_agent.group_llm_agent,1,1,1,1
 access_llm_agent_task_user,llm.agent.task.user,model_llm_agent_task,base.group_user,1,0,0,0
 access_llm_agent_task_manager,llm.agent.task.manager,model_llm_agent_task,llm_agent.group_llm_agent_manager,1,1,1,1
+access_llm_memory_long_term_user,llm.memory.long_term.user,model_llm_memory_long_term,base.group_user,1,0,0,0
+access_llm_memory_long_term_agent,llm.memory.long_term.agent,model_llm_memory_long_term,llm_agent.group_llm_agent,1,1,1,0
+access_llm_memory_long_term_manager,llm.memory.long_term.manager,model_llm_memory_long_term,llm_agent.group_llm_agent_manager,1,1,1,1
+access_llm_memory_short_term_user,llm.memory.short_term.user,model_llm_memory_short_term,base.group_user,1,0,0,0
+access_llm_memory_short_term_agent,llm.memory.short_term.agent,model_llm_memory_short_term,llm_agent.group_llm_agent,1,1,1,1
+access_llm_memory_short_term_manager,llm.memory.short_term.manager,model_llm_memory_short_term,llm_agent.group_llm_agent_manager,1,1,1,1
+access_llm_memory_user_user,llm.memory.user.user,model_llm_memory_user,base.group_user,1,1,1,0
+access_llm_memory_user_agent,llm.memory.user.agent,model_llm_memory_user,llm_agent.group_llm_agent,1,1,1,0
+access_llm_memory_user_manager,llm.memory.user.manager,model_llm_memory_user,llm_agent.group_llm_agent_manager,1,1,1,1
