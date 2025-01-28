@@ -7,6 +7,21 @@ class LLMUserMemory(models.Model):
     _order = 'create_date desc'
     
     user_id = fields.Many2one('res.users', required=True, tracking=True)
+    category = fields.Selection([
+        ('communication_style', 'Communication Style'),
+        ('expertise', 'Technical Expertise'),
+        ('domain_expertise', 'Domain Expertise'),
+        ('output_preference', 'Output Preference'),
+        ('language', 'Language Preference'),
+        ('timezone', 'Timezone'),
+    ], string='Category', index=True)
+    
+    def _get_normalized_data(self, value):
+        """Normalize data for comparison by removing common prefixes and whitespace"""
+        prefix = "Remember the details about the user: "
+        if value.startswith(prefix):
+            value = value[len(prefix):]
+        return value.strip().lower()
     
     def save(self, value, user_id, metadata=None):
         """Save a user-related memory while avoiding duplicates
@@ -14,41 +29,57 @@ class LLMUserMemory(models.Model):
         Args:
             value: The memory value to save
             user_id: The user ID to associate with
-            metadata: Optional metadata dictionary
+            metadata: Optional metadata dictionary with 'category' key
         
         Returns:
             The created or existing memory record
         """
         data = f"Remember the details about the user: {value}"
         metadata = metadata or {}
+        category = metadata.get('category')
+        
+        # Get normalized version of the data for comparison
+        normalized_value = self._get_normalized_data(data)
         
         # Check for existing similar memory
         domain = [
             ('user_id', '=', user_id),
-            ('data', '=', data)
         ]
         
         # If category is specified, include it in duplicate check
-        if metadata.get('category'):
-            domain.append(('metadata', 'ilike', f'"category":"{metadata["category"]}"'))
+        if category:
+            domain.append(('category', '=', category))
         
-        existing = self.search(domain, limit=1)
-        if existing:
-            # Update metadata if needed
-            if metadata and metadata != existing.metadata:
-                existing.write({'metadata': metadata})
-            return existing
+        # Search for potential duplicates
+        existing_records = self.search(domain)
+        for record in existing_records:
+            if self._get_normalized_data(record.data) == normalized_value:
+                # Update metadata if needed
+                if metadata != record.metadata:
+                    record.write({'metadata': metadata})
+                return record
         
         # Create new memory if no duplicate found
-        return self.create({
+        vals = {
             'name': f"UM-{fields.Datetime.now()}",
             'data': data,
             'user_id': user_id,
             'metadata': metadata,
-        })
+        }
+        if category:
+            vals['category'] = category
+            
+        return self.create(vals)
     
-    def search_memory(self, query, limit=3):
-        """Search for user-related memories"""
-        return self.search([
-            ('data', 'ilike', query)
-        ], limit=limit, order='create_date desc')
+    def search_memory(self, query, category=None, limit=3):
+        """Search for user-related memories
+        
+        Args:
+            query: Search query
+            category: Optional category to filter by
+            limit: Maximum number of records to return
+        """
+        domain = [('data', 'ilike', query)]
+        if category:
+            domain.append(('category', '=', category))
+        return self.search(domain, limit=limit, order='create_date desc')

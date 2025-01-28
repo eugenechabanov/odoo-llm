@@ -135,6 +135,7 @@
             <tree string="User Memories">
                 <field name="name"/>
                 <field name="data"/>
+                <field name="category"/>
                 <field name="user_id"/>
                 <field name="create_date"/>
             </tree>

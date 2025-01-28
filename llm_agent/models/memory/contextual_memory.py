@@ -163,7 +163,7 @@ class LLMContextualMemory(models.AbstractModel):
             um.save(
                 pref['value'],
                 user.id,
-                metadata={'category': pref['category']}
+                metadata={'category': pref['category']}  # Category is now stored in both metadata and dedicated field
             )
 
         return preferences
