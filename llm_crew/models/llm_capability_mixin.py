@@ -1,65 +1,47 @@
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, NotImplementedError
 import logging
 
 _logger = logging.getLogger(__name__)
 
 
 class LLMCapabilityMixin(models.AbstractModel):
-    """Mixin to add LLM capabilities to any model."""
+    """Mixin to add LLM capabilities to models."""
     _name = 'llm.capability.mixin'
     _description = 'LLM Capability Mixin'
 
     llm_enabled = fields.Boolean(
         string="LLM Enabled",
-        default=False,
         help="Enable LLM capabilities for this record"
     )
     llm_provider_id = fields.Many2one(
         'llm.provider',
         string="LLM Provider",
-        help="LLM provider to use for this record",
         ondelete='restrict'
     )
     llm_model_id = fields.Many2one(
         'llm.model',
         string="LLM Model",
-        domain="[('provider_id', '=', llm_provider_id), ('model_use', '=', 'chat')]",
-        help="Specific model to use for this record",
+        domain="[('provider_id', '=', llm_provider_id)]",
         ondelete='restrict'
     )
     llm_memory_enabled = fields.Boolean(
         string="Enable Memory",
-        default=True,
-        help="Enable memory capabilities"
+        help="Enable memory for this LLM instance"
     )
     llm_memory_config = fields.Text(
         string="Memory Configuration",
-        help="JSON configuration for memory settings"
-    )
-    llm_max_iterations = fields.Integer(
-        string="Max Iterations",
-        default=15,
-        help="Maximum number of iterations for LLM operations"
+        help="JSON configuration for LLM memory"
     )
     llm_execution_state = fields.Selection([
         ('draft', 'Draft'),
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
         ('failed', 'Failed')
-    ], string="Execution State",
-        default='draft',
-        tracking=True,
-        help="Current state of LLM execution"
-    )
+    ], string="Execution State", default='draft')
     llm_result = fields.Text(
         string="Result",
         help="Result of the last LLM execution"
-    )
-    llm_async_execution = fields.Boolean(
-        string="Async Execution",
-        help="Execute LLM tasks asynchronously",
-        default=False
     )
 
     @api.onchange('llm_provider_id')
@@ -136,9 +118,7 @@ class LLMCapabilityMixin(models.AbstractModel):
         if not self.llm_provider_id or not self.llm_model_id:
             return None
             
-        return self.llm_provider_id._get_crewai_llm(
-            model=self.llm_model_id.name
-        )
+        return self._get_crewai_llm()
 
     def _execute_llm(self, execute_fn):
         """Execute LLM operation with state management.
@@ -151,32 +131,28 @@ class LLMCapabilityMixin(models.AbstractModel):
             
         Raises:
             UserError: If execution cannot start
-            Exception: If synchronous execution fails
+            Exception: If execution fails
         """
         self.ensure_one()
         
         if not self.llm_enabled:
-            raise UserError("LLM features are not enabled")
+            raise UserError(_("LLM features are not enabled"))
             
         if self.llm_execution_state == 'in_progress':
-            raise UserError("Already executing")
+            raise UserError(_("Already executing"))
             
         # Update execution state
         self.llm_execution_state = 'in_progress'
         
-        if self.llm_async_execution:
-            # Queue execution
-            execute_fn()
-            return True
-        else:
-            # Execute synchronously
-            try:
-                result = execute_fn()
-                self._handle_llm_result(result)
-            except Exception as e:
-                self._handle_llm_error(e)
-                raise
-            return True
+        # Execute synchronously
+        try:
+            result = execute_fn()
+            self._handle_llm_result(result)
+        except Exception as e:
+            self._handle_llm_error(e)
+            raise
+            
+        return True
             
     def _handle_llm_result(self, result):
         """Handle successful LLM execution result.

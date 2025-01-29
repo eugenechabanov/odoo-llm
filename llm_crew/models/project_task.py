@@ -93,3 +93,7 @@ class ProjectTask(models.Model):
             return task.execute()
             
         return self._execute_llm(execute)
+
+    def _execute_task_background(self, task):
+        """Background execution is not implemented."""
+        raise NotImplementedError(_("Background execution is not implemented"))

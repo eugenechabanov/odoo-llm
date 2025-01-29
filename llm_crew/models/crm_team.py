@@ -1,6 +1,5 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
-from odoo.addons.queue_job.job import job
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -109,70 +108,16 @@ class CRMTeam(models.Model):
         return Crew(**config)
 
     def execute_crew(self):
-        """Execute crew tasks.
-        
-        If async execution is enabled, queues the execution in background.
-        Otherwise, executes synchronously.
-        """
-        self.ensure_one()
-        
-        if not self.llm_enabled:
-            raise UserError(_("LLM features are not enabled for this team"))
+        """Execute crew tasks."""
+        def execute():
+            crew = self._create_crewai_crew()
+            return crew.kickoff()
             
-        if self.llm_execution_state == 'in_progress':
-            raise UserError(_("Crew is already executing"))
-            
-        # Create and configure crew
-        crew = self._create_crewai_crew()
+        return self._execute_llm(execute)
         
-        # Update execution state
-        self.llm_execution_state = 'in_progress'
-        
-        if self.llm_async_execution:
-            # Queue execution
-            self.with_delay()._execute_crew_background(crew)
-            return True
-        else:
-            # Execute synchronously
-            try:
-                result = crew.kickoff()
-                self.write({
-                    'llm_execution_state': 'completed',
-                    'llm_result': str(result) if result else False,
-                })
-            except Exception as e:
-                _logger.exception("Crew execution failed")
-                self.write({
-                    'llm_execution_state': 'failed',
-                    'llm_result': str(e),
-                })
-                raise
-            return True
-
-    @job
     def _execute_crew_background(self, crew):
-        """Execute crew in background.
-        
-        Args:
-            crew: CrewAI crew instance
-        """
-        try:
-            # Execute crew tasks
-            result = crew.kickoff()
-            
-            # Update state and result
-            self.write({
-                'llm_execution_state': 'completed',
-                'llm_result': str(result) if result else False,
-            })
-            
-        except Exception as e:
-            # Log error and update state
-            _logger.exception("Crew execution failed")
-            self.write({
-                'llm_execution_state': 'failed',
-                'llm_result': str(e),
-            })
+        """Background execution is not implemented."""
+        raise NotImplementedError(_("Background execution is not implemented"))
 
     def _process_crew_result(self, result):
         """Process crew execution result.

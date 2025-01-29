@@ -65,7 +65,6 @@ class MailThread(models.AbstractModel):
             'llm_memory_config': agent_user.llm_memory_config,
             'llm_expected_output': 'Provide a helpful response to the user\'s message',
             'llm_output_format': 'markdown',
-            'llm_async_execution': False,  # Execute synchronously for chat
         })
         
         # Execute task
