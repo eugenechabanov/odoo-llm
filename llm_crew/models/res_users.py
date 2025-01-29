@@ -3,81 +3,54 @@ from odoo.exceptions import UserError
 
 
 class ResUsers(models.Model):
-    _inherit = ['res.users', 'llm.capability.mixin']
+    _inherit = 'res.users'
 
-    llm_agent_role = fields.Text(
-        string="Agent Role",
-        help="Role description for the AI agent"
+    # Relations
+    crew_agent_id = fields.One2many(
+        'llm.crew.agent',
+        'user_id',
+        string="AI Agent Configuration"
     )
-    llm_agent_goal = fields.Text(
-        string="Agent Goal",
-        help="Primary goal or objective for the AI agent"
-    )
-    llm_agent_backstory = fields.Text(
-        string="Agent Backstory",
-        help="Background story to provide context for the AI agent"
-    )
-    llm_agent_allow_delegation = fields.Boolean(
-        string="Allow Delegation",
-        default=False,
-        help="Allow this agent to delegate tasks to other agents"
-    )
-    llm_agent_tools = fields.Text(
-        string="Agent Tools",
-        help="JSON configuration for agent tools"
+    
+    # Computed Fields
+    is_ai_agent = fields.Boolean(
+        string="Is AI Agent",
+        compute='_compute_is_ai_agent',
+        search='_search_is_ai_agent',
+        help="Whether this user is configured as an AI agent"
     )
 
-    @api.depends('llm_enabled')
-    def _compute_agent_fields_visibility(self):
-        """Show/hide agent fields based on llm_enabled"""
+    @api.depends('crew_agent_id', 'crew_agent_id.llm_enabled')
+    def _compute_is_ai_agent(self):
+        """Compute whether user is configured as AI agent"""
         for user in self:
-            user.show_agent_fields = user.llm_enabled
+            user.is_ai_agent = bool(user.crew_agent_id.filtered('llm_enabled'))
+
+    def _search_is_ai_agent(self, operator, value):
+        """Search users that are configured as AI agents"""
+        if operator not in ('=', '!='):
+            raise ValueError(_("Invalid operator for is_ai_agent search"))
+            
+        agents = self.env['llm.crew.agent'].search([('llm_enabled', '=', True)])
+        user_ids = agents.mapped('user_id').ids
+        
+        if operator == '=':
+            return [('id', 'in' if value else 'not in', user_ids)]
+        else:
+            return [('id', 'not in' if value else 'in', user_ids)]
 
     def _to_crewai_agent(self):
-        """Convert to CrewAI Agent if LLM enabled.
+        """Convert to CrewAI Agent if configured.
         
         Returns:
-            crewai.Agent: CrewAI agent instance if LLM enabled, None otherwise
+            crewai.Agent: CrewAI agent instance if configured, None otherwise
             
         Raises:
             UserError: If required fields are not set
         """
         self.ensure_one()
-        if not self.llm_enabled:
+        
+        if not self.is_ai_agent:
             return None
             
-        if not all([self.llm_agent_role, self.llm_agent_goal]):
-            raise UserError(_(
-                "Agent role and goal are required for user %s"
-            ) % self.display_name)
-            
-        return self._create_crewai_agent()
-
-    def _create_crewai_agent(self):
-        """Create CrewAI agent instance.
-        
-        Returns:
-            crewai.Agent: Configured CrewAI agent instance
-        """
-        from crewai import Agent
-        
-        # Get base configuration
-        config = {
-            'role': self.llm_agent_role,
-            'goal': self.llm_agent_goal,
-            'backstory': self.llm_agent_backstory,
-            'llm': self._get_crewai_llm(),
-            'allow_delegation': self.llm_agent_allow_delegation,
-        }
-        
-        # Add tools if configured
-        if self.llm_agent_tools:
-            import json
-            try:
-                tools = json.loads(self.llm_agent_tools)
-                if tools:
-                    config['tools'] = tools
-            except json.JSONDecodeError:
-                pass  # Invalid JSON, ignore tools
-                
-        return Agent(**config)
+        return self.crew_agent_id._to_crewai_agent()

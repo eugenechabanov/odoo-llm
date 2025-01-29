@@ -17,7 +17,7 @@ class CRMTeam(models.Model):
     llm_manager_id = fields.Many2one(
         'res.users',
         string="Manager Agent",
-        domain="[('llm_enabled', '=', True)]",
+        domain="[('crew_agent_id.llm_enabled', '=', True)]",
         help="Manager agent for hierarchical process"
     )
     llm_task_ids = fields.One2many(
@@ -39,10 +39,11 @@ class CRMTeam(models.Model):
         Returns:
             list: List of CrewAI agent instances
         """
+        agents = self.member_ids.mapped('crew_agent_id').filtered('llm_enabled')
         return [
-            member._to_crewai_agent()
-            for member in self.member_ids.filtered('llm_enabled')
-            if member._to_crewai_agent()  # Filter out None results
+            agent._to_crewai_agent()
+            for agent in agents
+            if agent  # Filter out empty records
         ]
 
     def _get_crew_tasks(self):

@@ -30,14 +30,14 @@ class ProjectTask(models.Model):
     @api.onchange('llm_enabled')
     def _onchange_llm_enabled(self):
         """Ensure assignee is an AI agent if task is LLM-enabled"""
-        if self.llm_enabled and self.user_id and not self.user_id.llm_enabled:
+        if self.llm_enabled and self.user_id and not self.user_id.crew_agent_id.llm_enabled:
             self.user_id = False
 
     @api.constrains('llm_enabled', 'user_id')
     def _check_llm_assignee(self):
         """Ensure assignee is an AI agent if task is LLM-enabled"""
         for task in self:
-            if task.llm_enabled and task.user_id and not task.user_id.llm_enabled:
+            if task.llm_enabled and task.user_id and not task.user_id.crew_agent_id.llm_enabled:
                 raise UserError(_(
                     "Task assignee must be an AI agent when LLM is enabled"
                 ))
