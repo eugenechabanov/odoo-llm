@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_task_form2_llm" model="ir.ui.view">
+        <field name="name">project.task.form.llm</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
+                <button name="execute_task"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-play"
+                        attrs="{'invisible': ['|', ('llm_enabled', '=', False), ('llm_execution_state', '!=', 'draft')]}">
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_text">Execute</span>
+                        <span class="o_stat_text">Task</span>
+                    </div>
+                </button>
+            </xpath>
+
+            <notebook position="inside">
+                <page string="LLM Task" attrs="{'invisible': [('llm_enabled', '=', False)]}">
+                    <group>
+                        <group string="LLM Configuration">
+                            <field name="llm_enabled"/>
+                            <field name="llm_provider_id" 
+                                   attrs="{'required': [('llm_enabled', '=', True)]}"/>
+                            <field name="llm_model_id" 
+                                   attrs="{'required': [('llm_enabled', '=', True)]}"/>
+                            <field name="llm_memory_enabled"/>
+                            <field name="llm_memory_config" widget="ace"
+                                   attrs="{'invisible': [('llm_memory_enabled', '=', False)]}"
+                                   options="{'mode': 'json'}"/>
+                        </group>
+                        <group string="Task Configuration">
+                            <field name="llm_expected_output"/>
+                            <field name="llm_output_format"/>
+                            <field name="llm_async_execution"/>
+                            <field name="llm_max_iterations"/>
+                            <field name="llm_execution_state"/>
+                        </group>
+                    </group>
+
+                    <group string="Context and Tools">
+                        <field name="llm_context" widget="ace"/>
+                        <field name="llm_tools" widget="ace"
+                               options="{'mode': 'json'}"/>
+                    </group>
+
+                    <group string="Result" attrs="{'invisible': [('llm_result', '=', False)]}">
+                        <field name="llm_result" widget="ace"
+                               attrs="{'readonly': True}"
+                               options="{'mode': 'text'}"/>
+                    </group>
+                </page>
+            </notebook>
+
+            <!-- Add warning if assignee is not an AI agent -->
+            <xpath expr="//field[@name='user_id']" position="after">
+                <div class="alert alert-warning" role="alert"
+                     attrs="{'invisible': ['|', ('llm_enabled', '=', False), ('user_id', '=', False)]}">
+                    <field name="user_id" invisible="1"/>
+                    <span>Task assignee must be an AI agent when LLM is enabled.</span>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add LLM filter to task search view -->
+    <record id="view_task_search_form_llm" model="ir.ui.view">
+        <field name="name">project.task.search.llm</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_search_form"/>
+        <field name="arch" type="xml">
+            <filter name="inactive" position="after">
+                <filter string="LLM Tasks" name="llm_tasks" 
+                        domain="[('llm_enabled', '=', True)]"/>
+                <separator/>
+            </filter>
+            <filter name="group_create_date" position="after">
+                <filter string="LLM State" name="group_llm_state"
+                        context="{'group_by': 'llm_execution_state'}"/>
+            </filter>
+        </field>
+    </record>
+
+    <!-- Add LLM columns to task tree view -->
+    <record id="view_task_tree2_llm" model="ir.ui.view">
+        <field name="name">project.task.tree.llm</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_tree2"/>
+        <field name="arch" type="xml">
+            <field name="stage_id" position="before">
+                <field name="llm_enabled" optional="show"/>
+                <field name="llm_execution_state" optional="show"/>
+                <field name="llm_output_format" optional="hide"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Add LLM indicators to task kanban view -->
+    <record id="view_task_kanban_llm" model="ir.ui.view">
+        <field name="name">project.task.kanban.llm</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_kanban"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('oe_kanban_bottom_left')]" position="inside">
+                <span class="badge rounded-pill" 
+                      attrs="{'invisible': [('llm_enabled', '=', False)]}"
+                      t-attf-class="bg-#{record.llm_execution_state.raw_value == 'completed' and 'success' or 
+                                      record.llm_execution_state.raw_value == 'failed' and 'danger' or 
+                                      record.llm_execution_state.raw_value == 'in_progress' and 'info' or 'secondary'}">
+                    <field name="llm_execution_state"/>
+                </span>
+            </xpath>
+        </field>
+    </record>
+</odoo>
