@@ -1,6 +1,8 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+import logging
 
+_logger = logging.getLogger(__name__)
 
 class ProjectTask(models.Model):
     _inherit = ['project.task', 'llm.capability.mixin']
@@ -110,16 +112,45 @@ class ProjectTask(models.Model):
         return Task(**config)
 
     def execute_task(self):
-        """Execute single task independently."""
+        """Execute task using LLM.
+        
+        If async execution is enabled, queues the execution in background.
+        Otherwise, executes synchronously.
+        """
         self.ensure_one()
+        
         if not self.llm_enabled:
-            raise UserError(_("This task is not LLM-enabled"))
-
-        if self.llm_execution_state != 'draft':
-            raise UserError(_("Can only execute tasks in draft state"))
-
+            raise UserError(_("LLM features are not enabled for this task"))
+            
+        if self.llm_execution_state == 'in_progress':
+            raise UserError(_("Task is already executing"))
+            
+        # Create agent for task
+        agent = self._create_crewai_agent()
+        
+        # Update execution state
         self.llm_execution_state = 'in_progress'
-        self.with_delay(channel='llm')._execute_task_job()
+        
+        if self.llm_async_execution:
+            # Queue execution
+            self.with_delay()._execute_task_background(agent)
+            return True
+        else:
+            # Execute synchronously
+            try:
+                result = agent.execute_task(self.name, self.description)
+                self.write({
+                    'llm_execution_state': 'completed',
+                    'llm_result': str(result) if result else False,
+                })
+            except Exception as e:
+                _logger.exception("Task execution failed")
+                self.write({
+                    'llm_execution_state': 'failed',
+                    'llm_result': str(e),
+                })
+                raise
+            return True
 
     def _execute_task_job(self):
         """Background job for task execution."""

@@ -1,6 +1,9 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+from odoo.addons.queue_job.job import job
+import logging
 
+_logger = logging.getLogger(__name__)
 
 class CRMTeam(models.Model):
     _inherit = ['crm.team', 'llm.capability.mixin']
@@ -76,51 +79,100 @@ class CRMTeam(models.Model):
 
         return self._create_crewai_crew(agents)
 
-    def _create_crewai_crew(self, agents):
-        """Create CrewAI crew instance.
-        
-        Args:
-            agents: List of CrewAI agent instances
-            
-        Returns:
-            crewai.Crew: Configured CrewAI crew instance
-        """
+    def _create_crewai_crew(self, agents=None):
+        """Create a CrewAI crew instance."""
         from crewai import Crew
-
+        
+        # Get agents
+        if agents is None:
+            agents = []
+            for member in self.member_ids:
+                if member.llm_enabled:
+                    agent = member._create_crewai_agent()
+                    if agent:
+                        agents.append(agent)
+                        
+        if not agents:
+            raise UserError(_("No AI agents available in the crew"))
+            
         config = {
             'agents': agents,
-            'tasks': self._get_crew_tasks(),
-            'process': self.llm_process,
+            'tasks': [],  # Tasks will be added during execution
+            'process': self.llm_process or 'sequential',
             'memory': self.llm_memory_enabled,
         }
-
+        
         # Add manager for hierarchical process
         if self.llm_process == 'hierarchical' and self.llm_manager_id:
-            config['manager_llm'] = self.llm_manager_id._get_crewai_llm()
-
+            config['manager_llm'] = self.llm_manager_id._get_llm()
+            
         return Crew(**config)
 
     def execute_crew(self):
-        """Queue crew execution in background."""
+        """Execute crew tasks.
+        
+        If async execution is enabled, queues the execution in background.
+        Otherwise, executes synchronously.
+        """
         self.ensure_one()
+        
         if not self.llm_enabled:
-            raise UserError(_("This team is not LLM-enabled"))
-
-        if self.llm_execution_state != 'draft':
-            raise UserError(_("Can only execute crews in draft state"))
-
+            raise UserError(_("LLM features are not enabled for this team"))
+            
+        if self.llm_execution_state == 'in_progress':
+            raise UserError(_("Crew is already executing"))
+            
+        # Create and configure crew
+        crew = self._create_crewai_crew()
+        
+        # Update execution state
         self.llm_execution_state = 'in_progress'
-        self.with_delay(channel='llm')._execute_crew_job()
+        
+        if self.llm_async_execution:
+            # Queue execution
+            self.with_delay()._execute_crew_background(crew)
+            return True
+        else:
+            # Execute synchronously
+            try:
+                result = crew.kickoff()
+                self.write({
+                    'llm_execution_state': 'completed',
+                    'llm_result': str(result) if result else False,
+                })
+            except Exception as e:
+                _logger.exception("Crew execution failed")
+                self.write({
+                    'llm_execution_state': 'failed',
+                    'llm_result': str(e),
+                })
+                raise
+            return True
 
-    def _execute_crew_job(self):
-        """Background job for crew execution."""
+    @job
+    def _execute_crew_background(self, crew):
+        """Execute crew in background.
+        
+        Args:
+            crew: CrewAI crew instance
+        """
         try:
-            crew = self._to_crewai_crew()
+            # Execute crew tasks
             result = crew.kickoff()
-            self._process_crew_result(result)
-            self.llm_execution_state = 'completed'
+            
+            # Update state and result
+            self.write({
+                'llm_execution_state': 'completed',
+                'llm_result': str(result) if result else False,
+            })
+            
         except Exception as e:
-            self._handle_execution_error(e)
+            # Log error and update state
+            _logger.exception("Crew execution failed")
+            self.write({
+                'llm_execution_state': 'failed',
+                'llm_result': str(e),
+            })
 
     def _process_crew_result(self, result):
         """Process crew execution result.

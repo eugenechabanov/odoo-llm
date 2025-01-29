@@ -31,6 +31,7 @@
                             <field name="llm_memory_config" widget="ace"
                                    attrs="{'invisible': [('llm_memory_enabled', '=', False)]}"
                                    options="{'mode': 'json'}"/>
+                            <field name="llm_async_execution"/>
                         </group>
                         <group string="Crew Configuration">
                             <field name="llm_process"/>

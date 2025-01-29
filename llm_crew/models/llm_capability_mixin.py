@@ -15,13 +15,15 @@ class LLMCapabilityMixin(models.AbstractModel):
     llm_provider_id = fields.Many2one(
         'llm.provider',
         string="LLM Provider",
-        help="LLM provider to use for this record"
+        help="LLM provider to use for this record",
+        ondelete='restrict'
     )
     llm_model_id = fields.Many2one(
         'llm.model',
         string="LLM Model",
         domain="[('provider_id', '=', llm_provider_id), ('model_use', '=', 'chat')]",
-        help="Specific model to use for this record"
+        help="Specific model to use for this record",
+        ondelete='restrict'
     )
     llm_memory_enabled = fields.Boolean(
         string="Enable Memory",
@@ -46,6 +48,11 @@ class LLMCapabilityMixin(models.AbstractModel):
         default='draft',
         tracking=True,
         help="Current state of LLM execution"
+    )
+    llm_async_execution = fields.Boolean(
+        string="Async Execution",
+        help="Execute LLM tasks asynchronously",
+        default=False
     )
 
     @api.onchange('llm_provider_id')

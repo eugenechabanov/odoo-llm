@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data noupdate="1">
+        <!-- Record Rules -->
         <!-- Only team members can access their crew's LLM features -->
         <record id="llm_crew_team_rule" model="ir.rule">
             <field name="name">LLM Crew: Team Members Only</field>
