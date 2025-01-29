@@ -1,5 +1,8 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class LLMCapabilityMixin(models.AbstractModel):
@@ -48,6 +51,10 @@ class LLMCapabilityMixin(models.AbstractModel):
         default='draft',
         tracking=True,
         help="Current state of LLM execution"
+    )
+    llm_result = fields.Text(
+        string="Result",
+        help="Result of the last LLM execution"
     )
     llm_async_execution = fields.Boolean(
         string="Async Execution",
@@ -114,3 +121,92 @@ class LLMCapabilityMixin(models.AbstractModel):
             "LLM execution failed with error: %s") % str(error)
         )
         self.llm_execution_state = 'failed'
+
+    def _get_llm(self):
+        """Get LLM instance for this record.
+        
+        Returns:
+            object: LLM instance compatible with CrewAI
+        """
+        self.ensure_one()
+        
+        if not self.llm_enabled:
+            return None
+            
+        if not self.llm_provider_id or not self.llm_model_id:
+            return None
+            
+        return self.llm_provider_id._get_crewai_llm(
+            model=self.llm_model_id.name
+        )
+
+    def _execute_llm(self, execute_fn):
+        """Execute LLM operation with state management.
+        
+        Args:
+            execute_fn: Function that performs the actual execution
+            
+        Returns:
+            bool: True if execution started successfully
+            
+        Raises:
+            UserError: If execution cannot start
+            Exception: If synchronous execution fails
+        """
+        self.ensure_one()
+        
+        if not self.llm_enabled:
+            raise UserError("LLM features are not enabled")
+            
+        if self.llm_execution_state == 'in_progress':
+            raise UserError("Already executing")
+            
+        # Update execution state
+        self.llm_execution_state = 'in_progress'
+        
+        if self.llm_async_execution:
+            # Queue execution
+            execute_fn()
+            return True
+        else:
+            # Execute synchronously
+            try:
+                result = execute_fn()
+                self._handle_llm_result(result)
+            except Exception as e:
+                self._handle_llm_error(e)
+                raise
+            return True
+            
+    def _handle_llm_result(self, result):
+        """Handle successful LLM execution result.
+        
+        Args:
+            result: Result from LLM execution
+        """
+        self.write({
+            'llm_execution_state': 'completed',
+            'llm_result': str(result) if result else False,
+        })
+        if hasattr(self, 'message_post'):
+            self.message_post(
+                body=f"Execution completed with result:\n{result}"
+            )
+            
+    def _handle_llm_error(self, error):
+        """Handle LLM execution error.
+        
+        Args:
+            error: Exception that occurred
+        """
+        _logger.exception("LLM execution failed")
+        self.write({
+            'llm_execution_state': 'failed',
+            'llm_result': str(error),
+        })
+        if hasattr(self, 'message_post'):
+            self.message_post(
+                body=f"Execution failed with error:\n{error}",
+                message_type='comment',
+                subtype_xmlid='mail.mt_note',
+            )

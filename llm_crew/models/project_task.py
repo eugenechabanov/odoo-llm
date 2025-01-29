@@ -1,8 +1,7 @@
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
-import logging
+import json
 
-_logger = logging.getLogger(__name__)
 
 class ProjectTask(models.Model):
     _inherit = ['project.task', 'llm.capability.mixin']
@@ -18,16 +17,6 @@ class ProjectTask(models.Model):
     ], string="Output Format",
         default='text',
         help="Format of the task output"
-    )
-    llm_async_execution = fields.Boolean(
-        string="Async Execution",
-        default=False,
-        help="Execute this task asynchronously"
-    )
-    llm_result = fields.Text(
-        string="LLM Result",
-        readonly=True,
-        help="Result from LLM task execution"
     )
     llm_context = fields.Text(
         string="Task Context",
@@ -53,37 +42,24 @@ class ProjectTask(models.Model):
                     "Task assignee must be an AI agent when LLM is enabled"
                 ))
 
-    def _to_crewai_task(self):
-        """Convert to CrewAI Task if LLM enabled.
+    def _create_crewai_task(self):
+        """Create CrewAI task instance.
         
         Returns:
-            crewai.Task: CrewAI task instance if LLM enabled, None otherwise
+            crewai.Task: Configured CrewAI task instance
             
         Raises:
             UserError: If required fields are not set
         """
         self.ensure_one()
-        if not self.llm_enabled:
-            return None
-
+        
         if not self.user_id:
             raise UserError(_("Task must be assigned to an AI agent"))
 
-        agent = self.user_id._to_crewai_agent()
+        agent = self.user_id._create_crewai_agent()
         if not agent:
             raise UserError(_("Task assignee must be an AI agent"))
 
-        return self._create_crewai_task(agent)
-
-    def _create_crewai_task(self, agent):
-        """Create CrewAI task instance.
-        
-        Args:
-            agent: CrewAI agent instance
-            
-        Returns:
-            crewai.Task: Configured CrewAI task instance
-        """
         from crewai import Task
 
         # Build task description
@@ -101,7 +77,6 @@ class ProjectTask(models.Model):
 
         # Add tools if configured
         if self.llm_tools:
-            import json
             try:
                 tools = json.loads(self.llm_tools)
                 if tools:
@@ -112,63 +87,9 @@ class ProjectTask(models.Model):
         return Task(**config)
 
     def execute_task(self):
-        """Execute task using LLM.
-        
-        If async execution is enabled, queues the execution in background.
-        Otherwise, executes synchronously.
-        """
-        self.ensure_one()
-        
-        if not self.llm_enabled:
-            raise UserError(_("LLM features are not enabled for this task"))
+        """Execute task using LLM."""
+        def execute():
+            task = self._create_crewai_task()
+            return task.execute()
             
-        if self.llm_execution_state == 'in_progress':
-            raise UserError(_("Task is already executing"))
-            
-        # Create agent for task
-        agent = self._create_crewai_agent()
-        
-        # Update execution state
-        self.llm_execution_state = 'in_progress'
-        
-        if self.llm_async_execution:
-            # Queue execution
-            self.with_delay()._execute_task_background(agent)
-            return True
-        else:
-            # Execute synchronously
-            try:
-                result = agent.execute_task(self.name, self.description)
-                self.write({
-                    'llm_execution_state': 'completed',
-                    'llm_result': str(result) if result else False,
-                })
-            except Exception as e:
-                _logger.exception("Task execution failed")
-                self.write({
-                    'llm_execution_state': 'failed',
-                    'llm_result': str(e),
-                })
-                raise
-            return True
-
-    def _execute_task_job(self):
-        """Background job for task execution."""
-        try:
-            task = self._to_crewai_task()
-            result = task.execute()
-            self._process_task_result(result)
-            self.llm_execution_state = 'completed'
-        except Exception as e:
-            self._handle_execution_error(e)
-
-    def _process_task_result(self, result):
-        """Process task execution result.
-        
-        Args:
-            result: Result from task.execute()
-        """
-        self.llm_result = result
-        self.message_post(
-            body=_("Task execution completed with result:\n%s") % result
-        )
+        return self._execute_llm(execute)
