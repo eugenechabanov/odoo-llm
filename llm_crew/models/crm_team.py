@@ -117,7 +117,7 @@ class CRMTeam(models.Model):
         
     def _execute_crew_background(self, crew):
         """Background execution is not implemented."""
-        raise NotImplementedError(_("Background execution is not implemented"))
+        raise NotImplementedError("Background execution is not supported")
 
     def _process_crew_result(self, result):
         """Process crew execution result.

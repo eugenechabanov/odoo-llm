@@ -96,4 +96,4 @@ class ProjectTask(models.Model):
 
     def _execute_task_background(self, task):
         """Background execution is not implemented."""
-        raise NotImplementedError(_("Background execution is not implemented"))
+        raise NotImplementedError("Background execution is not supported")
