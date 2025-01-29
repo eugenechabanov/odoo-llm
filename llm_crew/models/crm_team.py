@@ -5,33 +5,57 @@ import logging
 _logger = logging.getLogger(__name__)
 
 class CRMTeam(models.Model):
-    _inherit = ['crm.team', 'llm.capability.mixin']
+    _inherit = 'crm.team'
 
-    llm_process = fields.Selection([
-        ('sequential', 'Sequential'),
-        ('hierarchical', 'Hierarchical')
-    ], string="Process Type",
-        default='sequential',
-        help="How agents in the crew work together"
-    )
-    llm_manager_id = fields.Many2one(
-        'res.users',
-        string="Manager Agent",
-        domain="[('crew_agent_id.llm_enabled', '=', True)]",
-        help="Manager agent for hierarchical process"
-    )
-    llm_task_ids = fields.One2many(
-        'project.task',
+    # Relations
+    crew_config_id = fields.One2many(
+        'llm.crew.team',
         'team_id',
-        string="Crew Tasks",
-        domain="[('llm_enabled', '=', True)]"
+        string="AI Crew Configuration"
+    )
+    
+    # Computed Fields
+    is_ai_crew = fields.Boolean(
+        string="Is AI Crew",
+        compute='_compute_is_ai_crew',
+        search='_search_is_ai_crew',
+        help="Whether this team is configured as an AI crew"
     )
 
-    @api.onchange('llm_process')
-    def _onchange_llm_process(self):
-        """Clear manager when process changes from hierarchical"""
-        if self.llm_process != 'hierarchical':
-            self.llm_manager_id = False
+    @api.depends('crew_config_id', 'crew_config_id.llm_enabled')
+    def _compute_is_ai_crew(self):
+        """Compute whether team is configured as AI crew"""
+        for team in self:
+            team.is_ai_crew = bool(team.crew_config_id.filtered('llm_enabled'))
+
+    def _search_is_ai_crew(self, operator, value):
+        """Search teams that are configured as AI crews"""
+        if operator not in ('=', '!='):
+            raise ValueError(_("Invalid operator for is_ai_crew search"))
+            
+        crews = self.env['llm.crew.team'].search([('llm_enabled', '=', True)])
+        team_ids = crews.mapped('team_id').ids
+        
+        if operator == '=':
+            return [('id', 'in' if value else 'not in', team_ids)]
+        else:
+            return [('id', 'not in' if value else 'in', team_ids)]
+
+    def _to_crewai_crew(self):
+        """Convert to CrewAI Crew if configured.
+        
+        Returns:
+            crewai.Crew: CrewAI crew instance if configured, None otherwise
+            
+        Raises:
+            UserError: If required configuration is missing
+        """
+        self.ensure_one()
+        
+        if not self.is_ai_crew:
+            return None
+            
+        return self.crew_config_id._to_crewai_crew()
 
     def _get_crew_agents(self):
         """Get all AI agents in the crew.
@@ -60,25 +84,6 @@ class CRMTeam(models.Model):
             if task._to_crewai_task()  # Filter out None results
         ]
 
-    def _to_crewai_crew(self):
-        """Convert to CrewAI Crew if LLM enabled.
-        
-        Returns:
-            crewai.Crew: CrewAI crew instance if LLM enabled, None otherwise
-            
-        Raises:
-            UserError: If no AI agents configured
-        """
-        self.ensure_one()
-        if not self.llm_enabled:
-            return None
-
-        agents = self._get_crew_agents()
-        if not agents:
-            raise UserError(_("No AI agents configured in crew %s") % self.name)
-
-        return self._create_crewai_crew(agents)
-
     def _create_crewai_crew(self, agents=None):
         """Create a CrewAI crew instance."""
         from crewai import Crew
@@ -98,13 +103,13 @@ class CRMTeam(models.Model):
         config = {
             'agents': agents,
             'tasks': [],  # Tasks will be added during execution
-            'process': self.llm_process or 'sequential',
-            'memory': self.llm_memory_enabled,
+            'process': self.crew_config_id.llm_process or 'sequential',
+            'memory': self.crew_config_id.llm_memory_enabled,
         }
         
         # Add manager for hierarchical process
-        if self.llm_process == 'hierarchical' and self.llm_manager_id:
-            config['manager_llm'] = self.llm_manager_id._get_llm()
+        if self.crew_config_id.llm_process == 'hierarchical' and self.crew_config_id.llm_manager_id:
+            config['manager_llm'] = self.crew_config_id.llm_manager_id._get_llm()
             
         return Crew(**config)
 
@@ -130,3 +135,9 @@ class CRMTeam(models.Model):
         self.message_post(
             body=_("Crew execution completed with result:\n%s") % result
         )
+
+    @api.onchange('crew_config_id.llm_process')
+    def _onchange_llm_process(self):
+        """Clear manager when process changes from hierarchical"""
+        if self.crew_config_id.llm_process != 'hierarchical':
+            self.crew_config_id.llm_manager_id = False
