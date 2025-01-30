@@ -9,7 +9,7 @@ class CRMTeam(models.Model):
 
     # Relations
     llm_crew_team_id = fields.Many2one(
-        'llm.crew.project',
+        'llm.crew.team',
         string="AI Crew",
         ondelete='cascade'
     )
@@ -33,7 +33,7 @@ class CRMTeam(models.Model):
         if operator not in ('=', '!='):
             raise ValueError(_("Invalid operator for is_ai_crew search"))
             
-        crews = self.env['llm.crew.project'].search([('id', '!=', False)])
+        crews = self.env['llm.crew.team'].search([('id', '!=', False)])
         team_ids = crews.mapped('team_id').ids
         
         if operator == '=':
@@ -46,7 +46,7 @@ class CRMTeam(models.Model):
         self.ensure_one()
         if not self.llm_crew_team_id:
             return None
-        return self.llm_crew_team_id._to_crew_project()
+        return self.llm_crew_team_id._to_crew_team()
 
     def _get_crew_agents(self):
         """Get all AI agents in the crew.
