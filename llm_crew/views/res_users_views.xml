@@ -35,6 +35,12 @@
                         <field name="llm_execution_state"/>
                     </group>
                 </page>
+                <page string="AI Agent" attrs="{'invisible': [('is_ai_agent', '=', False)]}">
+                    <group>
+                        <field name="is_ai_agent"/>
+                        <field name="llm_crew_agent_id" attrs="{'required': [('is_ai_agent', '=', True)]}"/>
+                    </group>
+                </page>
             </notebook>
         </field>
     </record>

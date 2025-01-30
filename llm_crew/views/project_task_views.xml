@@ -53,6 +53,12 @@
                                options="{'mode': 'text'}"/>
                     </group>
                 </page>
+                <page string="AI Task" attrs="{'invisible': [('is_ai_task', '=', False)]}">
+                    <group>
+                        <field name="is_ai_task"/>
+                        <field name="llm_crew_task_id" attrs="{'required': [('is_ai_task', '=', True)]}"/>
+                    </group>
+                </page>
             </notebook>
 
             <!-- Add warning if assignee is not an AI agent -->

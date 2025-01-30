@@ -10,7 +10,7 @@
                         type="object"
                         class="oe_stat_button"
                         icon="fa-play"
-                        attrs="{'invisible': ['|', ('is_ai_crew', '=', False), ('crew_config_id.llm_execution_state', '!=', 'draft')]}">
+                        attrs="{'invisible': ['|', ('is_ai_crew', '=', False), ('llm_crew_team_id.llm_execution_state', '!=', 'draft')]}">
                     <div class="o_field_widget o_stat_info">
                         <span class="o_stat_text">Execute</span>
                         <span class="o_stat_text">Crew</span>
@@ -22,9 +22,9 @@
                 <page string="LLM Crew" attrs="{'invisible': [('is_ai_crew', '=', False)]}">
                     <group>
                         <field name="is_ai_crew" invisible="1"/>
-                        <field name="crew_config_id" context="{'default_team_id': active_id}" attrs="{'required': [('is_ai_crew', '=', True)]}"/>
+                        <field name="llm_crew_team_id" attrs="{'required': [('is_ai_crew', '=', True)]}"/>
                     </group>
-                    <field name="crew_config_id" mode="form" nolabel="1" attrs="{'invisible': [('crew_config_id', '=', False)]}">
+                    <field name="llm_crew_team_id" mode="form" nolabel="1" attrs="{'invisible': [('llm_crew_team_id', '=', False)]}">
                         <form>
                             <sheet>
                                 <group>
@@ -90,8 +90,8 @@
         <field name="arch" type="xml">
             <field name="name" position="after">
                 <field name="is_ai_crew" optional="show"/>
-                <field name="crew_config_id.process" optional="show"/>
-                <field name="crew_config_id.llm_execution_state" optional="show"/>
+                <field name="llm_crew_team_id.process" optional="show"/>
+                <field name="llm_crew_team_id.llm_execution_state" optional="show"/>
             </field>
         </field>
     </record>
@@ -106,10 +106,10 @@
                 <div class="oe_kanban_bottom_right" 
                      attrs="{'invisible': [('is_ai_crew', '=', False)]}">
                     <span class="badge rounded-pill" 
-                          t-attf-class="bg-#{record.crew_config_id.llm_execution_state.raw_value == 'completed' and 'success' or 
-                                          record.crew_config_id.llm_execution_state.raw_value == 'failed' and 'danger' or 
-                                          record.crew_config_id.llm_execution_state.raw_value == 'in_progress' and 'info' or 'secondary'}">
-                        <field name="crew_config_id.llm_execution_state"/>
+                          t-attf-class="bg-#{record.llm_crew_team_id.llm_execution_state.raw_value == 'completed' and 'success' or 
+                                          record.llm_crew_team_id.llm_execution_state.raw_value == 'failed' and 'danger' or 
+                                          record.llm_crew_team_id.llm_execution_state.raw_value == 'in_progress' and 'info' or 'secondary'}">
+                        <field name="llm_crew_team_id.llm_execution_state"/>
                     </span>
                 </div>
             </xpath>

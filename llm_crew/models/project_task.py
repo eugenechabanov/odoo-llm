@@ -4,29 +4,22 @@ import json
 
 
 class ProjectTask(models.Model):
-    _inherit = ['project.task', 'llm.capability.mixin']
+    _inherit = 'project.task'
 
-    llm_expected_output = fields.Text(
-        string="Expected Output",
-        help="Description of the expected output from this task"
-    )
-    llm_output_format = fields.Selection([
-        ('text', 'Text'),
-        ('json', 'JSON'),
-        ('markdown', 'Markdown')
-    ], string="Output Format",
-        default='text',
-        help="Format of the task output"
-    )
-    llm_context = fields.Text(
-        string="Task Context",
-        help="Additional context for the task"
-    )
-    llm_tools = fields.Text(
-        string="Task Tools",
-        help="JSON configuration for task-specific tools"
-    )
     llm_crew_task_id = fields.Many2one('llm.crew.task', string="AI Task")
+
+    @api.depends('llm_crew_task_id')
+    def _compute_is_ai_task(self):
+        """Compute whether task is configured as AI task"""
+        for task in self:
+            task.is_ai_task = bool(task.llm_crew_task_id)
+
+    def _to_crew_task(self):
+        """Convert to CrewAI Task if AI task is configured"""
+        self.ensure_one()
+        if not self.llm_crew_task_id:
+            return None
+        return self.llm_crew_task_id._to_crew_task()
 
     @api.onchange('llm_enabled')
     def _onchange_llm_enabled(self):
@@ -42,13 +35,6 @@ class ProjectTask(models.Model):
                 raise UserError(_(
                     "Task assignee must be an AI agent when LLM is enabled"
                 ))
-
-    def _to_crew_task(self):
-        """Convert to CrewAI Task if AI task is configured"""
-        self.ensure_one()
-        if not self.llm_crew_task_id:
-            return None
-        return self.llm_crew_task_id._to_crew_task()
 
     def _create_crewai_task(self):
         """Create CrewAI task instance.
