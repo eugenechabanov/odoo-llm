@@ -22,6 +22,14 @@ class LLMCrewTeam(models.Model):
         ondelete='cascade',
         index=True
     )
+    project_id = fields.Many2one(
+        'project.project',
+        string="Project",
+        required=True,
+        ondelete='cascade',
+        index=True,
+        help="Project this crew is working on"
+    )
     
     # Process Configuration
     process = fields.Selection([
@@ -42,14 +50,22 @@ class LLMCrewTeam(models.Model):
         'project.task',
         'crew_team_id',
         string="Crew Tasks",
-        domain="[('llm_enabled', '=', True)]"
+        domain="[('project_id', '=', project_id), ('llm_enabled', '=', True)]"
     )
 
     _sql_constraints = [
         ('unique_team',
          'unique(team_id)',
-         'LLM configuration already exists for this team!')
+         'LLM configuration already exists for this team!'),
+        ('unique_project_team',
+         'unique(project_id, team_id)',
+         'This team is already assigned to this project!')
     ]
+
+    @api.onchange('project_id')
+    def _onchange_project_id(self):
+        """Clear tasks when project changes"""
+        self.task_ids = False
 
     @api.onchange('process')
     def _onchange_process(self):
