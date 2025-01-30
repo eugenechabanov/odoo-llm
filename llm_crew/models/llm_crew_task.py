@@ -10,6 +10,18 @@ class LLMCrewTask(models.Model):
     name = fields.Char(required=True)
     task_id = fields.Many2one('project.task', string="Related Task", required=True)
     agent_id = fields.Many2one('llm.crew.agent', string="Assigned Agent", required=True)
+    crew_id = fields.Many2one(
+        'llm.crew.team',
+        string="Crew",
+        required=True,
+        domain="[('project_id', '=', project_id)]"
+    )
+    project_id = fields.Many2one(
+        'project.project',
+        related='task_id.project_id',
+        store=True,
+        readonly=True
+    )
     
     # Task Configuration
     description = fields.Text(required=True, help="Task description for the AI agent")
@@ -37,6 +49,17 @@ class LLMCrewTask(models.Model):
     error = fields.Text(readonly=True)
     execution_time = fields.Float(readonly=True)
 
+    _sql_constraints = [
+        ('unique_task',
+         'unique(task_id)',
+         'This task is already configured as an AI task!')
+    ]
+
+    @api.onchange('task_id')
+    def _onchange_task_id(self):
+        """Reset crew when task changes to ensure project match"""
+        self.crew_id = False
+
     def _to_crew_task(self):
         """Convert to CrewAI Task instance"""
         self.ensure_one()
@@ -50,10 +73,11 @@ class LLMCrewTask(models.Model):
             expected_output=self.expected_output,
             agent=self.agent_id._to_crew_agent(),
             async_execution=self.async_execution,
+            output_format=self.output_format,
             context=self.context,
-            output_format=self.output_format
+            tools=self.tools and json.loads(self.tools) or None
         )
-    
+
     def _update_from_result(self, result):
         """Update task from CrewAI execution result"""
         self.write({

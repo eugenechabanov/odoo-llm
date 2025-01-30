@@ -30,6 +30,12 @@ class LLMCrewTeam(models.Model):
         index=True,
         help="Project this crew is working on"
     )
+    task_ids = fields.One2many(
+        'llm.crew.task',
+        'crew_id',
+        string="Tasks",
+        help="AI tasks assigned to this crew"
+    )
     
     # Process Configuration
     process = fields.Selection([
@@ -46,12 +52,6 @@ class LLMCrewTeam(models.Model):
         domain="[('crew_agent_id.llm_enabled', '=', True)]",
         help="Manager agent for hierarchical process"
     )
-    task_ids = fields.One2many(
-        'project.task',
-        'crew_team_id',
-        string="Crew Tasks",
-        domain="[('project_id', '=', project_id), ('llm_enabled', '=', True)]"
-    )
 
     _sql_constraints = [
         ('unique_team',
@@ -61,11 +61,6 @@ class LLMCrewTeam(models.Model):
          'unique(project_id, team_id)',
          'This team is already assigned to this project!')
     ]
-
-    @api.onchange('project_id')
-    def _onchange_project_id(self):
-        """Clear tasks when project changes"""
-        self.task_ids = False
 
     @api.onchange('process')
     def _onchange_process(self):
@@ -92,11 +87,9 @@ class LLMCrewTeam(models.Model):
         Returns:
             list: List of CrewAI task instances
         """
-        return [
-            task._create_crewai_task()
-            for task in self.task_ids.filtered('llm_enabled')
-            if task.stage_id.is_closed is False  # Only active tasks
-        ]
+        self.ensure_one()
+        tasks = self.task_ids.filtered(lambda t: not t.task_id.stage_id.is_closed)
+        return [task._to_crew_task() for task in tasks]
 
     def _to_crewai_crew(self):
         """Convert to CrewAI Crew instance.

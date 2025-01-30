@@ -34,7 +34,7 @@
                     <group>
                         <group>
                             <field name="team_id"/>
-                            <field name="project_id" attrs="{'readonly': [('task_ids', '!=', False)]}"/>
+                            <field name="project_id"/>
                             <field name="llm_enabled"/>
                         </group>
                         <group>
@@ -47,11 +47,12 @@
                     </group>
                     <notebook>
                         <page string="Tasks" name="tasks">
-                            <field name="task_ids">
+                            <field name="task_ids" context="{'default_crew_id': active_id}">
                                 <tree>
                                     <field name="name"/>
-                                    <field name="user_id"/>
-                                    <field name="stage_id"/>
+                                    <field name="task_id"/>
+                                    <field name="agent_id"/>
+                                    <field name="state"/>
                                 </tree>
                             </field>
                         </page>
