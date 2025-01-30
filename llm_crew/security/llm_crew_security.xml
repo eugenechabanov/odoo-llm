@@ -35,7 +35,7 @@
             <field name="model_id" ref="model_llm_crew_agent"/>
             <field name="domain_force">['|',
                 ('user_id', '=', user.id),
-                ('team_ids.member_ids', '=', user.id)]</field>
+                ('user_id.crm_team_member_ids.crm_team_id.llm_crew_team_id.team_id.member_ids', '=', user.id)]</field>
             <field name="groups" eval="[(4, ref('base.group_user'))]"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="True"/>
