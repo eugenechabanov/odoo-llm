@@ -8,17 +8,17 @@ class CRMTeam(models.Model):
     _inherit = 'crm.team'
 
     # Relations
-    crew_config_id = fields.One2many(
+    crew_config_id = fields.Many2one(
         'llm.crew.team',
-        'team_id',
-        string="AI Crew Configuration"
+        string='Crew Configuration',
+        ondelete='cascade'
     )
     
     # Computed Fields
     is_ai_crew = fields.Boolean(
         string="Is AI Crew",
         compute='_compute_is_ai_crew',
-        search='_search_is_ai_crew',
+        store=True,
         help="Whether this team is configured as an AI crew"
     )
 
@@ -26,7 +26,7 @@ class CRMTeam(models.Model):
     def _compute_is_ai_crew(self):
         """Compute whether team is configured as AI crew"""
         for team in self:
-            team.is_ai_crew = bool(team.crew_config_id.filtered('llm_enabled'))
+            team.is_ai_crew = bool(team.crew_config_id and team.crew_config_id.llm_enabled)
 
     def _search_is_ai_crew(self, operator, value):
         """Search teams that are configured as AI crews"""
