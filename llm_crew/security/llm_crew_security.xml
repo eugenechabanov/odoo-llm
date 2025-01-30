@@ -5,25 +5,64 @@
         <!-- Only team members can access their crew's LLM features -->
         <record id="llm_crew_team_rule" model="ir.rule">
             <field name="name">LLM Crew: Team Members Only</field>
-            <field name="model_id" ref="sales_team.model_crm_team"/>
-            <field name="domain_force">[('member_ids', 'in', user.id)]</field>
-            <field name="groups" eval="[(4, ref('base.group_user'))]"/>
-            <field name="perm_read" eval="True"/>
-            <field name="perm_write" eval="True"/>
-            <field name="perm_create" eval="False"/>
-            <field name="perm_unlink" eval="False"/>
-        </record>
-
-        <!-- Only assignee and managers can modify LLM task settings -->
-        <record id="llm_task_user_rule" model="ir.rule">
-            <field name="name">LLM Task: Assignee and Managers</field>
-            <field name="model_id" ref="project.model_project_task"/>
-            <field name="domain_force">['|', ('user_id', '=', user.id), ('project_id.user_id', '=', user.id)]</field>
+            <field name="model_id" ref="model_llm_crew_team"/>
+            <field name="domain_force">[('team_id.member_ids', '=', user.id)]</field>
             <field name="groups" eval="[(4, ref('base.group_user'))]"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="True"/>
             <field name="perm_create" eval="True"/>
             <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <!-- Only assignee and managers can modify LLM task settings -->
+        <record id="llm_crew_task_rule" model="ir.rule">
+            <field name="name">LLM Task: Assignee and Managers</field>
+            <field name="model_id" ref="model_llm_crew_task"/>
+            <field name="domain_force">['|', '|',
+                ('task_id.user_id', '=', user.id),
+                ('crew_id.team_id.member_ids', '=', user.id),
+                ('project_id.user_id', '=', user.id)]</field>
+            <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <!-- Only team members can access their crew's agents -->
+        <record id="llm_crew_agent_rule" model="ir.rule">
+            <field name="name">LLM Agent: Team Members Only</field>
+            <field name="model_id" ref="model_llm_crew_agent"/>
+            <field name="domain_force">['|',
+                ('user_id', '=', user.id),
+                ('user_id.team_ids.member_ids', '=', user.id)]</field>
+            <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <!-- Global Rules for Managers -->
+        <record id="llm_crew_team_manager_rule" model="ir.rule">
+            <field name="name">LLM Crew: Project Managers</field>
+            <field name="model_id" ref="model_llm_crew_team"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('project.group_project_manager'))]"/>
+        </record>
+
+        <record id="llm_crew_task_manager_rule" model="ir.rule">
+            <field name="name">LLM Task: Project Managers</field>
+            <field name="model_id" ref="model_llm_crew_task"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('project.group_project_manager'))]"/>
+        </record>
+
+        <record id="llm_crew_agent_manager_rule" model="ir.rule">
+            <field name="name">LLM Agent: Project Managers</field>
+            <field name="model_id" ref="model_llm_crew_agent"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('project.group_project_manager'))]"/>
         </record>
     </data>
 </odoo>
