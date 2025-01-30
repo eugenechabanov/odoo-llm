@@ -26,6 +26,7 @@ class ProjectTask(models.Model):
         string="Task Tools",
         help="JSON configuration for task-specific tools"
     )
+    llm_crew_task_id = fields.Many2one('llm.crew.task', string="AI Task")
 
     @api.onchange('llm_enabled')
     def _onchange_llm_enabled(self):
@@ -41,6 +42,13 @@ class ProjectTask(models.Model):
                 raise UserError(_(
                     "Task assignee must be an AI agent when LLM is enabled"
                 ))
+
+    def _to_crew_task(self):
+        """Convert to CrewAI Task if AI task is configured"""
+        self.ensure_one()
+        if not self.llm_crew_task_id:
+            return None
+        return self.llm_crew_task_id._to_crew_task()
 
     def _create_crewai_task(self):
         """Create CrewAI task instance.

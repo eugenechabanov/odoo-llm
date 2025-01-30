@@ -1,15 +1,12 @@
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError
-
 
 class ResUsers(models.Model):
     _inherit = 'res.users'
 
     # Relations
-    crew_agent_id = fields.One2many(
+    llm_crew_agent_id = fields.Many2one(
         'llm.crew.agent',
-        'user_id',
-        string="AI Agent Configuration"
+        string="AI Agent"
     )
     
     # Computed Fields
@@ -20,11 +17,11 @@ class ResUsers(models.Model):
         help="Whether this user is configured as an AI agent"
     )
 
-    @api.depends('crew_agent_id', 'crew_agent_id.llm_enabled')
+    @api.depends('llm_crew_agent_id')
     def _compute_is_ai_agent(self):
         """Compute whether user is configured as AI agent"""
         for user in self:
-            user.is_ai_agent = bool(user.crew_agent_id.filtered('llm_enabled'))
+            user.is_ai_agent = bool(user.llm_crew_agent_id)
 
     def _search_is_ai_agent(self, operator, value):
         """Search users that are configured as AI agents"""
@@ -39,18 +36,9 @@ class ResUsers(models.Model):
         else:
             return [('id', 'not in' if value else 'in', user_ids)]
 
-    def _to_crewai_agent(self):
-        """Convert to CrewAI Agent if configured.
-        
-        Returns:
-            crewai.Agent: CrewAI agent instance if configured, None otherwise
-            
-        Raises:
-            UserError: If required fields are not set
-        """
+    def _to_crew_agent(self):
+        """Convert to CrewAI Agent if AI agent is configured"""
         self.ensure_one()
-        
-        if not self.is_ai_agent:
+        if not self.llm_crew_agent_id:
             return None
-            
-        return self.crew_agent_id._to_crewai_agent()
+        return self.llm_crew_agent_id._to_crew_agent()
