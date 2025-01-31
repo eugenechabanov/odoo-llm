@@ -1,27 +1,71 @@
-from odoo import models, fields, api
+from odoo import models, fields, api, _
+from odoo.exceptions import UserError
 
 class CRMTeam(models.Model):
     _inherit = 'crm.team'
 
-    llm_crew_team_id = fields.Many2one('llm.crew.team', string="AI Crew", ondelete='cascade')
-    is_ai_crew = fields.Boolean(compute='_compute_is_ai_crew', search='_search_is_ai_crew',
-                              help="Whether this team is configured as an AI crew")
+    is_crew = fields.Boolean(string="Is AI Crew", default=False, tracking=True)
+    project_id = fields.Many2one('project.project', string="AI Project", tracking=True)
+    crew_manager_id = fields.Many2one(
+        'res.users', 
+        string="Crew Manager",
+        domain="[('id', 'in', member_ids)]",
+        tracking=True
+    )
 
-    @api.depends('llm_crew_team_id')
-    def _compute_is_ai_crew(self):
-        """Compute whether team is configured as AI crew"""
-        for team in self:
-            team.is_ai_crew = bool(team.llm_crew_team_id)
+    def execute_crew_prompt(self, prompt):
+        self.ensure_one()
+        if not self.is_crew:
+            raise UserError(_("This team is not configured as an AI crew"))
 
-    def _search_is_ai_crew(self, operator, value):
-        """Search teams that are configured as AI crews"""
-        if operator not in ('=', '!='):
-            raise ValueError(_("Invalid operator for is_ai_crew search"))
-            
-        crews = self.env['llm.crew.team'].search([('id', '!=', False)])
-        team_ids = crews.mapped('team_id').ids
+        if not self.crew_manager_id:
+            raise UserError(_("Please assign a crew manager"))
+
+        if not self.project_id:
+            raise UserError(_("Please assign an AI project"))
+
+        # Get manager agent
+        manager_agent = self.env['llm.crew.agent'].search([
+            ('user_id', '=', self.crew_manager_id.id)
+        ])
+        if not manager_agent:
+            raise UserError(_("Crew manager must have an AI agent configuration"))
+
+        # Get crew agents
+        crew_agents = self.env['llm.crew.agent'].search([
+            ('user_id', 'in', self.member_ids.ids)
+        ])
+        if not crew_agents:
+            raise UserError(_("No AI agents found in the crew"))
+
+        # Get project tasks and format with prompt
+        tasks = self.project_id.task_ids.filtered(
+            lambda t: not t.stage_id.is_closed and t.is_crew_task
+        )
+        if not tasks:
+            raise UserError(_("No active crew tasks found in the project"))
+
+        crew_tasks = []
+        for task in tasks:
+            agent = crew_agents.filtered(lambda a: a.user_id == task.user_id)
+            if not agent:
+                raise UserError(_(
+                    "Task '%s' is assigned to a user without AI agent configuration"
+                ) % task.name)
+                
+            crew_tasks.append(Task(
+                description=task.description.format(prompt=prompt),
+                expected_output=task.description_help,
+                agent=agent._to_crewai_agent()
+            ))
+
+        # Create and execute crew
+        from crewai import Crew
+        crew = Crew(
+            agents=[agent._to_crewai_agent() for agent in crew_agents],
+            tasks=crew_tasks,
+            manager=manager_agent._to_crewai_agent(),
+            process='hierarchical'
+        )
         
-        if operator == '=':
-            return [('id', 'in' if value else 'not in', team_ids)]
-        else:
-            return [('id', 'not in' if value else 'in', team_ids)]
+        return crew.kickoff()

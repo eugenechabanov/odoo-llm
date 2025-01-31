@@ -1,31 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="crm_team_view_form_llm" model="ir.ui.view">
-        <field name="name">crm.team.form.llm</field>
+    <!-- Inherit Form View -->
+    <record id="crm_team_view_form_inherit_crew" model="ir.ui.view">
+        <field name="name">crm.team.form.inherit.crew</field>
         <field name="model">crm.team</field>
         <field name="inherit_id" ref="sales_team.crm_team_view_form"/>
         <field name="arch" type="xml">
-            <notebook position="inside">
-                <page string="AI Crew" attrs="{'invisible': [('is_ai_crew', '=', False)]}">
+            <xpath expr="//notebook" position="inside">
+                <page string="AI Crew" name="ai_crew">
                     <group>
-                        <field name="is_ai_crew"/>
-                        <field name="llm_crew_team_id" attrs="{'required': [('is_ai_crew', '=', True)]}"/>
+                        <field name="is_crew"/>
+                        <field name="project_id" attrs="{'invisible': [('is_crew', '=', False)], 'required': [('is_crew', '=', True)]}"/>
+                        <field name="crew_manager_id" attrs="{'invisible': [('is_crew', '=', False)], 'required': [('is_crew', '=', True)]}"/>
                     </group>
-                    
                 </page>
-            </notebook>
-        </field>
-    </record>
-
-    <!-- Add LLM columns to team tree view -->
-    <record id="crm_team_view_tree_llm" model="ir.ui.view">
-        <field name="name">crm.team.tree.llm</field>
-        <field name="model">crm.team</field>
-        <field name="inherit_id" ref="sales_team.crm_team_view_tree"/>
-        <field name="arch" type="xml">
-            <field name="name" position="after">
-                <field name="is_ai_crew" optional="show"/>
-            </field>
+            </xpath>
         </field>
     </record>
 </odoo>

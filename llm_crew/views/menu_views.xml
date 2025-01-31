@@ -1,54 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Root LLMCrew Menu -->
+    <!-- Menu Items -->
     <menuitem id="menu_llm_crew_root"
-              name="LLMCrew"
-              sequence="50"
-              web_icon="llm_crew,static/description/icon.png"/>
-
-    <!-- Agents Menu -->
-    <record id="action_llm_crew_agent" model="ir.actions.act_window">
-        <field name="name">AI Agents</field>
-        <field name="res_model">llm.crew.agent</field>
-        <field name="view_mode">tree,form</field>
-    </record>
+        name="AI Crew"
+        parent="crm.crm_menu_root"
+        sequence="10"/>
 
     <menuitem id="menu_llm_crew_agent"
-              name="AI Agents"
-              parent="menu_llm_crew_root"
-              action="action_llm_crew_agent"
-              sequence="10"/>
-
-    <!-- Teams Menu -->
-    <record id="action_llm_crew_team" model="ir.actions.act_window">
-        <field name="name">AI Teams</field>
-        <field name="res_model">llm.crew.team</field>
-        <field name="view_mode">kanban,tree,form</field>
-    </record>
-
-    <menuitem id="menu_llm_crew_team"
-              name="AI Teams"
-              parent="menu_llm_crew_root"
-              action="action_llm_crew_team"
-              sequence="20"/>
-
-    <!-- Tasks Menu -->
-    <record id="action_llm_crew_task" model="ir.actions.act_window">
-        <field name="name">AI Tasks</field>
-        <field name="res_model">llm.crew.task</field>
-        <field name="view_mode">kanban,tree,form</field>
-    </record>
-
-    <menuitem id="menu_llm_crew_task"
-              name="AI Tasks"
-              parent="menu_llm_crew_root"
-              action="action_llm_crew_task"
-              sequence="30"/>
-
-    <!-- Configuration Menu -->
-    <menuitem id="menu_llm_crew_config"
-              name="Configuration"
-              parent="menu_llm_crew_root"
-              sequence="100"/>
-
+        name="AI Agents"
+        parent="menu_llm_crew_root"
+        action="action_llm_crew_agent"
+        sequence="1"/>
 </odoo>

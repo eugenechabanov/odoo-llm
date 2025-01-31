@@ -1,9 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_llm_capability_mixin_user,llm.capability.mixin.user,model_llm_capability_mixin,base.group_user,1,1,1,0
-access_llm_capability_mixin_manager,llm.capability.mixin.manager,model_llm_capability_mixin,base.group_system,1,1,1,1
-access_llm_crew_team_user,llm.crew.team.user,model_llm_crew_team,base.group_user,1,1,1,0
-access_llm_crew_team_manager,llm.crew.team.manager,model_llm_crew_team,base.group_system,1,1,1,1
-access_llm_crew_task_user,llm.crew.task.user,model_llm_crew_task,base.group_user,1,1,1,0
-access_llm_crew_task_manager,llm.crew.task.manager,model_llm_crew_task,base.group_system,1,1,1,1
-access_llm_crew_agent_user,llm.crew.agent.user,model_llm_crew_agent,base.group_user,1,1,1,0
-access_llm_crew_agent_manager,llm.crew.agent.manager,model_llm_crew_agent,base.group_system,1,1,1,1
+access_llm_crew_agent_user,llm.crew.agent.user,model_llm_crew_agent,base.group_user,1,0,0,0
+access_llm_crew_agent_manager,llm.crew.agent.manager,model_llm_crew_agent,sales_team.group_sale_manager,1,1,1,1
