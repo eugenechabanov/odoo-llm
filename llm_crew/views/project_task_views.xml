@@ -8,6 +8,7 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='user_ids']" position="after">
                 <field name="is_crew_task"/>
+                <field name="expected_output" attrs="{'invisible': [('is_crew_task', '=', False)]}"/>
             </xpath>
         </field>
     </record>

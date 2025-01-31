@@ -55,7 +55,7 @@ class CRMTeam(models.Model):
                 
             crew_tasks.append(Task(
                 description=task.description.format(prompt=prompt),
-                expected_output=task.description_help,
+                expected_output=task.expected_output,
                 agent=agent._to_crewai_agent()
             ))
 
