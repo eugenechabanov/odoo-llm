@@ -74,7 +74,7 @@ class LLMCrewTeam(models.Model):
         Returns:
             list: List of CrewAI agent instances
         """
-        agents = self.team_id.member_ids.mapped('crew_agent_id').filtered('llm_enabled')
+        agents = self.team_id.member_ids.mapped('llm_crew_agent_id').filtered('llm_enabled')
         return [
             agent._to_crewai_agent()
             for agent in agents
@@ -119,4 +119,4 @@ class LLMCrewTeam(models.Model):
             tasks=tasks,
             process=self.process,
             manager=self.manager_id._to_crewai_agent() if self.process == 'hierarchical' else None
-        )
+        )    
