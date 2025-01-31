@@ -7,81 +7,71 @@ class MailThread(models.AbstractModel):
     _inherit = 'mail.thread'
 
     def _message_post_after_hook(self, message, msg_vals):
-        """Handle AI agent mentions after message post."""
-        result = super()._message_post_after_hook(message, msg_vals)
+        """Handle AI agent mentions and trigger crew execution.
         
-        # Only process if there are mentions
-        if not message.partner_ids:
-            return result
-            
-        # Get mentioned users that are AI agents
-        User = self.env['res.users']
-        mentioned_users = User.search([
-            ('partner_id', 'in', message.partner_ids.ids),
-            ('llm_enabled', '=', True),
-        ])
-        
-        if not mentioned_users:
-            return result
-            
-        # Process each AI agent mention
-        for user in mentioned_users:
-            try:
-                self._process_ai_agent_mention(message, user)
-            except Exception as e:
-                message.message_post(
-                    body=_(
-                        "Failed to process mention for AI agent %(name)s: %(error)s",
-                        name=user.name,
-                        error=str(e)
-                    ),
-                    message_type='comment',
-                    subtype_xmlid='mail.mt_note',
-                )
-                
-        return result
-        
-    def _process_ai_agent_mention(self, message, agent_user):
-        """Process mention of an AI agent in a message.
-        
-        Args:
-            message: mail.message record that contains the mention
-            agent_user: res.users record of the mentioned AI agent
+        If a mentioned user is an AI agent:
+        1. Find their associated crew (team)
+        2. Execute the prompt with the message content
+        3. Post the response as a message from the AI agent
         """
-        # Extract message content
-        content = self._extract_message_content(message)
-        if not content:
-            return
-            
-        # Create task for agent
-        task = self.env['project.task'].create({
-            'name': _('Chat Response: %s', message.subject or 'Untitled'),
-            'description': content,
-            'user_id': agent_user.id,
-            'llm_enabled': True,
-            'llm_provider_id': agent_user.llm_provider_id.id,
-            'llm_model_id': agent_user.llm_model_id.id,
-            'llm_memory_enabled': agent_user.llm_memory_enabled,
-            'llm_memory_config': agent_user.llm_memory_config,
-            'llm_expected_output': 'Provide a helpful response to the user\'s message',
-            'llm_output_format': 'markdown',
-        })
+        res = super()._message_post_after_hook(message, msg_vals)
         
-        # Execute task
-        try:
-            task.execute_task()
+        # Check for AI agent mentions
+        if message.partner_ids:
+            mentioned_users = self.env['res.users'].search([
+                ('partner_id', 'in', message.partner_ids.ids)
+            ])
             
-            # Post response
-            message.message_post(
-                body=task.llm_result,
-                message_type='comment',
-                subtype_xmlid='mail.mt_comment',
-            )
-            
-        finally:
-            # Clean up task
-            task.unlink()
-            
+            for user in mentioned_users:
+                # Check if user is an AI agent
+                ai_agent = self.env['llm.crew.agent'].search([
+                    ('user_id', '=', user.id),
+                    ('active', '=', True)
+                ], limit=1)
+                
+                if not ai_agent:
+                    continue
+                    
+                # Find the crew (team) this agent belongs to
+                crew = self.env['crm.team'].search([
+                    ('is_crew', '=', True),
+                    ('member_ids', 'in', [user.id])  
+                ], limit=1)
+                
+                if not crew:
+                    self.with_context(mail_create_nosubscribe=True).message_post(
+                        body="Crew not found for AI agent %s" % user.name,
+                        message_type='comment',
+                        subtype_xmlid='mail.mt_comment',
+                        author_id=user.partner_id.id
+                    )
+                    continue
+                
+                try:
+                    # Execute the prompt
+                    result = crew.execute_crew_prompt(message.body)
+                    
+                    # Post response as the AI agent
+                    self.with_context(mail_create_nosubscribe=True).message_post(
+                        body=result,
+                        message_type='comment',
+                        subtype_xmlid='mail.mt_comment',
+                        author_id=user.partner_id.id
+                    )
+                    
+                except Exception as e:
+                    error_msg = _(
+                        "Error while processing request for AI agent %s: %s"
+                    ) % (user.name, str(e))
+                    self.with_context(mail_create_nosubscribe=True).message_post(
+                        body=error_msg,
+                        message_type='comment',
+                        subtype_xmlid='mail.mt_comment',
+                        author_id=user.partner_id.id
+                    )
+                    
+        return res
+
     def _extract_message_content(self, message):
         """Extract clean message content from a mail message.
         

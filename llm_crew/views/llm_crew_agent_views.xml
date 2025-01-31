@@ -11,6 +11,7 @@
                 <field name="role"/>
                 <field name="llm_provider_id"/>
                 <field name="llm_model_id"/>
+                <field name="allow_delegation"/>
             </tree>
         </field>
     </record>
@@ -41,6 +42,7 @@
                                 <field name="role"/>
                                 <field name="goal"/>
                                 <field name="backstory"/>
+                                <field name="allow_delegation"/>
                             </group>
                         </page>
                     </notebook>
@@ -63,6 +65,7 @@
                 <field name="user_id"/>
                 <field name="role"/>
                 <field name="llm_provider_id"/>
+                <field name="allow_delegation"/>
                 <separator/>
                 <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
             </search>

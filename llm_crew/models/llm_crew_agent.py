@@ -1,5 +1,6 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
+from crewai import LLM, Agent
 
 class LLMCrewAgent(models.Model):
     _name = 'llm.crew.agent'
@@ -14,16 +15,20 @@ class LLMCrewAgent(models.Model):
     goal = fields.Text(required=True, tracking=True)
     backstory = fields.Text(tracking=True)
     active = fields.Boolean(default=True)
+    allow_delegation = fields.Boolean(default=False)
 
     _sql_constraints = [
         ('unique_user', 'unique(user_id)', 'An agent already exists for this user!')
     ]
 
     def _to_crewai_agent(self):
-        from crewai import Agent
         return Agent(
             role=self.role,
             goal=self.goal,
             backstory=self.backstory,
-            llm=self.llm_provider_id._get_llm()
+            allow_delegation=self.allow_delegation,
+            llm=LLM(
+                model=f"{self.llm_provider_id.name}/{self.llm_model_id.name}",
+                api_key=self.llm_provider_id.api_key,
+            )
         )

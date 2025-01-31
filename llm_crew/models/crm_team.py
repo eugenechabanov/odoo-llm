@@ -1,6 +1,6 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
-
+from crewai import Agent, Crew, Process, Task
 class CRMTeam(models.Model):
     _inherit = 'crm.team'
 
@@ -40,27 +40,22 @@ class CRMTeam(models.Model):
 
         # Get project tasks and format with prompt
         tasks = self.project_id.task_ids.filtered(
-            lambda t: not t.stage_id.is_closed and t.is_crew_task
+            lambda t: t.is_crew_task
         )
         if not tasks:
             raise UserError(_("No active crew tasks found in the project"))
 
         crew_tasks = []
         for task in tasks:
-            agent = crew_agents.filtered(lambda a: a.user_id == task.user_id)
-            if not agent:
-                raise UserError(_(
-                    "Task '%s' is assigned to a user without AI agent configuration"
-                ) % task.name)
+            agent = crew_agents.filtered(lambda a: a.user_id.id in task.user_ids.ids)
                 
             crew_tasks.append(Task(
                 description=task.description.format(prompt=prompt),
                 expected_output=task.expected_output,
-                agent=agent._to_crewai_agent()
+                agent=agent._to_crewai_agent() if agent else None
             ))
 
         # Create and execute crew
-        from crewai import Crew
         crew = Crew(
             agents=[agent._to_crewai_agent() for agent in crew_agents],
             tasks=crew_tasks,
