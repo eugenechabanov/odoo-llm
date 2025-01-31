@@ -6,35 +6,6 @@
         <field name="inherit_id" ref="base.view_users_form"/>
         <field name="arch" type="xml">
             <notebook position="inside">
-                <page string="LLM Agent" attrs="{'invisible': [('llm_enabled', '=', False)]}">
-                    <group>
-                        <group string="LLM Configuration">
-                            <field name="llm_enabled"/>
-                            <field name="llm_provider_id" 
-                                   attrs="{'required': [('llm_enabled', '=', True)]}"/>
-                            <field name="llm_model_id" 
-                                   attrs="{'required': [('llm_enabled', '=', True)]}"/>
-                            <field name="llm_memory_enabled"/>
-                            <field name="llm_memory_config" widget="ace"
-                                   attrs="{'invisible': [('llm_memory_enabled', '=', False)]}"
-                                   options="{'mode': 'json'}"/>
-                        </group>
-                        <group string="Agent Configuration">
-                            <field name="llm_agent_role" 
-                                   attrs="{'required': [('llm_enabled', '=', True)]}"/>
-                            <field name="llm_agent_goal" 
-                                   attrs="{'required': [('llm_enabled', '=', True)]}"/>
-                            <field name="llm_agent_backstory"/>
-                            <field name="llm_agent_allow_delegation"/>
-                            <field name="llm_agent_tools" widget="ace"
-                                   options="{'mode': 'json'}"/>
-                        </group>
-                    </group>
-                    <group string="Execution">
-                        <field name="llm_max_iterations"/>
-                        <field name="llm_execution_state"/>
-                    </group>
-                </page>
                 <page string="AI Agent" attrs="{'invisible': [('is_ai_agent', '=', False)]}">
                     <group>
                         <field name="is_ai_agent"/>
@@ -45,20 +16,6 @@
         </field>
     </record>
 
-    <!-- Add LLM filter to user search view -->
-    <record id="view_users_search_llm" model="ir.ui.view">
-        <field name="name">res.users.search.llm</field>
-        <field name="model">res.users</field>
-        <field name="inherit_id" ref="base.view_users_search"/>
-        <field name="arch" type="xml">
-            <filter name="inactive" position="after">
-                <filter string="LLM Agents" name="llm_agents" 
-                        domain="[('llm_enabled', '=', True)]"/>
-                <separator/>
-            </filter>
-        </field>
-    </record>
-
     <!-- Add LLM column to user tree view -->
     <record id="view_users_tree_llm" model="ir.ui.view">
         <field name="name">res.users.tree.llm</field>
@@ -66,8 +23,8 @@
         <field name="inherit_id" ref="base.view_users_tree"/>
         <field name="arch" type="xml">
             <field name="login" position="after">
-                <field name="llm_enabled" optional="show"/>
-                <field name="llm_agent_role" optional="hide"/>
+                <field name="is_ai_agent" optional="show"/>
+                <field name="llm_crew_agent_id" optional="hide"/>
             </field>
         </field>
     </record>
