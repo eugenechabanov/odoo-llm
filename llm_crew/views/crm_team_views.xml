@@ -5,80 +5,15 @@
         <field name="model">crm.team</field>
         <field name="inherit_id" ref="sales_team.crm_team_view_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
-                <button name="execute_crew"
-                        type="object"
-                        class="oe_stat_button"
-                        icon="fa-play"
-                        attrs="{'invisible': ['|', ('is_ai_crew', '=', False), ('llm_crew_team_id.llm_execution_state', '!=', 'draft')]}">
-                    <div class="o_field_widget o_stat_info">
-                        <span class="o_stat_text">Execute</span>
-                        <span class="o_stat_text">Crew</span>
-                    </div>
-                </button>
-            </xpath>
-
             <notebook position="inside">
-                <page string="LLM Crew" attrs="{'invisible': [('is_ai_crew', '=', False)]}">
+                <page string="AI Crew" attrs="{'invisible': [('is_ai_crew', '=', False)]}">
                     <group>
-                        <field name="is_ai_crew" invisible="1"/>
+                        <field name="is_ai_crew"/>
                         <field name="llm_crew_team_id" attrs="{'required': [('is_ai_crew', '=', True)]}"/>
                     </group>
-                    <field name="llm_crew_team_id" mode="form" nolabel="1" attrs="{'invisible': [('llm_crew_team_id', '=', False)]}">
-                        <form>
-                            <sheet>
-                                <group>
-                                    <group string="LLM Configuration">
-                                        <field name="llm_enabled"/>
-                                        <field name="llm_provider_id" 
-                                               attrs="{'required': [('llm_enabled', '=', True)]}"/>
-                                        <field name="llm_model_id" 
-                                               attrs="{'required': [('llm_enabled', '=', True)]}"/>
-                                        <field name="llm_memory_enabled"/>
-                                        <field name="llm_memory_config" widget="ace"
-                                               attrs="{'invisible': [('llm_memory_enabled', '=', False)]}"
-                                               options="{'mode': 'json'}"/>
-                                    </group>
-                                    <group string="Crew Configuration">
-                                        <field name="process"/>
-                                        <field name="manager_id" 
-                                               attrs="{'invisible': [('process', '!=', 'hierarchical')],
-                                                      'required': [('process', '=', 'hierarchical')]}"/>
-                                        <field name="llm_execution_state"/>
-                                    </group>
-                                </group>
-
-                                <notebook>
-                                    <page string="AI Tasks" name="llm_tasks">
-                                        <field name="task_ids" widget="one2many" mode="tree,kanban">
-                                            <tree>
-                                                <field name="name"/>
-                                                <field name="user_id"/>
-                                                <field name="llm_execution_state"/>
-                                                <field name="stage_id"/>
-                                            </tree>
-                                        </field>
-                                    </page>
-                                </notebook>
-                            </sheet>
-                        </form>
-                    </field>
+                    
                 </page>
             </notebook>
-        </field>
-    </record>
-
-    <!-- Add LLM filter to team search view -->
-    <record id="crm_team_view_search_llm" model="ir.ui.view">
-        <field name="name">crm.team.search.llm</field>
-        <field name="model">crm.team</field>
-        <field name="inherit_id" ref="sales_team.crm_team_view_search"/>
-        <field name="arch" type="xml">
-            <filter name="archived" position="after">
-                <filter string="LLM Crews" name="llm_crews" 
-                        domain="[('is_ai_crew', '=', True)]"/>
-                <separator/>
-            </filter>
         </field>
     </record>
 
@@ -90,29 +25,7 @@
         <field name="arch" type="xml">
             <field name="name" position="after">
                 <field name="is_ai_crew" optional="show"/>
-                <field name="llm_crew_team_id.process" optional="show"/>
-                <field name="llm_crew_team_id.llm_execution_state" optional="show"/>
             </field>
-        </field>
-    </record>
-
-    <!-- Add LLM kanban indicators -->
-    <record id="crm_team_view_kanban_llm" model="ir.ui.view">
-        <field name="name">crm.team.kanban.llm</field>
-        <field name="model">crm.team</field>
-        <field name="inherit_id" ref="sales_team.crm_team_view_kanban"/>
-        <field name="arch" type="xml">
-            <xpath expr="//div[hasclass('o_kanban_record_bottom')]" position="inside">
-                <div class="oe_kanban_bottom_right" 
-                     attrs="{'invisible': [('is_ai_crew', '=', False)]}">
-                    <span class="badge rounded-pill" 
-                          t-attf-class="bg-#{record.llm_crew_team_id.llm_execution_state.raw_value == 'completed' and 'success' or 
-                                          record.llm_crew_team_id.llm_execution_state.raw_value == 'failed' and 'danger' or 
-                                          record.llm_crew_team_id.llm_execution_state.raw_value == 'in_progress' and 'info' or 'secondary'}">
-                        <field name="llm_crew_team_id.llm_execution_state"/>
-                    </span>
-                </div>
-            </xpath>
         </field>
     </record>
 </odoo>
