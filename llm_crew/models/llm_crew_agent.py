@@ -6,7 +6,7 @@ class LLMCrewAgent(models.Model):
     """AI Agent configuration and capabilities."""
     _name = 'llm.crew.agent'
     _description = 'LLM Crew Agent'
-    _inherit = ['llm.capability.mixin']
+    _inherit = ['llm.capability.mixin', 'mail.thread']
     _order = 'name'
 
     name = fields.Char(related='user_id.name', store=True, readonly=True)

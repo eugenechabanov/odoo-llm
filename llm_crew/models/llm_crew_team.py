@@ -49,7 +49,7 @@ class LLMCrewTeam(models.Model):
     manager_id = fields.Many2one(
         'res.users',
         string="Manager Agent",
-        domain="[('crew_agent_id.llm_enabled', '=', True)]",
+        domain="[('is_ai_agent', '=', True)]",
         help="Manager agent for hierarchical process"
     )
 

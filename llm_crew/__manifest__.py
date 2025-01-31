@@ -30,6 +30,11 @@
         'views/res_users_views.xml',
         'views/crm_team_views.xml',
         'views/project_task_views.xml',
+        'views/menu_views.xml',
+        'views/llm_crew_team_views.xml',
+        'views/llm_crew_task_views.xml',
+        'views/llm_crew_agent_views.xml',
+        'views/project_views.xml',
     ],
     'external_dependencies': {
         'python': [
