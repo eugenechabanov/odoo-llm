@@ -11,7 +11,6 @@
                     <group>
                         <field name="is_crew"/>
                         <field name="project_id" attrs="{'invisible': [('is_crew', '=', False)], 'required': [('is_crew', '=', True)]}"/>
-                        <field name="crew_manager_id" attrs="{'invisible': [('is_crew', '=', False)], 'required': [('is_crew', '=', True)]}"/>
                     </group>
                 </page>
             </xpath>

@@ -6,19 +6,13 @@ class CRMTeam(models.Model):
 
     is_crew = fields.Boolean(string="Is AI Crew", default=False, tracking=True)
     project_id = fields.Many2one('project.project', string="AI Project", tracking=True)
-    crew_manager_id = fields.Many2one(
-        'res.users', 
-        string="Crew Manager",
-        domain="[('id', 'in', member_ids)]",
-        tracking=True
-    )
 
     def execute_crew_prompt(self, prompt):
         self.ensure_one()
         if not self.is_crew:
             raise UserError(_("This team is not configured as an AI crew"))
 
-        if not self.crew_manager_id:
+        if not self.user_id:
             raise UserError(_("Please assign a crew manager"))
 
         if not self.project_id:
@@ -26,7 +20,7 @@ class CRMTeam(models.Model):
 
         # Get manager agent
         manager_agent = self.env['llm.crew.agent'].search([
-            ('user_id', '=', self.crew_manager_id.id)
+            ('user_id', '=', self.user_id.id)
         ])
         if not manager_agent:
             raise UserError(_("Crew manager must have an AI agent configuration"))
