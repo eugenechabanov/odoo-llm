@@ -1,14 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <!-- Menu Items -->
-    <menuitem id="menu_llm_crew_root"
-        name="AI Crew"
-        parent="crm.crm_menu_root"
-        sequence="10"/>
+    <menuitem
+    id="menu_llm_crew_root"
+    name="AI Crew"
+    parent="crm.crm_menu_root"
+    sequence="10"
+  />
 
-    <menuitem id="menu_llm_crew_agent"
-        name="AI Agents"
-        parent="menu_llm_crew_root"
-        action="action_llm_crew_agent"
-        sequence="1"/>
+    <menuitem
+    id="menu_llm_crew_agent"
+    name="AI Agents"
+    parent="menu_llm_crew_root"
+    action="action_llm_crew_agent"
+    sequence="1"
+  />
 </odoo>

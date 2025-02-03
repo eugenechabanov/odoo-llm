@@ -1,78 +1,79 @@
-from odoo import api, models, _
-from odoo.exceptions import UserError
 import re
 
 import markdown2
 
+from odoo import _, models
+
+
 class MailThread(models.AbstractModel):
-    _inherit = 'mail.thread'
+    _inherit = "mail.thread"
 
     def _message_post_after_hook(self, message, msg_vals):
         """Handle AI agent mentions and trigger crew execution.
-        
+
         If a mentioned user is an AI agent:
         1. Find their associated crew (team)
         2. Execute the prompt with the message content
         3. Post the response as a message from the AI agent
         """
         res = super()._message_post_after_hook(message, msg_vals)
-        
+
         # Check for AI agent mentions
         if message.partner_ids:
-            mentioned_users = self.env['res.users'].search([
-                ('partner_id', 'in', message.partner_ids.ids)
-            ])
-            
+            mentioned_users = self.env["res.users"].search(
+                [("partner_id", "in", message.partner_ids.ids)]
+            )
+
             for user in mentioned_users:
                 # Check if user is an AI agent
-                ai_agent = self.env['llm.crew.agent'].search([
-                    ('user_id', '=', user.id),
-                    ('active', '=', True)
-                ], limit=1)
-                
+                ai_agent = self.env["llm.crew.agent"].search(
+                    [("user_id", "=", user.id), ("active", "=", True)], limit=1
+                )
+
                 if not ai_agent:
                     continue
-                    
+
                 # Find the crew (team) this agent belongs to
-                crew = self.env['crm.team'].search([
-                    ('is_crew', '=', True),
-                    ('member_ids', 'in', [user.id])  
-                ], limit=1)
-                
+                crew = self.env["crm.team"].search(
+                    [("is_crew", "=", True), ("member_ids", "in", [user.id])], limit=1
+                )
+
                 if not crew:
                     self.with_context(mail_create_nosubscribe=True).message_post(
-                        body="Crew not found for AI agent %s" % user.name,
-                        message_type='comment',
-                        subtype_xmlid='mail.mt_comment',
-                        author_id=user.partner_id.id
+                        body=f"Crew not found for AI agent {user.name}",
+                        message_type="comment",
+                        subtype_xmlid="mail.mt_comment",
+                        author_id=user.partner_id.id,
                     )
                     continue
-                
+
                 try:
                     # Execute the prompt
                     result = crew.execute_crew_prompt(message.body)
                     # Extract string content from CrewOutput
-                    result_content = str(result.raw) if hasattr(result, 'raw') else str(result)
+                    result_content = (
+                        str(result.raw) if hasattr(result, "raw") else str(result)
+                    )
                     safe_body = self._markdown_to_html(result_content)
                     # Post response as the AI agent
                     self.with_context(mail_create_nosubscribe=True).message_post(
                         body=safe_body,
-                        message_type='comment',
-                        subtype_xmlid='mail.mt_comment',
-                        author_id=user.partner_id.id
+                        message_type="comment",
+                        subtype_xmlid="mail.mt_comment",
+                        author_id=user.partner_id.id,
                     )
-                    
+
                 except Exception as e:
                     error_msg = _(
                         "Error while processing request for AI agent %s: %s"
                     ) % (user.name, str(e))
                     self.with_context(mail_create_nosubscribe=True).message_post(
                         body=error_msg,
-                        message_type='comment',
-                        subtype_xmlid='mail.mt_comment',
-                        author_id=user.partner_id.id
+                        message_type="comment",
+                        subtype_xmlid="mail.mt_comment",
+                        author_id=user.partner_id.id,
                     )
-                    
+
         return res
 
     def _markdown_to_html(self, content):

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <!-- Tree View -->
     <record id="view_llm_crew_agent_tree" model="ir.ui.view">
@@ -6,12 +6,12 @@
         <field name="model">llm.crew.agent</field>
         <field name="arch" type="xml">
             <tree>
-                <field name="name"/>
-                <field name="user_id"/>
-                <field name="role"/>
-                <field name="llm_provider_id"/>
-                <field name="llm_model_id"/>
-                <field name="allow_delegation"/>
+                <field name="name" />
+                <field name="user_id" />
+                <field name="role" />
+                <field name="llm_provider_id" />
+                <field name="llm_model_id" />
+                <field name="allow_delegation" />
             </tree>
         </field>
     </record>
@@ -25,31 +25,31 @@
                 <sheet>
                     <div class="oe_title">
                         <h1>
-                            <field name="name" placeholder="Agent Name"/>
+                            <field name="name" placeholder="Agent Name" />
                         </h1>
                     </div>
                     <group>
                         <group>
-                            <field name="user_id"/>
-                            <field name="llm_provider_id"/>
-                            <field name="llm_model_id"/>
-                            <field name="active" widget="boolean_toggle"/>
+                            <field name="user_id" />
+                            <field name="llm_provider_id" />
+                            <field name="llm_model_id" />
+                            <field name="active" widget="boolean_toggle" />
                         </group>
                     </group>
                     <notebook>
                         <page string="Agent Configuration" name="configuration">
                             <group>
-                                <field name="role"/>
-                                <field name="goal"/>
-                                <field name="backstory"/>
-                                <field name="allow_delegation"/>
+                                <field name="role" />
+                                <field name="goal" />
+                                <field name="backstory" />
+                                <field name="allow_delegation" />
                             </group>
                         </page>
                     </notebook>
                 </sheet>
                 <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="message_ids"/>
+                    <field name="message_follower_ids" />
+                    <field name="message_ids" />
                 </div>
             </form>
         </field>
@@ -61,13 +61,17 @@
         <field name="model">llm.crew.agent</field>
         <field name="arch" type="xml">
             <search>
-                <field name="name"/>
-                <field name="user_id"/>
-                <field name="role"/>
-                <field name="llm_provider_id"/>
-                <field name="allow_delegation"/>
-                <separator/>
-                <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
+                <field name="name" />
+                <field name="user_id" />
+                <field name="role" />
+                <field name="llm_provider_id" />
+                <field name="allow_delegation" />
+                <separator />
+                <filter
+          string="Archived"
+          name="inactive"
+          domain="[('active', '=', False)]"
+        />
             </search>
         </field>
     </record>
@@ -77,7 +81,7 @@
         <field name="name">AI Agents</field>
         <field name="res_model">llm.crew.agent</field>
         <field name="view_mode">tree,form</field>
-        <field name="search_view_id" ref="view_llm_crew_agent_search"/>
+        <field name="search_view_id" ref="view_llm_crew_agent_search" />
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Create your first AI agent!
