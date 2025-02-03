@@ -1,6 +1,6 @@
-from odoo import models, fields, api, _
+from odoo import models, fields, _
 from odoo.exceptions import UserError
-from crewai import Agent, Crew, Process, Task
+from crewai import Crew, Task
 class CRMTeam(models.Model):
     _inherit = 'crm.team'
 
