@@ -1,7 +1,6 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
-from crewai import  Agent
-from langchain_openai import ChatOpenAI
+from crewai import Agent, LLM
 
 class LLMCrewAgent(models.Model):
     _name = 'llm.crew.agent'
@@ -29,5 +28,5 @@ class LLMCrewAgent(models.Model):
             goal=self.goal,
             backstory=self.backstory,
             allow_delegation=self.allow_delegation,
-            llm=ChatOpenAI(temperature=0, model="gpt-4", api_key=self.llm_provider_id.api_key)
+            llm=LLM(temperature=0.5, model=self.llm_model_id.name, api_key=self.llm_provider_id.api_key, base_url=self.llm_provider_id.api_base)
         )
