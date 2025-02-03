@@ -2,6 +2,7 @@ from odoo import api, models, _
 from odoo.exceptions import UserError
 import re
 
+import markdown2
 
 class MailThread(models.AbstractModel):
     _inherit = 'mail.thread'
@@ -50,10 +51,12 @@ class MailThread(models.AbstractModel):
                 try:
                     # Execute the prompt
                     result = crew.execute_crew_prompt(message.body)
-                    
+                    # Extract string content from CrewOutput
+                    result_content = str(result.raw_output) if hasattr(result, 'raw_output') else str(result)
+                    safe_body = self._markdown_to_html(result_content)
                     # Post response as the AI agent
                     self.with_context(mail_create_nosubscribe=True).message_post(
-                        body=result,
+                        body=safe_body,
                         message_type='comment',
                         subtype_xmlid='mail.mt_comment',
                         author_id=user.partner_id.id
@@ -72,24 +75,36 @@ class MailThread(models.AbstractModel):
                     
         return res
 
-    def _extract_message_content(self, message):
-        """Extract clean message content from a mail message.
-        
+    def _markdown_to_html(self, content):
+        """Convert markdown content to HTML suitable for Odoo messages.
+
         Args:
-            message: mail.message record
-            
+            content (str): Markdown formatted content
+
         Returns:
-            str: Clean message content
+            str: HTML content wrapped in appropriate Odoo classes
         """
-        content = message.body
-        
-        # Remove HTML tags
-        content = re.sub(r'<[^>]+>', '', content)
-        
-        # Remove quoted content
-        content = re.sub(r'On.*wrote:', '', content)
-        
-        # Remove extra whitespace
-        content = re.sub(r'\s+', ' ', content).strip()
-        
-        return content
+        # Convert markdown to HTML with extras for better formatting
+        html_content = markdown2.markdown(
+            content,
+            extras=[
+                "fenced-code-blocks",  # Support ```code blocks```
+                "tables",  # Support markdown tables
+                "break-on-newline",  # Convert newlines to <br>
+                "header-ids",  # Add ids to headers
+                "code-friendly",  # Better code block handling
+                "smarty-pants",  # Smart quotes, dashes, etc.
+            ],
+        )
+
+        # Clean up any existing div wrappers
+        html_content = re.sub(r"<div[^>]*>", "", html_content)
+        html_content = html_content.replace("</div>", "")
+
+        # Wrap code blocks with pre tags and add syntax highlighting class
+        html_content = html_content.replace(
+            "<code>", '<pre class="o_codeblock"><code>'
+        ).replace("</code>", "</code></pre>")
+
+        # Ensure proper wrapping without double-escaping
+        return f'<div class="o_mail_note_content">{html_content}</div>'
