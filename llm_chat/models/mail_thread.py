@@ -52,7 +52,7 @@ class MailThread(models.AbstractModel):
                     # Execute the prompt
                     result = crew.execute_crew_prompt(message.body)
                     # Extract string content from CrewOutput
-                    result_content = str(result.raw_output) if hasattr(result, 'raw_output') else str(result)
+                    result_content = str(result.raw) if hasattr(result, 'raw') else str(result)
                     safe_body = self._markdown_to_html(result_content)
                     # Post response as the AI agent
                     self.with_context(mail_create_nosubscribe=True).message_post(

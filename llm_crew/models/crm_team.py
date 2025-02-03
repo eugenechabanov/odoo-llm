@@ -56,7 +56,7 @@ class CRMTeam(models.Model):
             tasks=crew_tasks,
             manager_agent=manager_agent._to_crewai_agent(),
             process='hierarchical',
-            verbose=True
+            verbose=True,
         )
         
         return crew.kickoff()
