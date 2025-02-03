@@ -50,12 +50,13 @@ class CRMTeam(models.Model):
             ))
 
         # Create and execute crew
+        agents = [agent._to_crewai_agent() for agent in crew_agents]
         crew = Crew(
-            agents=[agent._to_crewai_agent() for agent in crew_agents],
+            agents=agents,
             tasks=crew_tasks,
             manager_agent=manager_agent._to_crewai_agent(),
             process='hierarchical',
-            verbose=True,
+            verbose=True
         )
         
         return crew.kickoff()
