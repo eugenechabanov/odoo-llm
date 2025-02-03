@@ -59,7 +59,7 @@ class CRMTeam(models.Model):
         crew = Crew(
             agents=[agent._to_crewai_agent() for agent in crew_agents],
             tasks=crew_tasks,
-            manager=manager_agent._to_crewai_agent(),
+            manager_agent=manager_agent._to_crewai_agent(),
             process='hierarchical'
         )
         
