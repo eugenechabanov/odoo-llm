@@ -22,7 +22,6 @@ class LLMCrewAgent(models.Model):
     ]
 
     def _to_crewai_agent(self):
-        print("Found API KEy ", self.llm_provider_id.api_key)
         return Agent(
             role=self.role,
             goal=self.goal,
