@@ -1,7 +1,9 @@
+from bdb import effective
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
+import logging
 
-
+_logger = logging.getLogger(__name__)
 class ProjectTask(models.Model):
     _inherit = "project.task"
 
@@ -45,7 +47,7 @@ class ProjectTask(models.Model):
         return self.execute_task()
 
     def execute_task(self):
-        """Execute the task using a CrewAI crew"""
+        """Execute the task using a CrewAI crew. If the task has subtasks, they will be executed in sequence order."""
         self.ensure_one()
         
         if not self.user_ids:
@@ -67,13 +69,54 @@ class ProjectTask(models.Model):
         
         # Create CrewAI task and agents
         from crewai import Task, Crew
+
+        tasks = []
+        agents_to_use = []
         
-        # Create task for the agent
-        crew_task = Task(
+        # Create main task
+        main_task = Task(
             description=self.description,
             expected_output=self.expected_output or "Complete the task successfully",
             agent=agent._to_crewai_agent() if self.process == 'sequential' else None,
         )
+        tasks.append(main_task)
+        
+        # Handle subtasks if allowed and present
+        if self.allow_subtasks and self.child_ids:
+            # Sort subtasks by sequence
+            sorted_subtasks = self.child_ids.sorted(lambda t: t.sequence)
+            
+            for subtask in sorted_subtasks:
+                # For sequential process, ensure each subtask has an AI agent assigned
+                if self.process == 'sequential':
+                    subtask_agent = None
+                    # Check if any assigned user is an AI agent
+                    for user in subtask.user_ids:
+                        potential_agent = self.env['llm.crew.agent'].search([
+                            ('user_id', '=', user.id),
+                            ('active', '=', True)
+                        ], limit=1)
+                        if potential_agent:
+                            subtask_agent = potential_agent
+                            break
+                    
+                    # If no AI agent found among assigned users, use main task's agent
+                    if not subtask_agent:
+                        raise UserError(_("No AI agent found among assigned users for subtask"))
+                        
+                    subtask_crew_agent = subtask_agent._to_crewai_agent()
+                    if subtask_crew_agent not in agents_to_use:
+                        agents_to_use.append(subtask_crew_agent)
+                else:
+                    subtask_crew_agent = None
+                
+                # Create CrewAI task for subtask
+                subtask_task = Task(
+                    description=subtask.description or f"Subtask of {self.name}",
+                    expected_output=subtask.expected_output or "Complete the subtask successfully",
+                    agent=subtask_crew_agent if self.process == 'sequential' else None,
+                )
+                tasks.append(subtask_task)
         
         try:
             # Create and execute the crew
@@ -81,22 +124,37 @@ class ProjectTask(models.Model):
             start_time = time.time()
             
             crew_kwargs = {
-                'agents': [agent._to_crewai_agent()],
-                'tasks': [crew_task],
+                'tasks': tasks,
                 'process': self.process,
                 'verbose': True,
             }
-            
-            # If hierarchical process, ensure agent can manage
+            effective_agents = []
+            # If hierarchical process, use manager and team members
             if self.process == 'hierarchical':
                 if not agent.member_ids or not agent.is_manager:
                     raise UserError(_("Hierarchical process requires a manager agent with team members"))
+                effective_agents.append(agent._to_crewai_agent())
+                effective_agents.extend([member._to_crewai_agent() for member in agent.member_ids])
                 crew_kwargs.update({
-                    'agents': [member._to_crewai_agent() for member in agent.member_ids],
+                    'agents': effective_agents,
                     'manager_agent': agent._to_crewai_agent(),
                 })
+            else:
+                if agents_to_use:
+                    effective_agents.extend(agents_to_use)
+                else:
+                    effective_agents.append(agent._to_crewai_agent())
+                # For sequential process, use the collected agents or just the main agent
+                crew_kwargs['agents'] = effective_agents
             
             crew = Crew(**crew_kwargs)
+            # log the tasks and agents
+            
+            
+            for task in tasks:
+                _logger.info(f"Task: {task.description} - {task.agent.role if task.agent else 'No Agent'}")
+            for agent in effective_agents:
+                _logger.info(f"Agent: {agent.role}")
             result = crew.kickoff()
             execution_time = time.time() - start_time
             
@@ -112,8 +170,10 @@ class ProjectTask(models.Model):
             message += f"Execution Time: {execution_time:.2f}s<br/>"
             message += f"Process: {self.process}<br/>"
             if self.process == 'hierarchical':
-                message += f"Manager: {agent.name}<br/>"
+                message += f"Manager: {agent.role}<br/>"
                 message += f"Team Size: {len(agent.member_ids)}<br/>"
+            if self.child_ids:
+                message += f"Subtasks Executed: {len(self.child_ids)}<br/>"
             message += f"<br/>{result}"
             
             self.message_post(
