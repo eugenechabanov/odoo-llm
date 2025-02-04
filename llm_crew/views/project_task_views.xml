@@ -7,11 +7,18 @@
         <field name="inherit_id" ref="project.view_task_form2" />
         <field name="arch" type="xml">
             <xpath expr="//field[@name='user_ids']" position="after">
-                <field name="is_crew_task" />
-                <field
-          name="expected_output"
-          attrs="{'invisible': [('is_crew_task', '=', False)]}"
-        />
+                <field name="can_execute_ai" invisible="1"/>
+                <field name="process"/>
+                <field name="expected_output"/>
+                <field name="ai_result" readonly="1"/>
+                <field name="execution_time" readonly="1" widget="float_time"/>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button name="action_execute_ai_task" 
+                        string="Execute AI Task" 
+                        type="object" 
+                        class="oe_highlight"
+                        attrs="{'invisible': [('can_execute_ai', '=', False)]}"/>
             </xpath>
         </field>
     </record>

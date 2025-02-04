@@ -1,4 +1,4 @@
-from odoo import fields, models
+from odoo import fields, models, api
 
 from crewai import LLM, Agent
 
@@ -17,10 +17,25 @@ class LLMCrewAgent(models.Model):
     backstory = fields.Text(tracking=True)
     active = fields.Boolean(default=True)
     allow_delegation = fields.Boolean(default=False)
+    
+    # Hierarchical team structure
+    parent_id = fields.Many2one('llm.crew.agent', string='Manager', tracking=True,
+                               help="The manager agent that this agent reports to")
+    member_ids = fields.One2many('llm.crew.agent', 'parent_id', string='Team Members',
+                                help="Agents that report to this agent")
+    is_manager = fields.Boolean(compute='_compute_is_manager', store=True,
+                              help="Whether this agent manages other agents")
+    
 
     _sql_constraints = [
-        ("unique_user", "unique(user_id)", "An agent already exists for this user!")
+        ("unique_user", "unique(user_id)", "An agent already exists for this user!"),
+        ("no_recursive_hierarchy", "CHECK(parent_id != id)", "An agent cannot be its own manager!")
     ]
+
+    @api.depends('member_ids')
+    def _compute_is_manager(self):
+        for agent in self:
+            agent.is_manager = bool(agent.member_ids)
 
     def _to_crewai_agent(self):
         return Agent(
@@ -35,9 +50,7 @@ class LLMCrewAgent(models.Model):
                 base_url=self.llm_provider_id.api_base,
             ),
             step_callback=lambda step: (
-                self.env["crm.team"]
-                .search([("member_ids", "in", [self.user_id.id])], limit=1)
-                .message_post(
+                self.message_post(
                     body=self._generate_step_message(step),
                     message_type="comment",
                     author_id=self.user_id.partner_id.id,
