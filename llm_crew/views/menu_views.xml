@@ -3,7 +3,7 @@
     <menuitem
     id="menu_llm_crew_agent"
     name="AI Agents"
-    parent="menu_llm_root"
+    parent="llm.menu_llm_root"
     action="action_llm_crew_agent"
     sequence="1"
   />

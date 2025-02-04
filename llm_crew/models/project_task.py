@@ -15,17 +15,17 @@ class ProjectTask(models.Model):
     ], default='sequential', required=True)
     can_execute_ai = fields.Boolean(compute='_compute_can_execute_ai')
 
-    @api.depends('user_id')
+    @api.depends('user_ids')
     def _compute_can_execute_ai(self):
         """Determine if the task can be executed by AI"""
         for task in self:
-            task.can_execute_ai = task._is_ai_agent() and not task.ai_result
+            task.can_execute_ai = task._is_ai_agent() and not task.kanban_state in ('normal')
 
     def _is_ai_agent(self):
         """Check if the assigned user is an AI agent"""
         self.ensure_one()
         return bool(self.env['llm.crew.agent'].search_count([
-            ('user_id', '=', self.user_id.id),
+            ('user_id', 'in', self.user_ids.ids),
             ('active', '=', True)
         ]))
 
@@ -33,7 +33,7 @@ class ProjectTask(models.Model):
         """Get the AI agent for the assigned user"""
         self.ensure_one()
         return self.env['llm.crew.agent'].search([
-            ('user_id', '=', self.user_id.id),
+            ('user_id', 'in', self.user_ids.ids),
             ('active', '=', True)
         ], limit=1)
 
@@ -48,7 +48,7 @@ class ProjectTask(models.Model):
         """Execute the task using a CrewAI crew"""
         self.ensure_one()
         
-        if not self.user_id:
+        if not self.user_ids:
             raise UserError(_("Cannot execute AI task: No assignee specified"))
             
         if not self._is_ai_agent():
@@ -119,7 +119,7 @@ class ProjectTask(models.Model):
             self.message_post(
                 body=message,
                 message_type="comment",
-                author_id=self.user_id.partner_id.id
+                author_id=agent.user_id.partner_id.id
             )
             
         except Exception as e:
@@ -128,6 +128,6 @@ class ProjectTask(models.Model):
             self.message_post(
                 body=f"<b>AI Task Failed</b><br/>{str(e)}",
                 message_type="comment",
-                author_id=self.user_id.partner_id.id
+                author_id=agent.user_id.partner_id.id
             )
             raise UserError(_("AI task execution failed: %s") % str(e))
