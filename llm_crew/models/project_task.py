@@ -178,9 +178,15 @@ class ProjectTask(models.Model):
                 if task.output:
                     matching_tasks = self.child_ids.filtered(lambda t: t.description == task.output.description)
                     if matching_tasks:
+                        # Calculate execution time if start_time and end_time are available
+                        execution_time = None
+                        if task.start_time and task.end_time:
+                            execution_time = (task.end_time - task.start_time).total_seconds()
+                        
                         matching_tasks[0].write({
                             'ai_result': task.output.raw,
-                            'kanban_state': 'done'
+                            'kanban_state': 'done',
+                            'execution_time': execution_time
                         })
 
     def _create_result_message(self, execution_time, result):
