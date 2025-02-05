@@ -32,7 +32,7 @@ class ProjectTask(models.Model):
     def _has_ai_agent_assigned(self):
         """Check if any of the task's assigned users is an AI agent"""
         self.ensure_one()
-        return bool(self.env['llm.crew.agent'].search_count([
+        return bool(self.env['llm.agent'].search_count([
             ('user_id', 'in', self.user_ids.ids),
             ('active', '=', True)
         ]))
@@ -40,7 +40,7 @@ class ProjectTask(models.Model):
     def _get_agent(self):
         """Get the AI agent for the assigned user"""
         self.ensure_one()
-        return self.env['llm.crew.agent'].search([
+        return self.env['llm.agent'].search([
             ('user_id', 'in', self.user_ids.ids),
             ('active', '=', True)
         ], limit=1)
@@ -127,7 +127,7 @@ class ProjectTask(models.Model):
     def _get_subtask_agent(self, subtask):
         """Get AI agent for a subtask"""
         for user in subtask.user_ids:
-            agent = self.env['llm.crew.agent'].search([
+            agent = self.env['llm.agent'].search([
                 ('user_id', '=', user.id),
                 ('active', '=', True)
             ], limit=1)

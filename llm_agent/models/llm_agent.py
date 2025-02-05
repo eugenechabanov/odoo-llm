@@ -3,9 +3,9 @@ from odoo import fields, models, api
 from crewai import LLM, Agent
 
 
-class LLMCrewAgent(models.Model):
-    _name = "llm.crew.agent"
-    _description = "LLM Crew Agent"
+class LLMAgent(models.Model):
+    _name = "llm.agent"
+    _description = "LLM Agent"
     _inherit = ["mail.thread"]
 
     name = fields.Char(required=True, tracking=True)
@@ -19,9 +19,9 @@ class LLMCrewAgent(models.Model):
     allow_delegation = fields.Boolean(default=False)
     
     # Hierarchical team structure
-    parent_id = fields.Many2one('llm.crew.agent', string='Manager', tracking=True,
+    parent_id = fields.Many2one('llm.agent', string='Manager', tracking=True,
                                help="The manager agent that this agent reports to")
-    member_ids = fields.One2many('llm.crew.agent', 'parent_id', string='Team Members',
+    member_ids = fields.One2many('llm.agent', 'parent_id', string='Team Members',
                                 help="Agents that report to this agent")
     is_manager = fields.Boolean(compute='_compute_is_manager', store=True,
                               help="Whether this agent manages other agents")

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <!-- Tree View -->
-    <record id="view_llm_crew_agent_tree" model="ir.ui.view">
-        <field name="name">llm.crew.agent.tree</field>
-        <field name="model">llm.crew.agent</field>
+    <record id="view_llm_agent_tree" model="ir.ui.view">
+        <field name="name">llm.agent.tree</field>
+        <field name="model">llm.agent</field>
         <field name="arch" type="xml">
             <tree>
                 <field name="name" />
@@ -19,9 +19,9 @@
     </record>
 
     <!-- Form View -->
-    <record id="view_llm_crew_agent_form" model="ir.ui.view">
-        <field name="name">llm.crew.agent.form</field>
-        <field name="model">llm.crew.agent</field>
+    <record id="view_llm_agent_form" model="ir.ui.view">
+        <field name="name">llm.agent.form</field>
+        <field name="model">llm.agent</field>
         <field name="arch" type="xml">
             <form>
                 <sheet>
@@ -94,9 +94,9 @@
     </record>
 
     <!-- Search View -->
-    <record id="view_llm_crew_agent_search" model="ir.ui.view">
-        <field name="name">llm.crew.agent.search</field>
-        <field name="model">llm.crew.agent</field>
+    <record id="view_llm_agent_search" model="ir.ui.view">
+        <field name="name">llm.agent.search</field>
+        <field name="model">llm.agent</field>
         <field name="arch" type="xml">
             <search>
                 <field name="name" />
@@ -118,11 +118,11 @@
     </record>
 
     <!-- Action -->
-    <record id="action_llm_crew_agent" model="ir.actions.act_window">
+    <record id="action_llm_agent" model="ir.actions.act_window">
         <field name="name">AI Agents</field>
-        <field name="res_model">llm.crew.agent</field>
+        <field name="res_model">llm.agent</field>
         <field name="view_mode">tree,form</field>
-        <field name="search_view_id" ref="view_llm_crew_agent_search" />
+        <field name="search_view_id" ref="view_llm_agent_search" />
         <field name="context">{'default_active': True}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">

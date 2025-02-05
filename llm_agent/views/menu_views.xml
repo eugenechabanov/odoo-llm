@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <menuitem
+        id="menu_llm_agent"
+        name="AI Agents"
+        parent="llm.menu_llm_root"
+        action="action_llm_agent"
+        sequence="1"
+    />
+</odoo>

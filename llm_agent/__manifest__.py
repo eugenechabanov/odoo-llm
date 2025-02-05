@@ -1,10 +1,10 @@
 {
-    "name": "LLM Crew",
+    "name": "LLM Agent",
     "version": "1.0",
     "category": "Project Management",
-    "summary": "CrewAI Integration for Odoo",
+    "summary": "LLM Agent Integration for Odoo",
     "description": """
-        Integrate CrewAI with Odoo for AI-powered team collaboration
+        Integrate LLM Agents with Odoo for AI-powered automation
     """,
     "depends": [
         "base",
@@ -13,7 +13,7 @@
     ],
     "data": [
         "security/ir.model.access.csv",
-        "views/llm_crew_agent_views.xml",
+        "views/llm_agent_views.xml",
         "views/project_task_views.xml",
         "views/menu_views.xml",
     ],
