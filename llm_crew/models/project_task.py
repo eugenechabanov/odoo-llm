@@ -1,7 +1,7 @@
-from bdb import effective
 from odoo import fields, models, api, _
 from odoo.exceptions import UserError
 import logging
+from crewai import Task, Crew
 
 _logger = logging.getLogger(__name__)
 class ProjectTask(models.Model):
@@ -68,7 +68,7 @@ class ProjectTask(models.Model):
         self.kanban_state = 'normal'
         
         # Create CrewAI task and agents
-        from crewai import Task, Crew
+        
 
         tasks = []
         agents_to_use = []
@@ -80,6 +80,8 @@ class ProjectTask(models.Model):
             agent=agent._to_crewai_agent() if self.process == 'sequential' else None,
         )
         tasks.append(main_task)
+        if self.process == 'sequential':
+            agents_to_use.append(agent._to_crewai_agent())
         
         # Handle subtasks if allowed and present
         if self.allow_subtasks and self.child_ids:
@@ -114,8 +116,9 @@ class ProjectTask(models.Model):
                 subtask_task = Task(
                     description=subtask.description or f"Subtask of {self.name}",
                     expected_output=subtask.expected_output or "Complete the subtask successfully",
-                    agent=subtask_crew_agent if self.process == 'sequential' else None,
+                    agent=subtask_crew_agent,
                 )
+                _logger.info("SubTask Agent: %s", subtask_task.agent)
                 tasks.append(subtask_task)
         
         try:
@@ -151,10 +154,8 @@ class ProjectTask(models.Model):
             # log the tasks and agents
             
             
-            for task in tasks:
-                _logger.info(f"Task: {task.description} - {task.agent.role if task.agent else 'No Agent'}")
-            for agent in effective_agents:
-                _logger.info(f"Agent: {agent.role}")
+            _logger.info("Tasks: %s", crew_kwargs['tasks'])
+            _logger.info("Agents: %s", crew_kwargs['agents'])
             result = crew.kickoff()
             execution_time = time.time() - start_time
             
@@ -171,9 +172,8 @@ class ProjectTask(models.Model):
             message += f"Process: {self.process}<br/>"
             if self.process == 'hierarchical':
                 message += f"Manager: {agent.role}<br/>"
-                message += f"Team Size: {len(agent.member_ids)}<br/>"
             if self.child_ids:
-                message += f"Subtasks Executed: {len(self.child_ids)}<br/>"
+                _logger.info("Sub tasks executed")
             message += f"<br/>{result}"
             
             self.message_post(
