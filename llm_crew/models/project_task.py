@@ -167,6 +167,22 @@ class ProjectTask(models.Model):
             
         return crew_kwargs
 
+    def _update_subtask_results(self, tasks):
+        """Update subtask results from CrewAI task outputs.
+        
+        Args:
+            tasks: List of CrewAI Task objects, where tasks[1:] are subtasks
+        """
+        if self.allow_subtasks and self.child_ids and len(tasks) > 1:
+            for task in tasks[1:]:  # Skip the first task (main task)
+                if task.output:
+                    matching_tasks = self.child_ids.filtered(lambda t: t.description == task.output.description)
+                    if matching_tasks:
+                        matching_tasks[0].write({
+                            'ai_result': task.output.raw,
+                            'kanban_state': 'done'
+                        })
+
     def _create_result_message(self, execution_time, result):
         """Create message for task completion"""
         message = f"<b>AI Task Completed</b><br/>"
@@ -178,7 +194,7 @@ class ProjectTask(models.Model):
         return message
 
     def execute_task(self):
-        """Execute the task using a CrewAI crew"""
+        """Execute the AI task."""
         self.ensure_one()
         
         # Validate and get agent
@@ -199,10 +215,13 @@ class ProjectTask(models.Model):
             
             # Update task results
             self.write({
-                'ai_result': result,
                 'execution_time': execution_time,
+                'ai_result': result,
                 'kanban_state': 'done'
             })
+            
+            # Update subtask results
+            self._update_subtask_results(tasks)
             
             # Post result message
             message = self._create_result_message(execution_time, result)
