@@ -22,10 +22,10 @@ class ProjectTask(models.Model):
     def _compute_can_execute_ai(self):
         """Determine if the task can be executed by AI"""
         for task in self:
-            task.can_execute_ai = task._is_ai_agent() and not task.kanban_state in ('normal')
+            task.can_execute_ai = task._has_ai_agent_assigned() and not task.kanban_state in ('normal')
 
-    def _is_ai_agent(self):
-        """Check if the assigned user is an AI agent"""
+    def _has_ai_agent_assigned(self):
+        """Check if any of the task's assigned users is an AI agent"""
         self.ensure_one()
         return bool(self.env['llm.crew.agent'].search_count([
             ('user_id', 'in', self.user_ids.ids),
@@ -51,7 +51,7 @@ class ProjectTask(models.Model):
         """Validate if task can be executed by AI"""
         if not self.user_ids:
             raise UserError(_("Cannot execute AI task: No assignee specified"))
-        if not self._is_ai_agent():
+        if not self._has_ai_agent_assigned():
             raise UserError(_("Cannot execute AI task: Assignee is not an AI agent"))
         if not self.description:
             raise UserError(_("Cannot execute AI task: No description provided"))
