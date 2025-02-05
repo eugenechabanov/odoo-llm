@@ -7,7 +7,7 @@
         <field name="inherit_id" ref="project.view_task_form2" />
         <field name="arch" type="xml">
             <xpath expr="//field[@name='user_ids']" position="after">
-                <field name="can_execute_ai" invisible="1"/>
+                <field name="is_ai_executable" invisible="1"/>
                 <field name="process"/>
                 <field name="expected_output"/>
                 <field name="ai_result" readonly="1"/>
@@ -18,7 +18,7 @@
                         string="Execute AI Task" 
                         type="object" 
                         class="oe_highlight"
-                        attrs="{'invisible': [('can_execute_ai', '=', False)]}"/>
+                        attrs="{'invisible': [('is_ai_executable', '=', False)]}"/>
             </xpath>
         </field>
     </record>

@@ -16,10 +16,10 @@ class ProjectTask(models.Model):
         ('sequential', 'Sequential'),
         ('hierarchical', 'Hierarchical')
     ], default='sequential', required=True)
-    can_execute_ai = fields.Boolean(compute='_compute_can_execute_ai')
+    is_ai_executable = fields.Boolean(compute='_compute_is_ai_executable')
 
     @api.depends('user_ids')
-    def _compute_can_execute_ai(self):
+    def _compute_is_ai_executable(self):
         """Determine if the task can be executed by AI.
         
         A task can be executed by AI if:
@@ -27,7 +27,7 @@ class ProjectTask(models.Model):
         3. It has a description (this is checked in execute_task)
         """
         for task in self:
-            task.can_execute_ai = task._has_ai_agent_assigned() 
+            task.is_ai_executable = task._has_ai_agent_assigned() 
 
     def _has_ai_agent_assigned(self):
         """Check if any of the task's assigned users is an AI agent"""
@@ -48,7 +48,7 @@ class ProjectTask(models.Model):
     def action_execute_ai_task(self):
         """Action triggered by the Execute AI Task button"""
         self.ensure_one()
-        if not self.can_execute_ai:
+        if not self.is_ai_executable:
             raise UserError(_("This task cannot be executed by AI. Please ensure it is assigned to an AI agent."))
         return self.execute_task()
 
