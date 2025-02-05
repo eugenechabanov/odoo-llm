@@ -20,9 +20,14 @@ class ProjectTask(models.Model):
 
     @api.depends('user_ids')
     def _compute_can_execute_ai(self):
-        """Determine if the task can be executed by AI"""
+        """Determine if the task can be executed by AI.
+        
+        A task can be executed by AI if:
+        1. It has an AI agent assigned
+        3. It has a description (this is checked in execute_task)
+        """
         for task in self:
-            task.can_execute_ai = task._has_ai_agent_assigned() and not task.kanban_state in ('normal')
+            task.can_execute_ai = task._has_ai_agent_assigned() 
 
     def _has_ai_agent_assigned(self):
         """Check if any of the task's assigned users is an AI agent"""
