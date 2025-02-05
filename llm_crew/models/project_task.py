@@ -4,6 +4,7 @@ import logging
 from crewai import Task, Crew
 
 _logger = logging.getLogger(__name__)
+
 class ProjectTask(models.Model):
     _inherit = "project.task"
 
@@ -46,136 +47,160 @@ class ProjectTask(models.Model):
             raise UserError(_("This task cannot be executed by AI. Please ensure it is assigned to an AI agent."))
         return self.execute_task()
 
-    def execute_task(self):
-        """Execute the task using a CrewAI crew. If the task has subtasks, they will be executed in sequence order."""
-        self.ensure_one()
-        
+    def _validate_task_execution(self):
+        """Validate if task can be executed by AI"""
         if not self.user_ids:
             raise UserError(_("Cannot execute AI task: No assignee specified"))
-            
         if not self._is_ai_agent():
             raise UserError(_("Cannot execute AI task: Assignee is not an AI agent"))
-            
         if not self.description:
             raise UserError(_("Cannot execute AI task: No description provided"))
-
-        # Get the executing agent
+        
         agent = self._get_agent()
         if not agent:
             raise UserError(_("Cannot execute AI task: AI agent not found"))
-            
-        # Set kanban state to in progress
-        self.kanban_state = 'normal'
-        
-        # Create CrewAI task and agents
-        
+        return agent
 
+    def _prepare_crew_tasks_and_agents(self, agent):
+        """Prepare CrewAI tasks and agents based on process type.
+        
+        For sequential process:
+        - Each task (main and subtasks) must have their own AI agent
+        - Tasks are executed in sequence with their assigned agents
+        
+        For hierarchical process:
+        - Tasks don't have individual agents assigned
+        - Manager agent oversees task distribution to team members
+        """
         tasks = []
         agents_to_use = []
         
-        # Create main task
-        main_task = Task(
-            description=self.description,
-            expected_output=self.expected_output or "Complete the task successfully",
-            agent=agent._to_crewai_agent() if self.process == 'sequential' else None,
-        )
-        tasks.append(main_task)
         if self.process == 'sequential':
+            # For sequential, each task needs its own agent
+            main_task = Task(
+                description=self.description,
+                expected_output=self.expected_output or "Complete the task successfully",
+                agent=agent._to_crewai_agent()
+            )
+            tasks.append(main_task)
             agents_to_use.append(agent._to_crewai_agent())
-        
-        # Handle subtasks if allowed and present
-        if self.allow_subtasks and self.child_ids:
-            # Sort subtasks by sequence
-            sorted_subtasks = self.child_ids.sorted(lambda t: t.sequence)
             
-            for subtask in sorted_subtasks:
-                # For sequential process, ensure each subtask has an AI agent assigned
-                if self.process == 'sequential':
-                    subtask_agent = None
-                    # Check if any assigned user is an AI agent
-                    for user in subtask.user_ids:
-                        potential_agent = self.env['llm.crew.agent'].search([
-                            ('user_id', '=', user.id),
-                            ('active', '=', True)
-                        ], limit=1)
-                        if potential_agent:
-                            subtask_agent = potential_agent
-                            break
-                    
-                    # If no AI agent found among assigned users, use main task's agent
+            # Handle subtasks
+            if self.allow_subtasks and self.child_ids:
+                for subtask in self.child_ids.sorted(lambda t: t.sequence):
+                    subtask_agent = self._get_subtask_agent(subtask)
                     if not subtask_agent:
-                        raise UserError(_("No AI agent found among assigned users for subtask"))
+                        raise UserError(_("Sequential process requires each subtask to have an AI agent assigned"))
                         
                     subtask_crew_agent = subtask_agent._to_crewai_agent()
                     if subtask_crew_agent not in agents_to_use:
                         agents_to_use.append(subtask_crew_agent)
-                else:
-                    subtask_crew_agent = None
+                    
+                    tasks.append(Task(
+                        description=subtask.description or f"Subtask of {self.name}",
+                        expected_output=subtask.expected_output or "Complete the subtask successfully",
+                        agent=subtask_crew_agent
+                    ))
+        else:
+            # For hierarchical, tasks don't have individual agents
+            main_task = Task(
+                description=self.description,
+                expected_output=self.expected_output or "Complete the task successfully"
+            )
+            tasks.append(main_task)
+            
+            # Handle subtasks
+            if self.allow_subtasks and self.child_ids:
+                for subtask in self.child_ids.sorted(lambda t: t.sequence):
+                    tasks.append(Task(
+                        description=subtask.description or f"Subtask of {self.name}",
+                        expected_output=subtask.expected_output or "Complete the subtask successfully"
+                    ))
+            
+        return tasks, agents_to_use
+
+    def _get_subtask_agent(self, subtask):
+        """Get AI agent for a subtask"""
+        for user in subtask.user_ids:
+            agent = self.env['llm.crew.agent'].search([
+                ('user_id', '=', user.id),
+                ('active', '=', True)
+            ], limit=1)
+            if agent:
+                return agent
+        return None
+
+    def _prepare_crew_kwargs(self, tasks, agents_to_use, agent):
+        """Prepare kwargs for CrewAI initialization based on process type.
+        
+        For sequential process:
+        - Uses list of agents assigned to individual tasks
+        - No manager agent needed
+        
+        For hierarchical process:
+        - Uses manager agent and their team members
+        - Tasks are distributed by the manager to team members
+        """
+        crew_kwargs = {
+            'tasks': tasks,
+            'process': self.process,
+            'verbose': True,
+        }
+
+        if self.process == 'hierarchical':
+            if not agent.member_ids or not agent.is_manager:
+                raise UserError(_("Hierarchical process requires a manager agent with team members"))
                 
-                # Create CrewAI task for subtask
-                subtask_task = Task(
-                    description=subtask.description or f"Subtask of {self.name}",
-                    expected_output=subtask.expected_output or "Complete the subtask successfully",
-                    agent=subtask_crew_agent,
-                )
-                _logger.info("SubTask Agent: %s", subtask_task.agent)
-                tasks.append(subtask_task)
+            # For hierarchical, we use manager's team members as agents
+            crew_kwargs.update({
+                'manager_agent': agent._to_crewai_agent(),
+                'agents': [member._to_crewai_agent() for member in agent.member_ids]
+            })
+        else:
+            # For sequential, we use the agents assigned to individual tasks
+            crew_kwargs['agents'] = agents_to_use
+            
+        return crew_kwargs
+
+    def _create_result_message(self, execution_time, result):
+        """Create message for task completion"""
+        message = f"<b>AI Task Completed</b><br/>"
+        message += f"Execution Time: {execution_time:.2f}s<br/>"
+        message += f"Process: {self.process}<br/>"
+        if self.process == 'hierarchical':
+            message += f"Manager: {self._get_agent().role}<br/>"
+        message += f"<br/>{result}"
+        return message
+
+    def execute_task(self):
+        """Execute the task using a CrewAI crew"""
+        self.ensure_one()
+        
+        # Validate and get agent
+        agent = self._validate_task_execution()
+        self.kanban_state = 'normal'
         
         try:
-            # Create and execute the crew
+            # Prepare tasks and agents
+            tasks, agents_to_use = self._prepare_crew_tasks_and_agents(agent)
+            crew_kwargs = self._prepare_crew_kwargs(tasks, agents_to_use, agent)
+            
+            # Execute crew
             import time
             start_time = time.time()
-            
-            crew_kwargs = {
-                'tasks': tasks,
-                'process': self.process,
-                'verbose': True,
-            }
-            effective_agents = []
-            # If hierarchical process, use manager and team members
-            if self.process == 'hierarchical':
-                if not agent.member_ids or not agent.is_manager:
-                    raise UserError(_("Hierarchical process requires a manager agent with team members"))
-                effective_agents.append(agent._to_crewai_agent())
-                effective_agents.extend([member._to_crewai_agent() for member in agent.member_ids])
-                crew_kwargs.update({
-                    'agents': effective_agents,
-                    'manager_agent': agent._to_crewai_agent(),
-                })
-            else:
-                if agents_to_use:
-                    effective_agents.extend(agents_to_use)
-                else:
-                    effective_agents.append(agent._to_crewai_agent())
-                # For sequential process, use the collected agents or just the main agent
-                crew_kwargs['agents'] = effective_agents
-            
             crew = Crew(**crew_kwargs)
-            # log the tasks and agents
-            
-            
-            _logger.info("Tasks: %s", crew_kwargs['tasks'])
-            _logger.info("Agents: %s", crew_kwargs['agents'])
             result = crew.kickoff()
             execution_time = time.time() - start_time
             
-            # Update task with results and mark as ready
+            # Update task results
             self.write({
                 'ai_result': result,
                 'execution_time': execution_time,
                 'kanban_state': 'done'
             })
             
-            # Post result as a message
-            message = f"<b>AI Task Completed</b><br/>"
-            message += f"Execution Time: {execution_time:.2f}s<br/>"
-            message += f"Process: {self.process}<br/>"
-            if self.process == 'hierarchical':
-                message += f"Manager: {agent.role}<br/>"
-            if self.child_ids:
-                _logger.info("Sub tasks executed")
-            message += f"<br/>{result}"
-            
+            # Post result message
+            message = self._create_result_message(execution_time, result)
             self.message_post(
                 body=message,
                 message_type="comment",
@@ -183,7 +208,6 @@ class ProjectTask(models.Model):
             )
             
         except Exception as e:
-            # Mark task as blocked on failure
             self.kanban_state = 'blocked'
             self.message_post(
                 body=f"<b>AI Task Failed</b><br/>{str(e)}",
