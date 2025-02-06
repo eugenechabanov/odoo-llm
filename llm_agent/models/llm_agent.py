@@ -1,7 +1,7 @@
 from odoo import fields, models, api
 
 from crewai import LLM, Agent
-from .odoo_tools import OdooUsersFetcher
+from .mis_template_gen_tool import MISTemplateGenerator
 
 class LLMAgent(models.Model):
     _name = "llm.agent"
@@ -46,7 +46,7 @@ class LLMAgent(models.Model):
         # Add Odoo tools if enabled
         if self.allow_odoo_tools:
             
-            tools.append(OdooUsersFetcher(env=self.env))
+            tools.append(MISTemplateGenerator(env=self.env))
 
         return Agent(
             role=self.role,
@@ -54,6 +54,7 @@ class LLMAgent(models.Model):
             backstory=self.backstory,
             allow_delegation=self.allow_delegation,
             tools=tools,
+            verbose=True,
             llm=LLM(
                 temperature=0.5,
                 model=self.llm_model_id.name,
