@@ -12,6 +12,7 @@
                 <field name="parent_id" />
                 <field name="is_manager" />
                 <field name="allow_delegation" />
+                <field name="allow_odoo_tools" />
                 <field name="llm_provider_id" />
                 <field name="llm_model_id" />
             </tree>
@@ -41,6 +42,7 @@
                             <field name="parent_id" domain="[('id', '!=', id), ('parent_id', '=', False)]" />
                             <field name="is_manager" />
                             <field name="allow_delegation" />
+                            <field name="allow_odoo_tools" />
                         </group>
                     </group>
                     <notebook>
@@ -58,6 +60,7 @@
                                     <field name="user_id" />
                                     <field name="role" />
                                     <field name="allow_delegation" />
+                                    <field name="allow_odoo_tools" />
                                     <field name="llm_provider_id" />
                                     <field name="llm_model_id" />
                                     <field name="active" widget="boolean_toggle" />
@@ -77,6 +80,7 @@
                                                 <field name="goal" />
                                                 <field name="backstory" />
                                                 <field name="allow_delegation" />
+                                                <field name="allow_odoo_tools" />
                                             </group>
                                         </group>
                                     </sheet>

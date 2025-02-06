@@ -17,6 +17,8 @@ class LLMAgent(models.Model):
     backstory = fields.Text(tracking=True)
     active = fields.Boolean(default=True)
     allow_delegation = fields.Boolean(default=False)
+    allow_odoo_tools = fields.Boolean(default=False, tracking=True,
+                                    help="Allow this agent to use Odoo-specific tools")
     
     # Hierarchical team structure
     parent_id = fields.Many2one('llm.agent', string='Manager', tracking=True,
