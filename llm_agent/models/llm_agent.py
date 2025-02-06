@@ -1,7 +1,7 @@
 from odoo import fields, models, api
 
 from crewai import LLM, Agent
-
+from .odoo_tools import OdooUsersFetcher
 
 class LLMAgent(models.Model):
     _name = "llm.agent"
@@ -45,8 +45,8 @@ class LLMAgent(models.Model):
         
         # Add Odoo tools if enabled
         if self.allow_odoo_tools:
-            from .odoo_tools import OdooUsersTool
-            tools.append(OdooUsersTool(env=self.env))
+            
+            tools.append(OdooUsersFetcher(env=self.env))
 
         return Agent(
             role=self.role,
