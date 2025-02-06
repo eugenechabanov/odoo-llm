@@ -6,6 +6,7 @@
     "description": """
         Integrate LLM Agents with Odoo for AI-powered automation
     """,
+    "author": "Apexive Solutions LLC",
     "depends": [
         "base",
         "project",
