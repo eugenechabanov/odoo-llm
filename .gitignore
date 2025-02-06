@@ -75,3 +75,5 @@ docs/_build/
 
 .ruff_cache
 .claudesync
+base_accounting_kit/
+mis-builder/
