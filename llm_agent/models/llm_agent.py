@@ -40,11 +40,20 @@ class LLMAgent(models.Model):
             agent.is_manager = bool(agent.member_ids)
 
     def _to_crewai_agent(self):
+        # Initialize tools list
+        tools = []
+        
+        # Add Odoo tools if enabled
+        if self.allow_odoo_tools:
+            from .odoo_tools import OdooUsersTool
+            tools.append(OdooUsersTool(env=self.env))
+
         return Agent(
             role=self.role,
             goal=self.goal,
             backstory=self.backstory,
             allow_delegation=self.allow_delegation,
+            tools=tools,
             llm=LLM(
                 temperature=0.5,
                 model=self.llm_model_id.name,
