@@ -1,85 +1,108 @@
-# Odoo LLM Crew Module
+# Odoo LLM Agent Module (Prototype)
 
-This module integrates CrewAI capabilities into Odoo, enabling AI-powered teams to collaborate on tasks within your Odoo environment.
+This module integrates AI capabilities into Odoo, focusing on MIS report generation and task management. Currently in prototype phase.
 
-## Features
+## 🎯 Key Features
 
-- AI Agent Management
-- AI Crew Teams
-- Integration with Project Management
-- Hierarchical Task Processing
+- **AI Agent Integration**: Configure and use AI agents for various tasks
+- **MIS Report Generation**: AI-powered financial report template creation
+- **Task Automation**: AI-assisted task processing
+- **LLM Provider Integration**: Support for various LLM providers
 
-## Setup Guide
+## 🔧 Prerequisites
 
-### 1. Prerequisites
+- Odoo 16.0
+- Valid LLM provider API key (e.g., OpenAI)
+- MIS Builder module
 
-- Installed and configured `llm` module
-- Valid LLM provider configuration (e.g., OpenAI API key)
+## ⚙️ Configuration Steps
 
-### 2. Configuration Steps
+### 1. LLM Provider Setup
 
-#### 2.1 Create AI Agents
+1. Navigate to `LLM > Configuration > LLM Providers`
+2. Create a new LLM Provider:
+   - Name (e.g., "OpenAI")
+   - API Key
+   - Base URL (e.g., "https://api.openai.com/v1" for OpenAI)
+   - Save to fetch available models
 
-1. Go to `CRM > Configuration > AI Agents`
-2. Create a new AI agent:
-   - Select User
-   - Set Role (e.g., "Research Specialist")
-   - Set Goal (e.g., "Conduct thorough market research")
-   - Add Backstory (optional)
-   - Select LLM Provider and Model
-   - Enable/disable delegation
+### 2. LLM Model Configuration
 
-#### 2.2 Setup AI Crew
+1. Go to `LLM > Configuration > LLM Models`
+2. Available models will be automatically fetched from configured providers
+3. Enable/disable models as needed
 
-1. Go to `CRM > Configuration > Sales Teams`
-2. Create or select a team
-3. Enable "Is AI Crew"
-4. Configure crew settings:
-   - Select Project
-   - Assign Team Leader (will act as crew manager)
-   - Add team members (must have AI agents configured)
+### 3. AI Agent Setup
 
-### 3. Usage
+1. First, create an internal user:
+   - Navigate to `Settings > Users & Companies > Users`
+   - Create new user with:
+     - Name
+     - Email
+     - Internal User access rights
 
-#### Creating Tasks
+2. Create AI Agent:
+   - Go to `LLM > AI Agents`
+   - Click Create
+   - Configure:
+     - Select the internal user
+     - Define Role (e.g., "Financial Analyst")
+     - Set Goal
+     - Add Backstory
+     - Select LLM Provider and Model
+     - Enable "Allow Odoo Tools" for MIS report generation capabilities
 
-1. Go to the project associated with your AI crew
-2. Create tasks with:
-   - Clear descriptions
-   - Expected outputs
-   - Assigned AI agents
+## 💻 Usage
 
-#### Executing Crew Tasks
+### Setting Up Tasks
 
-- Tasks are automatically processed when messages are posted in the chatter
-- The crew manager (team leader) oversees task execution
-- Results are posted back in the chatter
+1. Create a Project:
+   - Navigate to `Project > Projects`
+   - Create new project
+   - Configure basic project settings
 
-## Technical Details
+2. Create Task:
+   - Create new task in the project
+   - Assign the AI Agent
+   - Provide detailed description
+   - Specify expected output
+   - Click "Execute AI Task" to start processing
 
-### Models
+### MIS Report Generation
 
-#### llm.crew.agent
+When an AI agent has "Allow Odoo Tools" enabled, it can:
+- Create MIS report templates
+- Generate report instances
+- Configure KPIs and styling
 
-- Extends users with AI capabilities
-- Manages agent configuration (role, goal, backstory)
-- Integrates with LLM providers
+Example task description for MIS report generation:
+```
+Create a Profit & Loss statement template with the following sections:
+- Revenue
+- Cost of Goods Sold
+- Gross Profit
+- Operating Expenses
+- Net Profit
 
-#### crm.team (Extended)
+Include year-to-date comparisons and percentage changes.
+```
 
-- Adds AI crew capabilities to sales teams
-- Manages crew configuration and execution
-- Integrates with project management
+## ⚠️ Prototype Limitations
 
-### Process Flow
+- Limited to specific LLM providers
+- Basic task management features
+- Experimental AI integration
+- Manual configuration required
+- Style options may need adjustment
 
-1. Message posted in chatter triggers crew execution
-2. Team leader's AI agent manages task distribution
-3. AI agents process tasks based on their roles
-4. Results are formatted and posted back to chatter
+## 🛠️ Development Notes
 
-### Integration Points
+- This is a prototype version
+- API interfaces may change
+- Testing needed for complex reports
+- Performance optimization pending
 
-- Uses `llm` module for LLM provider management
-- Integrates with Odoo's project management
-- Extends mail thread for communication
+## 📚 Related Documentation
+
+- [Odoo Development Guide](https://www.odoo.com/documentation/16.0/developer.html)
+- [MIS Builder Documentation](https://github.com/OCA/mis-builder)
