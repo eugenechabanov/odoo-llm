@@ -118,3 +118,12 @@ Include year-to-date comparisons and percentage changes.
 
 - [Odoo Development Guide](https://www.odoo.com/documentation/16.0/developer.html)
 - [MIS Builder Documentation](https://github.com/OCA/mis-builder)
+
+## 🎮 Demo & Examples
+
+For detailed examples of AI agent tasks and configurations, please refer to the [DEMO.md](DEMO.md) file. It includes:
+- Sample task descriptions
+- AI agent role configurations
+- Expression handling examples
+- Styling guidelines
+- Report generation examples
