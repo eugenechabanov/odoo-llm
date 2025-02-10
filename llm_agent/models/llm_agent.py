@@ -11,7 +11,7 @@ class LLMAgent(models.Model):
     _inherit = ["mail.thread"]
 
     name = fields.Char(required=True, tracking=True)
-    user_id = fields.Many2one("res.users", required=True, tracking=True)
+    user_id = fields.Many2one("res.users", required=True, tracking=True, index=True)
     llm_provider_id = fields.Many2one("llm.provider", required=True, tracking=True)
     llm_model_id = fields.Many2one("llm.model", required=True, tracking=True)
     role = fields.Text(required=True, tracking=True)
@@ -24,9 +24,9 @@ class LLMAgent(models.Model):
     
     # Hierarchical team structure
     parent_id = fields.Many2one('llm.agent', string='Manager', tracking=True,
-                               help="The manager agent that this agent reports to")
+                               help="The manager agent that this agent reports to", index=True)
     member_ids = fields.One2many('llm.agent', 'parent_id', string='Team Members',
-                                help="Agents that report to this agent")
+                                help="Agents that report to this agent", index=True)
     is_manager = fields.Boolean(compute='_compute_is_manager', store=True,
                               help="Whether this agent manages other agents")
     
@@ -45,7 +45,8 @@ class LLMAgent(models.Model):
         # Initialize tools list
         tools = []
         
-        # Add Odoo tools if enabled
+        # Add Odoo tools if enabled, for now we add MIS Tools, 
+        # in future in we need rethink architecture to make it extendable
         if self.allow_odoo_tools:
             mis_tools = OdooMisToolSet(env=self.env)
             tools.extend(mis_tools.get_tools())
