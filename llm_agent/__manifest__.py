@@ -7,12 +7,18 @@
         Integrate LLM Agents with Odoo for AI-powered automation
     """,
     "author": "Apexive Solutions LLC",
+    "python": ">=3.10.0",
     "depends": [
         "base",
         "project",
         "llm",  # Base LLM module
+        "base_accounting_kit",  # For MIS report generation
         "mis_builder",  # For MIS report generation
+        "mis_builder_demo",  # For MIS report generation
     ],
+    "external_dependencies": {
+        "python": ["crewai"],
+    },
     "data": [
         "security/ir.model.access.csv",
         "views/llm_agent_views.xml",
