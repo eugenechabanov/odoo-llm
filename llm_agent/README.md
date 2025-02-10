@@ -11,9 +11,21 @@ This module integrates AI capabilities into Odoo, focusing on MIS report generat
 
 ## 🔧 Prerequisites
 
+### System Requirements
 - Odoo 16.0
+- Python >= 3.10.0
 - Valid LLM provider API key (e.g., OpenAI)
-- MIS Builder module
+
+### Required Python Packages
+- crewai: For AI agent and task management
+
+### Required Odoo Modules
+- base: Base Odoo functionalities
+- project: Project and task management
+- llm: Base LLM module for provider integration
+- base_accounting_kit: Required for financial report generation
+- mis_builder: MIS report template creation and management
+- mis_builder_demo: Demo data and examples for MIS reports
 
 ## ⚙️ Configuration Steps
 
@@ -35,7 +47,6 @@ This module integrates AI capabilities into Odoo, focusing on MIS report generat
 ### 3. AI Agent Setup
 
 1. First, create an internal user:
-
    - Navigate to `Settings > Users & Companies > Users`
    - Create new user with:
      - Name
@@ -58,7 +69,6 @@ This module integrates AI capabilities into Odoo, focusing on MIS report generat
 ### Setting Up Tasks
 
 1. Create a Project:
-
    - Navigate to `Project > Projects`
    - Create new project
    - Configure basic project settings
@@ -73,13 +83,11 @@ This module integrates AI capabilities into Odoo, focusing on MIS report generat
 ### MIS Report Generation
 
 When an AI agent has "Allow Odoo Tools" enabled, it can:
-
 - Create MIS report templates
 - Generate report instances
 - Configure KPIs and styling
 
 Example task description for MIS report generation:
-
 ```
 Create a Profit & Loss statement template with the following sections:
 - Revenue
