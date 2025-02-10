@@ -35,10 +35,11 @@ class MISStyleConfig(BaseModel):
         """
     )
     font_weight: str = Field(
-        default="normal",
+        # type in the module, but we have to respect
+        default="nornal",
         description="""
         Font weight:
-        - normal: Normal weight
+        - nornal: Normal weight
         - bold: Bold text
         """
     )
@@ -233,6 +234,32 @@ class MISTemplateGenTool(BaseTool):
     
     TIP: Use a negative sign (-balp[...]) for liabilities, revenues, and contra accounts to correctly subtract them in financial calculations. Do not use a negative sign for assets, expenses, and subtotals, as they naturally carry the correct balance for addition.
     And when computing another kpi using different KPIs, we can keep usual formulas for example: gross_profit = revenue - expenses.
+    
+    Style Configuration Options:
+    You can customize the appearance of each KPI using the following style options:
+    
+    1. Colors:
+       - color: Text color in RGB code (e.g., "#000000" for black)
+       - background_color: Background color in RGB code (e.g., "#FFFFFF" for white)
+    
+    2. Font Settings:
+       - font_style: "normal" or "italic"
+       - font_weight: "nornal" or "bold" (notice type nornal, it should be as it is, don't use normal here for font_weight)
+       - font_size: "medium" (default), "xx-small", "x-small", "small", "large", "x-large", "xx-large"
+    
+    3. Layout:
+       - indent_level: Indentation level, must be >= 0
+    
+    4. Number Formatting:
+       - prefix: Text to add before numbers (e.g., "€", "$")
+       - suffix: Text to add after numbers (e.g., "%", "units")
+       - dp: Number of decimal places (e.g., 2 for "1234.56")
+       - divider: Number scaling - "1" (no scaling), "1e3" (thousands), "1e6" (millions)
+    
+    5. Visibility:
+       - hide_empty: Hide when value is empty/zero
+       - hide_always: Always hide this element
+    
     Example KPI:
     {
         "name": "gross_profit",
@@ -240,7 +267,23 @@ class MISTemplateGenTool(BaseTool):
         "expression": "revenue - expenses",
         "type": "num",
         "compare_method": "pct",
-        "sequence": 30
+        "sequence": 30,
+        "style": {
+            "name": "gross_profit_style",
+            "style_id": null,
+            "color": "#000000",
+            "background_color": "#FFFFFF",
+            "font_style": "normal",
+            "font_weight": "bold",
+            "font_size": "large",
+            "indent_level": 1,
+            "prefix": "€",
+            "suffix": null,
+            "dp": 2,
+            "divider": "1e3",
+            "hide_empty": false,
+            "hide_always": false
+        }
     }
     """
     args_schema: Type[BaseModel] = MISTemplateConfig
@@ -307,6 +350,7 @@ class MISTemplateGenTool(BaseTool):
         name: str,
         description: Optional[str] = None,
         kpis: List[Dict[str, Any]] = None,
+        default_style: Optional[MISStyleConfig] = None,
         **kwargs: Any
     ) -> Dict[str, Any]:
         """Generate MIS report template in Odoo"""
@@ -315,14 +359,15 @@ class MISTemplateGenTool(BaseTool):
             template_config = MISTemplateConfig(
                 name=name,
                 description=description,
-                kpis=[MISKPIConfig(**kpi) for kpi in (kpis or [])]
+                kpis=[MISKPIConfig(**kpi) for kpi in (kpis or [])],
+                default_style=default_style
             )
             
             # Create default style if specified
-            style_id = 3  # Default style
+            style_id = 1  # Default style
             if template_config.default_style:
                 style_id = self._create_style(template_config.default_style)
-            
+
             # Create template
             template = self._report_model.create({
                 'name': template_config.name + datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
