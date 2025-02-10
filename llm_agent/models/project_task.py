@@ -206,8 +206,10 @@ class ProjectTask(models.Model):
         if self.allow_subtasks and self.child_ids and len(tasks) > 1:
             for task in tasks[1:]:  # Skip the first task (main task)
                 if task.output:
+                    description = task.output.description
+                    # TODO need to check if we can compare some ids instead from CrewAI Task object
                     matching_tasks = self.child_ids.filtered(
-                        lambda t: t.description == task.output.description
+                        lambda t, d=description: t.description == d
                     )
                     if matching_tasks:
                         # Calculate execution time if start_time and end_time are available
@@ -283,4 +285,4 @@ class ProjectTask(models.Model):
                 message_type="comment",
                 author_id=agent.user_id.partner_id.id,
             )
-            raise UserError(_("AI task execution failed: %s") % str(e))
+            raise UserError(_("AI task execution failed: %s") % str(e)) from e
