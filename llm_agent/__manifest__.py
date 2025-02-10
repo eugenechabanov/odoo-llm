@@ -11,6 +11,7 @@
         "base",
         "project",
         "llm",  # Base LLM module
+        "mis_builder",  # For MIS report generation
     ],
     "data": [
         "security/ir.model.access.csv",
