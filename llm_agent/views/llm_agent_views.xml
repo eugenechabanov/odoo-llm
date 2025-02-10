@@ -39,7 +39,10 @@
                             <field name="active" widget="boolean_toggle" />
                         </group>
                         <group>
-                            <field name="parent_id" domain="[('id', '!=', id), ('parent_id', '=', False)]" />
+                            <field
+                name="parent_id"
+                domain="[('id', '!=', id), ('parent_id', '=', False)]"
+              />
                             <field name="is_manager" />
                             <field name="allow_delegation" />
                             <field name="allow_odoo_tools" />
@@ -53,8 +56,16 @@
                                 <field name="backstory" />
                             </group>
                         </page>
-                        <page string="Team Members" name="team_members" attrs="{'invisible': [('is_manager', '=', False)]}">
-                            <field name="member_ids" domain="[('parent_id', '=', False)]" context="{'default_parent_id': id}">
+                        <page
+              string="Team Members"
+              name="team_members"
+              attrs="{'invisible': [('is_manager', '=', False)]}"
+            >
+                            <field
+                name="member_ids"
+                domain="[('parent_id', '=', False)]"
+                context="{'default_parent_id': id}"
+              >
                                 <tree editable="bottom">
                                     <field name="name" />
                                     <field name="user_id" />
@@ -63,7 +74,10 @@
                                     <field name="allow_odoo_tools" />
                                     <field name="llm_provider_id" />
                                     <field name="llm_model_id" />
-                                    <field name="active" widget="boolean_toggle" />
+                                    <field
+                    name="active"
+                    widget="boolean_toggle"
+                  />
                                 </tree>
                                 <form>
                                     <sheet>
@@ -73,14 +87,21 @@
                                                 <field name="user_id" />
                                                 <field name="llm_provider_id" />
                                                 <field name="llm_model_id" />
-                                                <field name="active" widget="boolean_toggle" />
+                                                <field
+                          name="active"
+                          widget="boolean_toggle"
+                        />
                                             </group>
                                             <group>
                                                 <field name="role" />
                                                 <field name="goal" />
                                                 <field name="backstory" />
-                                                <field name="allow_delegation" />
-                                                <field name="allow_odoo_tools" />
+                                                <field
+                          name="allow_delegation"
+                        />
+                                                <field
+                          name="allow_odoo_tools"
+                        />
                                             </group>
                                         </group>
                                     </sheet>
@@ -109,13 +130,37 @@
                 <field name="parent_id" />
                 <field name="llm_provider_id" />
                 <separator />
-                <filter string="Managers" name="managers" domain="[('is_manager', '=', True)]" />
-                <filter string="Can Delegate" name="can_delegate" domain="[('allow_delegation', '=', True)]" />
-                <filter string="Team Members" name="members" domain="[('parent_id', '!=', False)]" />
-                <filter string="Archived" name="inactive" domain="[('active', '=', False)]" />
+                <filter
+          string="Managers"
+          name="managers"
+          domain="[('is_manager', '=', True)]"
+        />
+                <filter
+          string="Can Delegate"
+          name="can_delegate"
+          domain="[('allow_delegation', '=', True)]"
+        />
+                <filter
+          string="Team Members"
+          name="members"
+          domain="[('parent_id', '!=', False)]"
+        />
+                <filter
+          string="Archived"
+          name="inactive"
+          domain="[('active', '=', False)]"
+        />
                 <group expand="0" string="Group By">
-                    <filter string="Manager" name="group_by_manager" context="{'group_by': 'parent_id'}" />
-                    <filter string="Provider" name="group_by_provider" context="{'group_by': 'llm_provider_id'}" />
+                    <filter
+            string="Manager"
+            name="group_by_manager"
+            context="{'group_by': 'parent_id'}"
+          />
+                    <filter
+            string="Provider"
+            name="group_by_provider"
+            context="{'group_by': 'llm_provider_id'}"
+          />
                 </group>
             </search>
         </field>
