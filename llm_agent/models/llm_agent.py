@@ -1,7 +1,8 @@
 from odoo import fields, models, api
 
 from crewai import LLM, Agent
-from .mis_template_gen_tool import MISTemplateGenerator
+from .mis_template_gen_tool import MISTemplateGenTool
+from .mis_report_gen_tool import MISReportInstanceGenTool
 
 class LLMAgent(models.Model):
     _name = "llm.agent"
@@ -46,7 +47,8 @@ class LLMAgent(models.Model):
         # Add Odoo tools if enabled
         if self.allow_odoo_tools:
             
-            tools.append(MISTemplateGenerator(env=self.env))
+            tools.append(MISTemplateGenTool(env=self.env))
+            tools.append(MISReportInstanceGenTool(env=self.env))
 
         return Agent(
             role=self.role,

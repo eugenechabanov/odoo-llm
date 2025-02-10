@@ -76,7 +76,7 @@ class MISTemplateConfig(BaseModel):
         description="List of KPIs to include in the template"
     )
 
-class MISTemplateGenerator(BaseTool):
+class MISTemplateGenTool(BaseTool):
     """Generator for MIS report templates"""
     description: str = """
     Creates Management Information System (MIS) report templates in Odoo.
