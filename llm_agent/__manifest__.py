@@ -30,4 +30,7 @@
     "application": True,
     "auto_install": False,
     "license": "LGPL-3",
+    "images": [
+        "static/description/banner.jpeg",
+    ],
 }
