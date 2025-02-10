@@ -133,13 +133,14 @@ class MISTemplateGenTool(BaseTool):
     balp[('user_type_id', '=', ref('account. data_account_type_receivable').id)][] : variation of the balance of all receivable accounts over the period.
     balp[][('tax_line_id.tag_ids', '=', ref('l10n_be.tax_tag_56').id)] : balance of move lines related to tax grid 56.
     pbale[55%] : sum of all ending balances of accounts starting with 55 whose ending balance is positive.
-    Example expressions:
-
+    
+    TIP: Use a negative sign (-balp[...]) for liabilities, revenues, and contra accounts to correctly subtract them in financial calculations. Do not use a negative sign for assets, expenses, and subtotals, as they naturally carry the correct balance for addition.
+    And when computing another kpi using different KPIs, we can keep usual formulas for example: gross_profit = revenue - expenses.
     Example KPI:
     {
         "name": "gross_profit",
         "description": "Gross Profit",
-        "expression": "revenue + cogs",
+        "expression": "revenue - expenses",
         "type": "num",
         "compare_method": "pct",
         "sequence": 30
