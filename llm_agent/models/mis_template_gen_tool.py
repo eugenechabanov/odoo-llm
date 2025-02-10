@@ -5,6 +5,94 @@ import logging
 from datetime import datetime
 
 _logger = logging.getLogger(__name__)
+
+class MISStyleConfig(BaseModel):
+    """Configuration for MIS report style"""
+    name: Optional[str] = Field(
+        None,
+        description="Style name (if not provided, will use existing style)"
+    )
+    style_id: Optional[int] = Field(
+        None,
+        description="ID of existing style to use"
+    )
+    # color
+    color: str = Field(
+        default="#000000",
+        description="Text color in valid RGB code (from #000000 to #FFFFFF)"
+    )
+    background_color: str = Field(
+        default="#FFFFFF",
+        description="Background color in valid RGB code (from #000000 to #FFFFFF)"
+    )
+    # font
+    font_style: str = Field(
+        default="normal",
+        description="""
+        Font style:
+        - normal: Normal text
+        - italic: Italic text
+        """
+    )
+    font_weight: str = Field(
+        default="normal",
+        description="""
+        Font weight:
+        - normal: Normal weight
+        - bold: Bold text
+        """
+    )
+    font_size: str = Field(
+        default="medium",
+        description="""
+        Font size:
+        - medium: Default size
+        - xx-small: Extra extra small
+        - x-small: Extra small
+        - small: Small
+        - large: Large
+        - x-large: Extra large
+        - xx-large: Extra extra large
+        """
+    )
+    # indent
+    indent_level: int = Field(
+        default=0,
+        description="Indentation level (must be >= 0)"
+    )
+    # number format
+    prefix: Optional[str] = Field(
+        None,
+        description="Prefix to add before numbers"
+    )
+    suffix: Optional[str] = Field(
+        None,
+        description="Suffix to add after numbers"
+    )
+    dp: int = Field(
+        default=0,
+        description="Number of decimal places for rounding"
+    )
+    divider: str = Field(
+        default="1",
+        description="""
+        Number scaling factor:
+        - 1e-6: µ (micro)
+        - 1e-3: m (milli)
+        - 1: No scaling
+        - 1e3: k (kilo)
+        - 1e6: M (mega)
+        """
+    )
+    hide_empty: bool = Field(
+        default=False,
+        description="Hide when value is empty/zero"
+    )
+    hide_always: bool = Field(
+        default=False,
+        description="Always hide this element"
+    )
+
 class MISKPIConfig(BaseModel):
     """Configuration for a single KPI in MIS report template"""
     name: str = Field(
@@ -60,6 +148,10 @@ class MISKPIConfig(BaseModel):
         default=False,
         description="Whether to expand and show individual account details"
     )
+    style: Optional[MISStyleConfig] = Field(
+        None,
+        description="Style configuration for this KPI"
+    )
 
 class MISTemplateConfig(BaseModel):
     """Configuration for MIS report template"""
@@ -75,9 +167,14 @@ class MISTemplateConfig(BaseModel):
         ...,
         description="List of KPIs to include in the template"
     )
+    default_style: Optional[MISStyleConfig] = Field(
+        None,
+        description="Default style for all KPIs in this template"
+    )
 
 class MISTemplateGenTool(BaseTool):
     """Generator for MIS report templates"""
+    name: str = "MIS Template Generator for Odoo"
     description: str = """
     Creates Management Information System (MIS) report templates in Odoo.
     This tool creates only the template structure, not the actual report instances.
@@ -146,7 +243,6 @@ class MISTemplateGenTool(BaseTool):
         "sequence": 30
     }
     """
-    name: str = "MIS Template Generator for Odoo"
     args_schema: Type[BaseModel] = MISTemplateConfig
 
     def __init__(self, env: Any, **kwargs: Any) -> None:
@@ -156,9 +252,38 @@ class MISTemplateGenTool(BaseTool):
         self._report_model = env['mis.report']
         self._kpi_model = env['mis.report.kpi']
         self._expression_model = env['mis.report.kpi.expression']
+        self._style_model = env['mis.report.style']
 
-    def _create_kpi(self, report_id: int, config: MISKPIConfig) -> Any:
+    def _create_style(self, config: MISStyleConfig) -> int:
+        """Create a style record"""
+        if config.style_id:
+            return config.style_id
+            
+        style_vals = {
+            'name': config.name or f"style_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            'color': config.color,
+            'background_color': config.background_color,
+            'font_style': config.font_style,
+            'font_weight': config.font_weight,
+            'font_size': config.font_size,
+            'indent_level': config.indent_level,
+            'prefix': config.prefix,
+            'suffix': config.suffix,
+            'dp': config.dp,
+            'divider': config.divider,
+            'hide_empty': config.hide_empty,
+            'hide_always': config.hide_always,
+        }
+        
+        style = self._style_model.create(style_vals)
+        return style.id
+
+    def _create_kpi(self, report_id: int, config: MISKPIConfig, default_style_id: int) -> Any:
         """Create a KPI record"""
+        style_id = default_style_id
+        if config.style:
+            style_id = self._create_style(config.style)
+            
         kpi_vals = {
             'report_id': report_id,
             'name': config.name,
@@ -168,6 +293,7 @@ class MISTemplateGenTool(BaseTool):
             'accumulation_method': config.accumulation_method,
             'sequence': config.sequence or 10,
             'auto_expand_accounts': config.show_account_details,
+            'style_id': style_id,
         }
         kpi = self._kpi_model.create(kpi_vals)
         self._expression_model.create({
@@ -192,16 +318,21 @@ class MISTemplateGenTool(BaseTool):
                 kpis=[MISKPIConfig(**kpi) for kpi in (kpis or [])]
             )
             
+            # Create default style if specified
+            style_id = 3  # Default style
+            if template_config.default_style:
+                style_id = self._create_style(template_config.default_style)
+            
             # Create template
             template = self._report_model.create({
                 'name': template_config.name + datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
                 'description': template_config.description,
-                'style_id': 3  # Using hardcoded style ID
+                'style_id': style_id
             })
 
             # Create KPIs
             for kpi_config in template_config.kpis:
-                self._create_kpi(template.id, kpi_config)
+                self._create_kpi(template.id, kpi_config, style_id)
 
             return {
                 'success': True,
