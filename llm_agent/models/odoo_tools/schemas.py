@@ -3,14 +3,8 @@ from pydantic import BaseModel, Field
 
 class ModuleInfo(BaseModel):
     """Schema for Odoo module information"""
-    name: str
-    version: str
-    category: str
-    depends: List[str]
-    description: str
-    models: Dict[str, Dict[str, Any]]
-    views: List[str]
-    security: Dict[str, List[str]]
+    name: str = Field(..., description="Module name")
+    models: Dict[str, Dict[str, Any]] = Field(..., description="Models and their fields")
 
 class OdooSearchSchema(BaseModel):
     """Schema for search operations"""
