@@ -28,15 +28,24 @@ class OdooSearchTool(BaseTool):
         order: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         try:
-            return self._env[model].search_read(
+            records = self._env[model].search_read(
                 domain=domain,
                 fields=fields,
                 limit=limit,
                 offset=offset,
                 order=order
             )
+            return {
+                'result': 'success',
+                'records': records,
+                'message': f'Found {len(records)} records in {model}'
+            }
         except Exception as e:
-            return f"Error searching records: {str(e)}"
+            return {
+                'result': 'error',
+                'error': str(e),
+                'message': f'Error searching records in {model}'
+            }
 
 class OdooCreateTool(BaseTool):
     """Tool for creating records"""
@@ -52,12 +61,16 @@ class OdooCreateTool(BaseTool):
         try:
             record = self._env[model].create(values)
             return {
-                'id': record.id,
                 'result': 'success',
+                'id': record.id,
                 'message': f'Record created successfully in {model}'
             }
         except Exception as e:
-            return f"Error creating record: {str(e)}"
+            return {
+                'result': 'error',
+                'error': str(e),
+                'message': f'Error creating record in {model}'
+            }
 
 class OdooWriteTool(BaseTool):
     """Tool for updating records"""
@@ -74,12 +87,16 @@ class OdooWriteTool(BaseTool):
             records = self._env[model].browse(ids)
             records.write(values)
             return {
-                'ids': ids,
                 'result': 'success',
+                'ids': ids,
                 'message': f'Records updated successfully in {model}'
             }
         except Exception as e:
-            return f"Error updating records: {str(e)}"
+            return {
+                'result': 'error',
+                'error': str(e),
+                'message': f'Error updating records in {model}'
+            }
 
 class OdooUnlinkTool(BaseTool):
     """Tool for deleting records"""
@@ -96,9 +113,13 @@ class OdooUnlinkTool(BaseTool):
             records = self._env[model].browse(ids)
             records.unlink()
             return {
-                'ids': ids,
                 'result': 'success',
+                'ids': ids,
                 'message': f'Records deleted successfully from {model}'
             }
         except Exception as e:
-            return f"Error deleting records: {str(e)}"
+            return {
+                'result': 'error',
+                'error': str(e),
+                'message': f'Error deleting records from {model}'
+            }
