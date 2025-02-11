@@ -3,6 +3,7 @@ from odoo import api, fields, models
 from crewai import LLM, Agent
 
 from .odoo_mis_tools import OdooMisToolSet
+from .odoo_tools import OdooToolSet
 
 
 class LLMAgent(models.Model):
@@ -65,8 +66,10 @@ class LLMAgent(models.Model):
         # Add Odoo tools if enabled, for now we add MIS Tools,
         # in future in we need rethink architecture to make it extendable
         if self.allow_odoo_tools:
-            mis_tools = OdooMisToolSet(env=self.env)
-            tools.extend(mis_tools.get_tools())
+            # mis_tools = OdooMisToolSet(env=self.env)
+            odoo_tools = OdooToolSet(env=self.env)
+            # tools.extend(mis_tools.get_tools())
+            tools.extend(odoo_tools.get_tools())
 
         return Agent(
             role=self.role,
