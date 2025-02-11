@@ -1,8 +1,8 @@
 import os
-import ast
-from typing import Dict, List, Optional, Any, Type
+from typing import Dict, Optional, Any, Type, ClassVar
 from pydantic import BaseModel, Field
 from crewai.tools import BaseTool
+from odoo.modules import get_module_path, get_manifest
 from .schemas import ModuleInfo
 
 class OdooModuleInspectorTool(BaseTool):
@@ -11,8 +11,11 @@ class OdooModuleInspectorTool(BaseTool):
     name: str = "Odoo Module Inspector"
     description: str = """
     Analyzes Odoo modules to understand their models and fields.
-    Provides information about model structure and field definitions.
+    Provides information about module manifest, model structure and field definitions.
     """
+    
+    # Maximum length for text fields to avoid token overflow
+    MAX_TEXT_LENGTH: ClassVar[int] = 100
     
     def __init__(self, env: Any, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -24,80 +27,83 @@ class OdooModuleInspectorTool(BaseTool):
         
     args_schema: Type[BaseModel] = InspectSchema
     
+    def _truncate_text(self, text: str, max_length: int = None) -> str:
+        """Truncate text if it exceeds max_length and add indicator"""
+        if not text:
+            return ""
+        max_length = max_length or self.MAX_TEXT_LENGTH
+        if len(text) <= max_length:
+            return text
+        return text[:max_length] + "... (truncated)"
+    
     def _find_module_path(self, module_name: str) -> Optional[str]:
         """Find the filesystem path for a given module"""
         module = self._env['ir.module.module'].search([('name', '=', module_name)], limit=1)
         if not module:
             return None
             
-        addons_paths = self._env['ir.module.module']._get_addons_path()
-        for addons_path in addons_paths:
-            module_path = os.path.join(addons_path, module_name)
-            if os.path.isdir(module_path):
-                return module_path
+        module_path = get_module_path(module_name)
+        if module_path and os.path.isdir(module_path):
+            return module_path
+            
         return None
+
+    def _get_module_manifest(self, module_name: str) -> Dict:
+        """Get the module's manifest information"""
+        try:
+            manifest = get_manifest(module_name) or {}
+            # Truncate long text fields
+            if 'description' in manifest:
+                manifest['description'] = self._truncate_text(manifest['description'], max_length=500)
+            if 'summary' in manifest:
+                manifest['summary'] = self._truncate_text(manifest['summary'])
+            return manifest
+        except Exception as e:
+            return {'error': str(e)}
     
-    def _analyze_model_file(self, file_path: str) -> Dict:
-        """Analyze a Python file containing model definitions"""
+    def _get_module_models(self, module_name: str) -> Dict:
+        """Get all models and their fields for a given module"""
         models_info = {}
         
-        with open(file_path, 'r') as f:
-            content = f.read()
-            
-        try:
-            tree = ast.parse(content)
-            for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef):
-                    # Check if class inherits from Model
-                    is_model = False
-                    model_name = None
-                    
-                    for base in node.bases:
-                        if isinstance(base, ast.Name) and base.id in ['Model', 'TransientModel']:
-                            is_model = True
-                            break
-                            
-                    if is_model:
-                        # Try to find _name attribute
-                        for child in node.body:
-                            if isinstance(child, ast.Assign):
-                                for target in child.targets:
-                                    if isinstance(target, ast.Name) and target.id == '_name':
-                                        if isinstance(child.value, ast.Constant):
-                                            model_name = child.value.value
-                                            
-                        if model_name:
-                            # Analyze fields
-                            fields = {}
-                            
-                            for child in node.body:
-                                if isinstance(child, ast.Assign):
-                                    # Field definitions
-                                    for target in child.targets:
-                                        if isinstance(target, ast.Name):
-                                            field_name = target.id
-                                            if isinstance(child.value, ast.Call):
-                                                field_type = None
-                                                if isinstance(child.value.func, ast.Name):
-                                                    field_type = child.value.func.id
-                                                elif isinstance(child.value.func, ast.Attribute):
-                                                    field_type = child.value.func.attr
-                                                    
-                                                if field_type:
-                                                    fields[field_name] = {
-                                                        'type': field_type,
-                                                        'kwargs': {
-                                                            kw.arg: ast.unparse(kw.value) 
-                                                            for kw in child.value.keywords
-                                                        }
-                                                    }
-                                                    
-                            models_info[model_name] = {
-                                'fields': fields
-                            }
-                            
-        except Exception as e:
-            print(f"Error parsing {file_path}: {str(e)}")
+        # Find all models from this module's python files
+        ir_model_data = self._env['ir.model.data'].search([
+            ('module', '=', module_name),
+            ('model', '=', 'ir.model')
+        ])
+        model_ids = ir_model_data.mapped('res_id')
+        
+        # Get the models
+        models = self._env['ir.model'].browse(model_ids)
+        
+        for model in models:
+            fields = {}
+            for field in model.field_id:
+                fields[field.name] = {
+                    'type': field.ttype,
+                    'kwargs': {
+                        'string': self._truncate_text(field.field_description),
+                        'required': field.required,
+                        'readonly': field.readonly,
+                        'store': field.store,
+                        'help': self._truncate_text(field.help, max_length=200),  # Allow longer help text
+                        'index': field.index,
+                    }
+                }
+                # Add relation info if it's a relational field
+                if field.ttype in ('many2one', 'one2many', 'many2many'):
+                    fields[field.name]['kwargs']['relation'] = field.relation
+                    if field.ttype in ('one2many', 'many2many'):
+                        fields[field.name]['kwargs']['relation_field'] = field.relation_field
+                
+                # Remove empty or None values to reduce response size
+                fields[field.name]['kwargs'] = {
+                    k: v for k, v in fields[field.name]['kwargs'].items()
+                    if v not in (False, None, "", [])
+                }
+                
+            models_info[model.model] = {
+                'fields': fields
+            }
             
         return models_info
     
@@ -112,19 +118,17 @@ class OdooModuleInspectorTool(BaseTool):
             if not module_path:
                 return f"Module {module_name} not found"
                 
-            # Analyze models
-            models_info = {}
-            models_dir = os.path.join(module_path, 'models')
-            if os.path.exists(models_dir):
-                for file in os.listdir(models_dir):
-                    if file.endswith('.py') and file != '__init__.py':
-                        file_models = self._analyze_model_file(os.path.join(models_dir, file))
-                        models_info.update(file_models)
+            # Get models info directly from ir.model
+            models_info = self._get_module_models(module_name)
+            
+            # Get manifest info
+            manifest_info = self._get_module_manifest(module_name)
             
             # Compile module info
             module_info = ModuleInfo(
                 name=module_name,
-                models=models_info
+                models=models_info,
+                manifest=manifest_info
             )
             
             # Cache the results

@@ -5,6 +5,7 @@ class ModuleInfo(BaseModel):
     """Schema for Odoo module information"""
     name: str = Field(..., description="Module name")
     models: Dict[str, Dict[str, Any]] = Field(..., description="Models and their fields")
+    manifest: Dict[str, Any] = Field(default_factory=dict, description="Module manifest information")
 
 class OdooSearchSchema(BaseModel):
     """Schema for search operations"""
