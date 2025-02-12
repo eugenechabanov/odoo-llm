@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_llm_agent_user,llm.agent.user,model_llm_agent,group_llm_agent_user,1,1,1,0
+access_llm_agent_manager,llm.agent.manager,model_llm_agent,group_llm_agent_manager,1,1,1,1
+access_llm_agent_tool_user,llm.agent.tool.user,model_llm_agent_tool,group_llm_agent_user,1,0,0,0
+access_llm_agent_tool_manager,llm.agent.tool.manager,model_llm_agent_tool,group_llm_agent_manager,1,1,1,1
