@@ -84,18 +84,27 @@ class OdooWriteTool(BaseTool):
 
     def _run(self, model: str, ids: List[int], values: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            records = self._env[model].browse(ids)
-            records.write(values)
-            return {
-                'result': 'success',
-                'ids': ids,
-                'message': f'Records updated successfully in {model}'
-            }
+            with self._env.cr.savepoint():  
+                records = self._env[model].browse(ids)
+                records.write(values)
+                return {
+                    'result': 'success',
+                    'ids': ids,
+                    'message': f'Records updated successfully in {model}'
+                }
         except Exception as e:
+            if self._env.cr and not self._env.cr.closed:
+                self._env.cr.rollback()
+            
+            error_msg = str(e)
+            if 'violates not-null constraint' in error_msg:
+                field = error_msg.split('"')[1] if '"' in error_msg else 'unknown'
+                error_msg = f"Required field '{field}' is missing"
+            
             return {
                 'result': 'error',
-                'error': str(e),
-                'message': f'Error updating records in {model}'
+                'error': error_msg,
+                'message': f'Error updating records in {model}: {error_msg}'
             }
 
 class OdooUnlinkTool(BaseTool):
