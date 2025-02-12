@@ -1,1 +1,1 @@
-from . import llm_instance
+from . import llm_agent_external_instance_mixin
