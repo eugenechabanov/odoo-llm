@@ -46,11 +46,40 @@ class LLMAgent(models.AbstractModel):
         help="Tools that this agent can use"
     )
 
+    # Hierarchical team structure
+    parent_id = fields.Many2one(
+        'llm.agent.abstract',
+        string="Manager",
+        tracking=True,
+        help="The manager agent that this agent reports to",
+        index=True
+    )
+    member_ids = fields.One2many(
+        'llm.agent.abstract',
+        'parent_id',
+        string="Team Members",
+        help="Agents that report to this agent",
+        index=True
+    )
+    is_manager = fields.Boolean(
+        compute="_compute_is_manager",
+        store=True,
+        help="Whether this agent manages other agents"
+    )
+
     _sql_constraints = [
         ('unique_user',
          'unique(user_id)',
-         'An agent already exists for this user!')
+         'An agent already exists for this user!'),
+        ('no_recursive_hierarchy',
+         'CHECK(parent_id != id)',
+         'An agent cannot be its own manager!')
     ]
+
+    @api.depends('member_ids')
+    def _compute_is_manager(self):
+        for agent in self:
+            agent.is_manager = bool(agent.member_ids)
 
     @api.model
     def create_agent_instance(self, **kwargs):
@@ -70,11 +99,11 @@ class LLMAgent(models.AbstractModel):
         """
         raise NotImplementedError()
 
-    def execute_task(self, task_data):
+    def execute_task(self, **kwarg):
         """Execute a task using this agent.
         
         Args:
-            task_data (dict): Data required for task execution including:
+            **kwarg: Arguments required for task execution including:
                 - description (str): Task description
                 - expected_output (str, optional): Expected output format
                 - additional fields as required by specific implementations
