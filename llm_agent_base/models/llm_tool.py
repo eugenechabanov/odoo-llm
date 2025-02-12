@@ -27,7 +27,8 @@ class LLMAgentTool(models.Model):
         tracking=True,
         help="Description of what the tool does"
     )
-    # Schemas might be handly in future, keeping them optional
+    # Schemas might be handly in future, keeping them optional, 
+    # maybe convert json schema to pydantic model
     input_schema = fields.Text(
         tracking=True,
         help="JSON Schema defining the expected input format"
