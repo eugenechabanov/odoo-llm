@@ -40,6 +40,12 @@ class LLMAgent(models.Model):
         tracking=True,
         help="The primary objective or goal of this agent"
     )
+    backstory = fields.Text(
+        required=True,
+        tracking=True,
+        help="The backstory or background of this agent"
+    )
+
     tool_ids = fields.Many2many(
         'llm.agent.tool',
         string="Available Tools",

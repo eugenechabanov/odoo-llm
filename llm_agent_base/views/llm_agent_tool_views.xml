@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form View -->
+    <record id="llm_agent_tool_view_form" model="ir.ui.view">
+        <field name="name">llm.agent.tool.form</field>
+        <field name="model">llm.agent.tool</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="toggle_active" type="object" class="oe_stat_button" icon="fa-archive">
+                            <field name="active" widget="boolean_button"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Tool Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="description"/>
+                        </group>
+                        <group name="schemas">
+                            <field name="input_schema"/>
+                            <field name="output_schema"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="llm_agent_tool_view_tree" model="ir.ui.view">
+        <field name="name">llm.agent.tool.tree</field>
+        <field name="model">llm.agent.tool</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="description"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="llm_agent_tool_view_search" model="ir.ui.view">
+        <field name="name">llm.agent.tool.search</field>
+        <field name="model">llm.agent.tool</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="description"/>
+                <separator/>
+                <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_llm_agent_tool" model="ir.actions.act_window">
+        <field name="name">Agent Tools</field>
+        <field name="res_model">llm.agent.tool</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first agent tool!
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu -->
+    <menuitem
+        id="menu_llm_agent_tool"
+        name="Tools"
+        parent="menu_llm_agent_root"
+        action="action_llm_agent_tool"
+        sequence="2"
+    />
+</odoo>

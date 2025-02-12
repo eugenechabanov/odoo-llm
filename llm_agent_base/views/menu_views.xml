@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Action -->
+    <record id="action_llm_agent" model="ir.actions.act_window">
+        <field name="name">LLM Agents</field>
+        <field name="res_model">llm.agent</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first LLM agent!
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu -->
+    <menuitem
+        id="menu_llm_agent"
+        name="LLM Agents"
+        parent="llm.menu_llm_root"
+        action="action_llm_agent"
+        sequence="1"
+    />
+</odoo>
