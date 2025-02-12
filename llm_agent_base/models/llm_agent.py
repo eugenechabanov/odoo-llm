@@ -1,16 +1,16 @@
 from odoo import api, fields, models
 
 
-class LLMAgent(models.AbstractModel):
+class LLMAgent(models.Model):
     """Base model for LLM agents.
     
-    This abstract model defines the basic structure and interface that all LLM agent
+    This model defines the basic structure and interface that all LLM agent
     implementations must follow. It provides common fields and methods that are
     essential for any LLM agent integration.
     """
-    _name = 'llm.agent.abstract'
-    _description = 'Abstract LLM Agent'
-    _inherit = ['mail.thread']
+    _name = 'llm.agent'
+    _description = 'LLM Agent'
+    _inherit = ['mail.thread', 'llm.agent.external.mixin']
 
     name = fields.Char(
         required=True,
@@ -41,21 +41,38 @@ class LLMAgent(models.AbstractModel):
         help="The primary objective or goal of this agent"
     )
     tool_ids = fields.Many2many(
-        'llm.tool.abstract',
+        'llm.agent.tool',
         string="Available Tools",
         help="Tools that this agent can use"
+    )
+    
+    # LLM Configuration
+    llm_provider_id = fields.Many2one(
+        'llm.provider',
+        string="LLM Provider",
+        required=True,
+        tracking=True,
+        help="The LLM provider to use for this agent"
+    )
+    llm_model_id = fields.Many2one(
+        'llm.model',
+        string="LLM Model",
+        required=True,
+        tracking=True,
+        domain="[('provider_id', '=', llm_provider_id)]",
+        help="The specific LLM model to use for this agent"
     )
 
     # Hierarchical team structure
     parent_id = fields.Many2one(
-        'llm.agent.abstract',
+        'llm.agent',
         string="Manager",
         tracking=True,
         help="The manager agent that this agent reports to",
         index=True
     )
     member_ids = fields.One2many(
-        'llm.agent.abstract',
+        'llm.agent',
         'parent_id',
         string="Team Members",
         help="Agents that report to this agent",
@@ -81,48 +98,10 @@ class LLMAgent(models.AbstractModel):
         for agent in self:
             agent.is_manager = bool(agent.member_ids)
 
-    @api.model
-    def create_agent_instance(self, **kwargs):
-        """Create an agent instance with the given configuration.
-        
-        This method should be implemented by concrete agent implementations to
-        create their specific type of agent instance (e.g., CrewAI Agent).
-        
-        Args:
-            **kwargs: Implementation-specific configuration options
-            
-        Returns:
-            object: An instance of the specific agent implementation
-            
-        Raises:
-            NotImplementedError: If the concrete class doesn't implement this method
-        """
-        raise NotImplementedError()
-
-    def execute_task(self, **kwarg):
-        """Execute a task using this agent.
-        
-        Args:
-            **kwarg: Arguments required for task execution including:
-                - description (str): Task description
-                - expected_output (str, optional): Expected output format
-                - additional fields as required by specific implementations
-                
-        Returns:
-            dict: Result of task execution with at least:
-                - success (bool): Whether task execution was successful
-                - result (str): Output from the task execution
-                - execution_time (float): Time taken to execute the task
-                
-        Raises:
-            NotImplementedError: If the concrete class doesn't implement this method
-        """
-        raise NotImplementedError()
-
     def get_available_tools(self):
         """Get list of tools available to this agent.
         
         Returns:
             list: List of tool instances that this agent can use
         """
-        return [tool.get_tool_instance() for tool in self.tool_ids if tool.active]
+        return [tool.get_instance() for tool in self.tool_ids if tool.active]

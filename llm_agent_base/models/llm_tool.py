@@ -1,57 +1,38 @@
-from odoo import api, fields, models
+from odoo import fields, models
 
 
-class LLMTool(models.AbstractModel):
-    """Base model for LLM tools.
+class LLMAgentTool(models.Model):
+    """Base model for LLM agent tools.
     
-    This abstract model defines the basic structure and interface that all LLM tools
-    must follow. Tools are capabilities that can be provided to agents to help them
-    accomplish their tasks.
+    This model defines the basic structure and interface that all LLM agent tool
+    implementations must follow. It provides common fields and methods that are
+    essential for any LLM tool integration.
     """
-    _name = 'llm.tool.abstract'
-    _description = 'Abstract LLM Tool'
+    _name = 'llm.agent.tool'
+    _description = 'LLM Agent Tool'
+    _inherit = ['mail.thread', 'llm.agent.external.mixin']
 
     name = fields.Char(
         required=True,
+        tracking=True,
         help="Name of the tool"
     )
     active = fields.Boolean(
         default=True,
+        tracking=True,
         help="If unchecked, the tool will be hidden from selection"
     )
     description = fields.Text(
         required=True,
-        help="Detailed description of what the tool does and how to use it"
+        tracking=True,
+        help="Description of what the tool does"
     )
-
-    @api.model
-    def get_tool_instance(self):
-        """Get a tool instance that can be used by an agent.
-        
-        This method should be implemented by concrete tool implementations to
-        return their specific type of tool instance (e.g., a function wrapper
-        for CrewAI).
-        
-        Returns:
-            object: An instance of the specific tool implementation
-            
-        Raises:
-            NotImplementedError: If the concrete class doesn't implement this method
-        """
-        raise NotImplementedError()
-
-    def execute(self, **kwargs):
-        """Execute the tool with given parameters.
-        
-        Args:
-            **kwargs: Tool-specific parameters
-            
-        Returns:
-            dict: Result of tool execution with at least:
-                - success (bool): Whether execution was successful
-                - result (any): Output from the tool execution
-                
-        Raises:
-            NotImplementedError: If the concrete class doesn't implement this method
-        """
-        raise NotImplementedError()
+    # Schemas might be handly in future, keeping them optional
+    input_schema = fields.Text(
+        tracking=True,
+        help="JSON Schema defining the expected input format"
+    )
+    output_schema = fields.Text(
+        tracking=True,
+        help="JSON Schema defining the output format"
+    )
