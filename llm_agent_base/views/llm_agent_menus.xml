@@ -14,26 +14,10 @@
 
     <!-- Root Menu -->
     <menuitem
-        id="menu_llm_agent_root"
-        name="LLM Agents"
-        web_icon="llm_agent_base,static/description/icon.png"
-        sequence="10"
-    />
-
-    <!-- Sub Menus -->
-    <menuitem
         id="menu_llm_agent"
-        name="Agents"
-        parent="menu_llm_agent_root"
+        name="LLM Agents"
+        parent="llm.menu_llm_root"
         action="action_llm_agent"
         sequence="1"
-    />
-
-    <!-- Configuration Menu -->
-    <menuitem
-        id="menu_llm_agent_config"
-        name="Configuration"
-        parent="menu_llm_agent_root"
-        sequence="100"
     />
 </odoo>

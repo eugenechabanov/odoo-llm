@@ -72,13 +72,4 @@
             </p>
         </field>
     </record>
-
-    <!-- Menu -->
-    <menuitem
-        id="menu_llm_agent_tool"
-        name="Tools"
-        parent="menu_llm_agent_root"
-        action="action_llm_agent_tool"
-        sequence="2"
-    />
 </odoo>

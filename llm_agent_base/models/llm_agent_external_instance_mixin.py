@@ -11,7 +11,7 @@ class LLMAgentExternalInstanceMixin(models.AbstractModel):
     configuration and storage.
     """
     _name = 'llm.agent.external.mixin'
-    _description = 'LLM External Instance Mixin'
+    _description = 'LLM Agent External Instance Mixin'
 
     def get_instance(self, **kwargs):
         """Get a runtime instance of the external object.

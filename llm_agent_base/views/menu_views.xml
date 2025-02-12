@@ -20,4 +20,12 @@
         action="action_llm_agent"
         sequence="1"
     />
+    <!-- Menu -->
+    <menuitem
+        id="menu_llm_agent_tool"
+        name="LLM Agent Tools"
+        parent="llm.menu_llm_root"
+        action="action_llm_agent_tool"
+        sequence="2"
+    />
 </odoo>
