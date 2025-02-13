@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- MIS Template Generator Tool -->
+        <record id="llm_agent_tool_mis_template_gen" model="llm.agent.tool">
+            <field name="name">MIS Template Generator</field>
+            <field name="service">crewai_mis_template_gen_tool</field>
+            <field name="description">Creates MIS report templates with KPIs and styles</field>
+            <field name="provider_id" search="[('service', '=', 'crewai')]"/>
+        </record>
+
+        <!-- MIS Report Generator Tool -->
+        <record id="llm_agent_tool_mis_report_gen" model="llm.agent.tool">
+            <field name="name">MIS Report Generator</field>
+            <field name="service">crewai_mis_report_gen_tool</field>
+            <field name="description">Creates MIS report instances from templates with configured periods</field>
+            <field name="provider_id" search="[('service', '=', 'crewai')]"/>
+        </record>
+    </data>
+</odoo>
