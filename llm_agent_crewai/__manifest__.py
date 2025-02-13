@@ -12,7 +12,7 @@
     'license': 'LGPL-3',
     'depends': [
         'base',
-        'llm_agent_base',
+        'llm_agent',
     ],
     'external_dependencies': {
         'python': ['crewai'],
