@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <!-- Actions -->
     <record id="action_llm_agent" model="ir.actions.act_window">
@@ -14,10 +14,10 @@
 
     <!-- Root Menu -->
     <menuitem
-        id="menu_llm_agent"
-        name="LLM Agents"
-        parent="llm.menu_llm_root"
-        action="action_llm_agent"
-        sequence="1"
-    />
+    id="menu_llm_agent"
+    name="LLM Agents"
+    parent="llm.menu_llm_root"
+    action="action_llm_agent"
+    sequence="1"
+  />
 </odoo>
