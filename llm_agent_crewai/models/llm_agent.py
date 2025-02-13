@@ -61,8 +61,8 @@ Output: {step.output}"""
             llm=LLM(
                 temperature=0.5,
                 model=self.llm_model_id.name,
-                api_key=self.llm_provider_id.api_key,
-                base_url=self.llm_provider_id.api_base,
+                api_key=self.llm_model_id.provider_id.api_key,
+                base_url=self.llm_model_id.provider_id.api_base,
             ),
             step_callback=lambda step: (
                 self.message_post(

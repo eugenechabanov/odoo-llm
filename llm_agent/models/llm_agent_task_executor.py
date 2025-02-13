@@ -1,8 +1,8 @@
-from odoo import _, api, fields, models
+from odoo import _, api, models
 from odoo.exceptions import UserError
 
 
-class LLMAgentTaskExecutor(models.AbstractModel):
+class LLMAgentTaskExecutor(models.Model):
     """Base model for LLM task execution.
 
     This model provides the fundamental structure for executing AI tasks,
@@ -15,22 +15,6 @@ class LLMAgentTaskExecutor(models.AbstractModel):
     _name = "llm.agent.task.executor"
     _description = "LLM Agent Task Executor"
     _inherit = ["llm.agent.service.dispatch.mixin"]
-
-    service = fields.Selection(
-        selection=lambda self: self._selection_service(),
-        required=True,
-        default="crewai",  # Default to CrewAI service if available
-        help="Service to use for task execution",
-    )
-
-    @api.model
-    def _get_available_services(self):
-        """Get list of available task execution services.
-
-        Returns:
-            list: List of (code, label) tuples for available services
-        """
-        return []
 
     def execute_task(self, task_record, **kwargs):
         """Execute a task using service dispatch pattern.

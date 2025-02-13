@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Form View -->
+    <record id="llm_agent_task_executor_view_form" model="ir.ui.view">
+        <field name="name">llm.agent.task.executor.view.form</field>
+        <field name="model">llm.agent.task.executor</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group name="settings">
+                            <field name="service"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="llm_agent_task_executor_view_tree" model="ir.ui.view">
+        <field name="name">llm.agent.task.executor.view.tree</field>
+        <field name="model">llm.agent.task.executor</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="service"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="llm_agent_task_executor_view_search" model="ir.ui.view">
+        <field name="name">llm.agent.task.executor.view.search</field>
+        <field name="model">llm.agent.task.executor</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="service"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_llm_agent_task_executor" model="ir.actions.act_window">
+        <field name="name">Task Executors</field>
+        <field name="res_model">llm.agent.task.executor</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first task executor!
+            </p>
+            <p>
+                Task executors handle the execution of AI tasks using different services.
+            </p>
+        </field>
+    </record>
+</odoo>

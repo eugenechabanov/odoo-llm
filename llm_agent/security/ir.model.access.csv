@@ -5,3 +5,5 @@ access_llm_agent_tool_user,llm.agent.tool.user,model_llm_agent_tool,group_llm_ag
 access_llm_agent_tool_manager,llm.agent.tool.manager,model_llm_agent_tool,group_llm_agent_manager,1,1,1,1
 access_llm_agent_tool_provider_user,llm.agent.tool.provider.user,model_llm_agent_tool_provider,group_llm_agent_user,1,0,0,0
 access_llm_agent_tool_provider_manager,llm.agent.tool.provider.manager,model_llm_agent_tool_provider,group_llm_agent_manager,1,1,1,1
+access_llm_agent_task_executor_user,llm.agent.task.executor.user,model_llm_agent_task_executor,group_llm_agent_user,1,1,1,0
+access_llm_agent_task_executor_manager,llm.agent.task.executor.manager,model_llm_agent_task_executor,group_llm_agent_manager,1,1,1,1

@@ -34,9 +34,24 @@ class ProjectTask(models.Model):
     @api.depends('user_ids')
     def _compute_is_ai_executable(self):
         """Determine if task can be executed by AI."""
-        executor = self.env['llm.agent.task.executor']
+        executor = self._get_task_executor()
         for task in self:
             task.is_ai_executable = executor.has_ai_agent_assigned(task)
+
+    def _get_task_executor(self):
+        """Get task executor with CrewAI service.
+        
+        Returns:
+            llm.agent.task.executor: Task executor record configured with CrewAI service
+            
+        Raises:
+            UserError: If no task executor is configured with CrewAI service
+        """
+        ExecutorModel = self.env['llm.agent.task.executor']
+        executor = ExecutorModel.search([('service', '=', 'crewai')], limit=1)
+        if not executor:
+            raise UserError(_("No task executor found with CrewAI service. Please configure one in Agents Configuration > Task Executors."))
+        return executor
 
     def action_execute_ai_task(self):
         """Execute task using configured executor."""
@@ -45,8 +60,8 @@ class ProjectTask(models.Model):
         if not self.is_ai_executable:
             raise UserError(_("This task cannot be executed by AI. Please ensure it is assigned to an AI agent."))
 
-        # Get the executor (it will use CrewAI service)
-        executor = self.env['llm.agent.task.executor']
+        # Get the executor with CrewAI service
+        executor = self._get_task_executor()
         
         try:
             # Execute and track time

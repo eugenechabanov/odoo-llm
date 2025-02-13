@@ -20,7 +20,7 @@
     <!-- LLM Agent Tool Provider Menu -->
     <menuitem
         id="menu_llm_agent_tool_provider"
-        name="LLM Agent Tool Provider"
+        name="Tool Providers"
         parent="menu_llm_agent_config_root"
         action="action_llm_agent_tool_provider"
         sequence="20"
@@ -29,9 +29,18 @@
     <!-- LLM Agent Tools Menu -->
     <menuitem
         id="menu_llm_agent_tool"
-        name="LLM Agent Tools"
+        name="Tools"
         parent="menu_llm_agent_config_root"
         action="action_llm_agent_tool"
         sequence="30"
+    />
+
+    <!-- LLM Agent Task Executor Menu -->
+    <menuitem
+        id="menu_llm_agent_task_executor"
+        name="Task Executors"
+        parent="menu_llm_agent_config_root"
+        action="action_llm_agent_task_executor"
+        sequence="40"
     />
 </odoo>
