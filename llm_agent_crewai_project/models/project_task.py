@@ -34,7 +34,7 @@ class ProjectTask(models.Model):
     @api.depends('user_ids')
     def _compute_is_ai_executable(self):
         """Determine if task can be executed by AI."""
-        executor = self.env['llm.task.executor']
+        executor = self.env['llm.agent.task.executor']
         for task in self:
             task.is_ai_executable = executor.has_ai_agent_assigned(task)
 
@@ -46,7 +46,7 @@ class ProjectTask(models.Model):
             raise UserError(_("This task cannot be executed by AI. Please ensure it is assigned to an AI agent."))
 
         # Get the executor (it will use CrewAI service)
-        executor = self.env['llm.task.executor']
+        executor = self.env['llm.agent.task.executor']
         
         try:
             # Execute and track time
@@ -77,7 +77,7 @@ class ProjectTask(models.Model):
 
     def _post_execution_message(self, execution_time, result):
         """Post success message in chatter."""
-        agent = self.env['llm.task.executor']._get_agent_for_task(self)
+        agent = self.env['llm.agent.task.executor']._get_agent_for_task(self)
         message = f"""<b>AI Task Completed</b><br/>
 Execution Time: {execution_time:.2f}s<br/>
 Process: {self.process}<br/>"""
@@ -95,7 +95,7 @@ Process: {self.process}<br/>"""
 
     def _post_error_message(self, error):
         """Post error message in chatter."""
-        agent = self.env['llm.task.executor']._get_agent_for_task(self)
+        agent = self.env['llm.agent.task.executor']._get_agent_for_task(self)
         self.message_post(
             body=f"<b>AI Task Failed</b><br/>{error}",
             message_type="comment",

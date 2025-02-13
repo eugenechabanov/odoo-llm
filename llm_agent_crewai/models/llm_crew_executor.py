@@ -6,7 +6,7 @@ from crewai import Task, Crew
 
 class LLMCrewExecutor(models.AbstractModel):
     """CrewAI implementation of task executor."""
-    _inherit = 'llm.task.executor'
+    _inherit = 'llm.agent.task.executor'
 
     @api.model
     def _get_available_services(self):
