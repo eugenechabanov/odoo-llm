@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 <odoo>
     <!-- Form View -->
     <record id="llm_agent_tool_provider_view_form" model="ir.ui.view">
@@ -8,32 +8,44 @@
             <form>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button name="toggle_active" type="object" class="oe_stat_button" icon="fa-archive">
-                            <field name="active" widget="boolean_button" options="{&quot;terminology&quot;: &quot;archive&quot;}"/>
+                        <button
+              name="toggle_active"
+              type="object"
+              class="oe_stat_button"
+              icon="fa-archive"
+            >
+                            <field
+                name="active"
+                widget="boolean_button"
+                options="{&quot;terminology&quot;: &quot;archive&quot;}"
+              />
                         </button>
                     </div>
                     <div class="oe_title">
                         <h1>
-                            <field name="name" placeholder="Tool Provider Name"/>
+                            <field
+                name="name"
+                placeholder="Tool Provider Name"
+              />
                         </h1>
                     </div>
                     <group>
                         <group name="main">
-                            <field name="description"/>
+                            <field name="description" />
                         </group>
                         <group name="settings">
-                            <field name="service"/>
+                            <field name="service" />
                         </group>
                     </group>
                     <notebook>
                         <page string="Tools" name="tools">
-                            <field name="tool_ids"/>
+                            <field name="tool_ids" />
                         </page>
                     </notebook>
                 </sheet>
                 <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="message_ids"/>
+                    <field name="message_follower_ids" />
+                    <field name="message_ids" />
                 </div>
             </form>
         </field>
@@ -45,10 +57,10 @@
         <field name="model">llm.agent.tool.provider</field>
         <field name="arch" type="xml">
             <tree>
-                <field name="name"/>
-                <field name="description"/>
-                <field name="service"/>
-                <field name="active" widget="boolean_toggle"/>
+                <field name="name" />
+                <field name="description" />
+                <field name="service" />
+                <field name="active" widget="boolean_toggle" />
             </tree>
         </field>
     </record>
@@ -59,12 +71,21 @@
         <field name="model">llm.agent.tool.provider</field>
         <field name="arch" type="xml">
             <search>
-                <field name="name"/>
-                <field name="description"/>
-                <field name="service"/>
-                <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
+                <field name="name" />
+                <field name="description" />
+                <field name="service" />
+                <filter
+          string="Archived"
+          name="inactive"
+          domain="[('active', '=', False)]"
+        />
                 <group expand="0" string="Group By">
-                    <filter string="Service" name="group_by_service" domain="[]" context="{'group_by': 'service'}"/>
+                    <filter
+            string="Service"
+            name="group_by_service"
+            domain="[]"
+            context="{'group_by': 'service'}"
+          />
                 </group>
             </search>
         </field>
@@ -87,9 +108,11 @@
     </record>
 
     <!-- Menu Item -->
-    <menuitem id="llm_agent_tool_provider_menu"
-              name="Tool Providers"
-              parent="llm_agent_menu_root"
-              action="llm_agent_tool_provider_action"
-              sequence="15"/>
-</odoo> 
+    <menuitem
+    id="llm_agent_tool_provider_menu"
+    name="Tool Providers"
+    parent="llm_agent_menu_root"
+    action="llm_agent_tool_provider_action"
+    sequence="15"
+  />
+</odoo>
