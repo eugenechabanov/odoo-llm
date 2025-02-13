@@ -11,7 +11,7 @@ class LLMAgentTool(models.Model):
     """
     _name = 'llm.agent.tool'
     _description = 'LLM Agent Tool'
-    _inherit = ['mail.thread', 'llm.service.mixin']
+    _inherit = ['mail.thread', 'llm.agent.service.dispatch.mixin']
 
     name = fields.Char(
         required=True,

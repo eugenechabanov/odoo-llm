@@ -13,7 +13,7 @@ class LLMAgentTaskExecutor(models.AbstractModel):
     """
     _name = 'llm.agent.task.executor'
     _description = 'LLM Agent Task Executor'
-    _inherit = ['llm.service.mixin']
+    _inherit = ['llm.agent.service.dispatch.mixin']
 
     service = fields.Selection(
         selection=lambda self: self._selection_service(),

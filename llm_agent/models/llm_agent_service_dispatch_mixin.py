@@ -2,15 +2,15 @@ from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
 
-class LLMServiceMixin(models.AbstractModel):
-    """Mixin for LLM service dispatch pattern.
+class LLMAgentServiceDispatchMixin(models.AbstractModel):
+    """Mixin for LLM agent service dispatch pattern.
     
     This mixin provides the common functionality for service-based dispatch pattern
     used by both LLM agents and tools. It allows different implementations to register
     their services and handle method dispatch based on the selected service.
     """
-    _name = 'llm.service.mixin'
-    _description = 'LLM Service Mixin'
+    _name = 'llm.agent.service.dispatch.mixin'
+    _description = 'LLM Agent Service Dispatch Mixin'
 
     service = fields.Selection(
         selection=lambda self: self._selection_service(),

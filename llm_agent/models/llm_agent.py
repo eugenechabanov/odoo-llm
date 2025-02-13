@@ -11,7 +11,7 @@ class LLMAgent(models.Model):
     """
     _name = 'llm.agent'
     _description = 'LLM Agent'
-    _inherit = ['mail.thread', 'llm.service.mixin']
+    _inherit = ['mail.thread', 'llm.agent.service.dispatch.mixin']
 
     name = fields.Char(
         required=True,
