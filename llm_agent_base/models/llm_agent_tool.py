@@ -28,13 +28,11 @@ class LLMAgentTool(models.Model):
         tracking=True,
         help="Description of what this tool does"
     )
-    # input and output Schemas might be handly in future, keeping them optional, 
-    # maybe convert json schema to pydantic model
-    input_schema = fields.Text(
+    provider_id = fields.Many2one(
+        'llm.agent.tool.provider',
+        string="Tool Provider",
+        required=True,
         tracking=True,
-        help="JSON Schema defining the expected input format"
-    )
-    output_schema = fields.Text(
-        tracking=True,
-        help="JSON Schema defining the output format"
+        help="Provider that offers this tool",
+        index=True
     )

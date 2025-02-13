@@ -50,7 +50,8 @@ class LLMAgent(models.Model):
         string="LLM Provider",
         required=True,
         tracking=True,
-        help="LLM provider to use for this agent"
+        help="Provider used by this agent for language model capabilities",
+        index=True
     )
     llm_model_id = fields.Many2one(
         'llm.model',
@@ -59,6 +60,14 @@ class LLMAgent(models.Model):
         tracking=True,
         domain="[('provider_id', '=', llm_provider_id)]",
         help="The specific LLM model to use for this agent"
+    )
+    tool_provider_id = fields.Many2one(
+        'llm.agent.tool.provider',
+        string="Tool Provider",
+        required=True,
+        tracking=True,
+        help="Provider that supplies tools for this agent",
+        index=True
     )
     available_tool_ids = fields.Many2many(
         'llm.agent.tool',

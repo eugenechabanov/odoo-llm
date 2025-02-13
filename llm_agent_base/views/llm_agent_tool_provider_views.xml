@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Form View -->
-    <record id="llm_agent_tool_view_form" model="ir.ui.view">
-        <field name="name">llm.agent.tool.view.form</field>
-        <field name="model">llm.agent.tool</field>
+    <record id="llm_agent_tool_provider_view_form" model="ir.ui.view">
+        <field name="name">llm.agent.tool.provider.view.form</field>
+        <field name="model">llm.agent.tool.provider</field>
         <field name="arch" type="xml">
             <form>
                 <sheet>
@@ -14,28 +14,20 @@
                     </div>
                     <div class="oe_title">
                         <h1>
-                            <field name="name" placeholder="Tool Name"/>
+                            <field name="name" placeholder="Tool Provider Name"/>
                         </h1>
                     </div>
                     <group>
                         <group name="main">
                             <field name="description"/>
-                            <field name="provider_id"/>
                         </group>
                         <group name="settings">
                             <field name="service"/>
                         </group>
                     </group>
                     <notebook>
-                        <page string="Schema" name="schema">
-                            <group>
-                                <group>
-                                    <field name="input_schema"/>
-                                </group>
-                                <group>
-                                    <field name="output_schema"/>
-                                </group>
-                            </group>
+                        <page string="Tools" name="tools">
+                            <field name="tool_ids"/>
                         </page>
                     </notebook>
                 </sheet>
@@ -48,14 +40,13 @@
     </record>
 
     <!-- Tree View -->
-    <record id="llm_agent_tool_view_tree" model="ir.ui.view">
-        <field name="name">llm.agent.tool.view.tree</field>
-        <field name="model">llm.agent.tool</field>
+    <record id="llm_agent_tool_provider_view_tree" model="ir.ui.view">
+        <field name="name">llm.agent.tool.provider.view.tree</field>
+        <field name="model">llm.agent.tool.provider</field>
         <field name="arch" type="xml">
             <tree>
                 <field name="name"/>
                 <field name="description"/>
-                <field name="provider_id"/>
                 <field name="service"/>
                 <field name="active" widget="boolean_toggle"/>
             </tree>
@@ -63,18 +54,16 @@
     </record>
 
     <!-- Search View -->
-    <record id="llm_agent_tool_view_search" model="ir.ui.view">
-        <field name="name">llm.agent.tool.view.search</field>
-        <field name="model">llm.agent.tool</field>
+    <record id="llm_agent_tool_provider_view_search" model="ir.ui.view">
+        <field name="name">llm.agent.tool.provider.view.search</field>
+        <field name="model">llm.agent.tool.provider</field>
         <field name="arch" type="xml">
             <search>
                 <field name="name"/>
                 <field name="description"/>
-                <field name="provider_id"/>
                 <field name="service"/>
                 <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
                 <group expand="0" string="Group By">
-                    <filter string="Provider" name="group_by_provider" domain="[]" context="{'group_by': 'provider_id'}"/>
                     <filter string="Service" name="group_by_service" domain="[]" context="{'group_by': 'service'}"/>
                 </group>
             </search>
@@ -82,25 +71,25 @@
     </record>
 
     <!-- Action -->
-    <record id="llm_agent_tool_action" model="ir.actions.act_window">
-        <field name="name">Agent Tools</field>
-        <field name="res_model">llm.agent.tool</field>
+    <record id="llm_agent_tool_provider_action" model="ir.actions.act_window">
+        <field name="name">Tool Providers</field>
+        <field name="res_model">llm.agent.tool.provider</field>
         <field name="view_mode">tree,form</field>
         <field name="context">{'search_default_active': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Create your first agent tool!
+                Create your first tool provider!
             </p>
             <p>
-                Tools provide specific functionalities that agents can use to accomplish their tasks.
+                Tool providers offer collections of tools that can be used by agents.
             </p>
         </field>
     </record>
 
     <!-- Menu Item -->
-    <menuitem id="llm_agent_tool_menu"
-              name="Tools"
+    <menuitem id="llm_agent_tool_provider_menu"
+              name="Tool Providers"
               parent="llm_agent_menu_root"
-              action="llm_agent_tool_action"
-              sequence="20"/>
-</odoo>
+              action="llm_agent_tool_provider_action"
+              sequence="15"/>
+</odoo> 

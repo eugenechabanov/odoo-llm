@@ -20,6 +20,7 @@
         'security/ir.model.access.csv',
         'views/llm_agent_views.xml',
         'views/llm_agent_tool_views.xml',
+        'views/llm_agent_tool_provider_views.xml',
         'views/llm_agent_menus.xml',
     ],
     'installable': True,
