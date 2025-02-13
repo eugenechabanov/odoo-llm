@@ -1,4 +1,5 @@
-from odoo import fields, models
+from odoo import api, fields, models, _
+from odoo.exceptions import UserError
 
 
 class LLMAgentTool(models.Model):
@@ -6,11 +7,11 @@ class LLMAgentTool(models.Model):
     
     This model defines the basic structure and interface that all LLM agent tool
     implementations must follow. It provides common fields and methods that are
-    essential for any LLM tool integration.
+    essential for any LLM agent tool integration.
     """
     _name = 'llm.agent.tool'
     _description = 'LLM Agent Tool'
-    _inherit = ['mail.thread', 'llm.agent.external.mixin']
+    _inherit = ['mail.thread', 'llm.service.mixin']
 
     name = fields.Char(
         required=True,
@@ -25,9 +26,9 @@ class LLMAgentTool(models.Model):
     description = fields.Text(
         required=True,
         tracking=True,
-        help="Description of what the tool does"
+        help="Description of what this tool does"
     )
-    # Schemas might be handly in future, keeping them optional, 
+    # input and output Schemas might be handly in future, keeping them optional, 
     # maybe convert json schema to pydantic model
     input_schema = fields.Text(
         tracking=True,

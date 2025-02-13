@@ -1,4 +1,5 @@
-from odoo import api, fields, models
+from odoo import api, fields, models, _
+from odoo.exceptions import UserError
 
 
 class LLMAgent(models.Model):
@@ -10,7 +11,7 @@ class LLMAgent(models.Model):
     """
     _name = 'llm.agent'
     _description = 'LLM Agent'
-    _inherit = ['mail.thread', 'llm.agent.external.mixin']
+    _inherit = ['mail.thread', 'llm.service.mixin']
 
     name = fields.Char(
         required=True,
@@ -33,32 +34,23 @@ class LLMAgent(models.Model):
     role = fields.Text(
         required=True,
         tracking=True,
-        help="The role or responsibility of this agent"
+        help="Role description for the agent"
     )
     goal = fields.Text(
         required=True,
         tracking=True,
-        help="The primary objective or goal of this agent"
+        help="Goal that the agent should achieve"
     )
     backstory = fields.Text(
-        required=True,
         tracking=True,
-        help="The backstory or background of this agent"
+        help="Optional backstory for the agent"
     )
-
-    tool_ids = fields.Many2many(
-        'llm.agent.tool',
-        string="Available Tools",
-        help="Tools that this agent can use"
-    )
-    
-    # LLM Configuration
     llm_provider_id = fields.Many2one(
         'llm.provider',
         string="LLM Provider",
         required=True,
         tracking=True,
-        help="The LLM provider to use for this agent"
+        help="LLM provider to use for this agent"
     )
     llm_model_id = fields.Many2one(
         'llm.model',
@@ -67,6 +59,12 @@ class LLMAgent(models.Model):
         tracking=True,
         domain="[('provider_id', '=', llm_provider_id)]",
         help="The specific LLM model to use for this agent"
+    )
+    available_tool_ids = fields.Many2many(
+        'llm.agent.tool',
+        string="Available Tools",
+        tracking=True,
+        help="Tools that this agent can use"
     )
 
     # Hierarchical team structure
@@ -110,4 +108,4 @@ class LLMAgent(models.Model):
         Returns:
             list: List of tool instances that this agent can use
         """
-        return [tool.get_instance() for tool in self.tool_ids if tool.active]
+        return [tool.get_instance() for tool in self.available_tool_ids if tool.active]
