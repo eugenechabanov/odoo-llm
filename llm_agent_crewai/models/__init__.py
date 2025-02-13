@@ -1,4 +1,5 @@
 from . import llm_agent
+from . import llm_agent_tool_provider
 from . import crewai_odoo_search_tool
 from . import crewai_odoo_create_tool
 from . import crewai_odoo_write_tool
