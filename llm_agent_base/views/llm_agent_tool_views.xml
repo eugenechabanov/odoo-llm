@@ -26,18 +26,6 @@
                             <field name="service"/>
                         </group>
                     </group>
-                    <notebook>
-                        <page string="Schema" name="schema">
-                            <group>
-                                <group>
-                                    <field name="input_schema"/>
-                                </group>
-                                <group>
-                                    <field name="output_schema"/>
-                                </group>
-                            </group>
-                        </page>
-                    </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>

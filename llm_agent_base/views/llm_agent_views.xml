@@ -22,21 +22,33 @@
                             <field name="role"/>
                             <field name="goal"/>
                             <field name="backstory"/>
+                            <field name="is_manager"/>
+                            <field name="user_id"/>
                         </group>
                         <group name="settings">
                             <field name="service"/>
                             <field name="llm_provider_id"/>
                             <field name="llm_model_id"/>
                             <field name="tool_provider_id"/>
-                            <field name="parent_id"/>
+                            <field name="parent_id" attrs="{'invisible': [('is_manager', '=', True)]}"/>
                         </group>
                     </group>
                     <notebook>
                         <page string="Tools" name="tools">
-                            <field name="available_tool_ids"/>
+                            <field name="available_tool_ids" widget="many2many_tags"/>
                         </page>
-                        <page string="Team" name="team">
-                            <field name="child_ids"/>
+                        <page string="Team Members" name="team" attrs="{'invisible': [('is_manager', '=', False)]}">
+                            <field name="member_ids" 
+                                   domain="[('is_manager', '=', False)]"
+                                   context="{'default_parent_id': active_id}">
+                                <tree>
+                                    <field name="name"/>
+                                    <field name="role"/>
+                                    <field name="goal"/>
+                                    <field name="service"/>
+                                    <field name="user_id"/>
+                                </tree>
+                            </field>
                         </page>
                     </notebook>
                 </sheet>
@@ -56,10 +68,9 @@
             <tree>
                 <field name="name"/>
                 <field name="role"/>
+                <field name="is_manager"/>
                 <field name="service"/>
-                <field name="llm_provider_id"/>
-                <field name="llm_model_id"/>
-                <field name="tool_provider_id"/>
+                <field name="user_id"/>
                 <field name="parent_id"/>
                 <field name="active" widget="boolean_toggle"/>
             </tree>
@@ -76,17 +87,19 @@
                 <field name="role"/>
                 <field name="goal"/>
                 <field name="service"/>
-                <field name="llm_provider_id"/>
-                <field name="llm_model_id"/>
-                <field name="tool_provider_id"/>
+                <field name="user_id"/>
                 <field name="parent_id"/>
+                
+                <filter string="Managers" name="managers" domain="[('is_manager', '=', True)]"/>
+                <filter string="Team Members" name="team_members" domain="[('is_manager', '=', False)]"/>
                 <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
+                
                 <group expand="0" string="Group By">
+                    <filter string="Manager" name="group_by_manager" domain="[]" context="{'group_by': 'parent_id'}"/>
                     <filter string="Service" name="group_by_service" domain="[]" context="{'group_by': 'service'}"/>
+                    <filter string="User" name="group_by_user" domain="[]" context="{'group_by': 'user_id'}"/>
                     <filter string="LLM Provider" name="group_by_provider" domain="[]" context="{'group_by': 'llm_provider_id'}"/>
                     <filter string="LLM Model" name="group_by_model" domain="[]" context="{'group_by': 'llm_model_id'}"/>
-                    <filter string="Tool Provider" name="group_by_tool_provider" domain="[]" context="{'group_by': 'tool_provider_id'}"/>
-                    <filter string="Manager" name="group_by_manager" domain="[]" context="{'group_by': 'parent_id'}"/>
                 </group>
             </search>
         </field>
@@ -100,10 +113,11 @@
         <field name="context">{'search_default_active': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                Create your first agent!
+                Create your first AI agent!
             </p>
             <p>
-                Agents can perform tasks using natural language and tools.
+                AI agents can be configured as managers or team members to work on tasks.
+                Managers can delegate tasks to their team members.
             </p>
         </field>
     </record>
