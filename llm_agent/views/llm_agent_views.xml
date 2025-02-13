@@ -164,7 +164,7 @@
     </record>
 
     <!-- Action -->
-    <record id="llm_agent_action" model="ir.actions.act_window">
+    <record id="action_llm_agent" model="ir.actions.act_window">
         <field name="name">Agents</field>
         <field name="res_model">llm.agent</field>
         <field name="view_mode">tree,form</field>
@@ -179,13 +179,4 @@
             </p>
         </field>
     </record>
-
-    <!-- Menu Item -->
-    <menuitem
-    id="llm_agent_menu"
-    name="Agents"
-    parent="llm_agent_menu_root"
-    action="llm_agent_action"
-    sequence="10"
-  />
 </odoo>
