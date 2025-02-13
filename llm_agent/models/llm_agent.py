@@ -34,20 +34,11 @@ class LLMAgent(models.Model):
         required=True, tracking=True, help="Goal that the agent should achieve"
     )
     backstory = fields.Text(tracking=True, help="Optional backstory for the agent")
-    llm_provider_id = fields.Many2one(
-        "llm.provider",
-        string="LLM Provider",
-        required=True,
-        tracking=True,
-        help="Provider used by this agent for language model capabilities",
-        index=True,
-    )
     llm_model_id = fields.Many2one(
         "llm.model",
         string="LLM Model",
         required=True,
         tracking=True,
-        domain="[('provider_id', '=', llm_provider_id)]",
         help="The specific LLM model to use for this agent",
     )
     tool_ids = fields.Many2many(

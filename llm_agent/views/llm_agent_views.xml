@@ -36,7 +36,6 @@
                         </group>
                         <group name="settings">
                             <field name="service" />
-                            <field name="llm_provider_id" />
                             <field name="llm_model_id" />
                             <field
                 name="parent_id"
@@ -144,12 +143,6 @@
             name="group_by_user"
             domain="[]"
             context="{'group_by': 'user_id'}"
-          />
-                    <filter
-            string="LLM Provider"
-            name="group_by_provider"
-            domain="[]"
-            context="{'group_by': 'llm_provider_id'}"
           />
                     <filter
             string="LLM Model"
