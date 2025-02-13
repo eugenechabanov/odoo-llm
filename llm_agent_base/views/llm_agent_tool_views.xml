@@ -25,6 +25,18 @@
                             <field name="service"/>
                         </group>
                     </group>
+                    <notebook>
+                        <page string="Schema" name="schema">
+                            <group>
+                                <group>
+                                    <field name="input_schema"/>
+                                </group>
+                                <group>
+                                    <field name="output_schema"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>
@@ -84,7 +96,7 @@
     <!-- Menu Item -->
     <menuitem id="llm_agent_tool_menu"
               name="Tools"
-              parent="llm_agent_base.llm_agent_menu_root"
+              parent="llm_agent_menu_root"
               action="llm_agent_tool_action"
               sequence="20"/>
 </odoo>

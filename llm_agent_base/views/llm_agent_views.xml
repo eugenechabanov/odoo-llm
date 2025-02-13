@@ -2,14 +2,14 @@
 <odoo>
     <!-- Form View -->
     <record id="llm_agent_view_form" model="ir.ui.view">
-        <field name="name">llm.agent.form</field>
+        <field name="name">llm.agent.view.form</field>
         <field name="model">llm.agent</field>
         <field name="arch" type="xml">
             <form>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
                         <button name="toggle_active" type="object" class="oe_stat_button" icon="fa-archive">
-                            <field name="active" widget="boolean_button"/>
+                            <field name="active" widget="boolean_button" options="{&quot;terminology&quot;: &quot;archive&quot;}"/>
                         </button>
                     </div>
                     <div class="oe_title">
@@ -18,29 +18,24 @@
                         </h1>
                     </div>
                     <group>
-                        <group name="basic_info">
-                            <field name="user_id"/>
+                        <group name="main">
                             <field name="role"/>
                             <field name="goal"/>
                             <field name="backstory"/>
                         </group>
-                        <group name="llm_config">
+                        <group name="settings">
+                            <field name="service"/>
                             <field name="llm_provider_id"/>
                             <field name="llm_model_id"/>
+                            <field name="parent_id"/>
                         </group>
                     </group>
                     <notebook>
-                        <page string="Team Structure" name="team">
-                            <group>
-                                <group>
-                                    <field name="parent_id"/>
-                                    <field name="is_manager"/>
-                                </group>
-                            </group>
-                            <field name="member_ids" attrs="{'invisible': [('is_manager', '=', False)]}"/>
-                        </page>
                         <page string="Tools" name="tools">
-                            <field name="tool_ids"/>
+                            <field name="available_tool_ids"/>
+                        </page>
+                        <page string="Team" name="team">
+                            <field name="child_ids"/>
                         </page>
                     </notebook>
                 </sheet>
@@ -54,43 +49,65 @@
 
     <!-- Tree View -->
     <record id="llm_agent_view_tree" model="ir.ui.view">
-        <field name="name">llm.agent.tree</field>
+        <field name="name">llm.agent.view.tree</field>
         <field name="model">llm.agent</field>
         <field name="arch" type="xml">
             <tree>
                 <field name="name"/>
-                <field name="user_id"/>
                 <field name="role"/>
+                <field name="service"/>
                 <field name="llm_provider_id"/>
                 <field name="llm_model_id"/>
                 <field name="parent_id"/>
-                <field name="is_manager"/>
+                <field name="active" widget="boolean_toggle"/>
             </tree>
         </field>
     </record>
 
     <!-- Search View -->
     <record id="llm_agent_view_search" model="ir.ui.view">
-        <field name="name">llm.agent.search</field>
+        <field name="name">llm.agent.view.search</field>
         <field name="model">llm.agent</field>
         <field name="arch" type="xml">
             <search>
                 <field name="name"/>
-                <field name="user_id"/>
                 <field name="role"/>
+                <field name="goal"/>
+                <field name="service"/>
                 <field name="llm_provider_id"/>
                 <field name="llm_model_id"/>
                 <field name="parent_id"/>
-                <separator/>
-                <filter string="Managers" name="managers" domain="[('is_manager', '=', True)]"/>
-                <filter string="Team Members" name="team_members" domain="[('parent_id', '!=', False)]"/>
-                <separator/>
                 <filter string="Archived" name="inactive" domain="[('active', '=', False)]"/>
                 <group expand="0" string="Group By">
-                    <filter string="LLM Provider" name="group_by_provider" context="{'group_by': 'llm_provider_id'}"/>
-                    <filter string="Manager" name="group_by_manager" context="{'group_by': 'parent_id'}"/>
+                    <filter string="Service" name="group_by_service" domain="[]" context="{'group_by': 'service'}"/>
+                    <filter string="Provider" name="group_by_provider" domain="[]" context="{'group_by': 'llm_provider_id'}"/>
+                    <filter string="Model" name="group_by_model" domain="[]" context="{'group_by': 'llm_model_id'}"/>
+                    <filter string="Manager" name="group_by_manager" domain="[]" context="{'group_by': 'parent_id'}"/>
                 </group>
             </search>
         </field>
     </record>
+
+    <!-- Action -->
+    <record id="llm_agent_action" model="ir.actions.act_window">
+        <field name="name">Agents</field>
+        <field name="res_model">llm.agent</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{'search_default_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first agent!
+            </p>
+            <p>
+                Agents can perform tasks using natural language and tools.
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu Item -->
+    <menuitem id="llm_agent_menu"
+              name="Agents"
+              parent="llm_agent_menu_root"
+              action="llm_agent_action"
+              sequence="10"/>
 </odoo>
