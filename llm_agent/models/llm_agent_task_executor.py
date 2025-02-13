@@ -2,7 +2,7 @@ from odoo import api, fields, models, _
 from odoo.exceptions import UserError
 
 
-class LLMTaskExecutor(models.AbstractModel):
+class LLMAgentTaskExecutor(models.AbstractModel):
     """Base model for LLM task execution.
     
     This model provides the fundamental structure for executing AI tasks,
@@ -11,8 +11,8 @@ class LLMTaskExecutor(models.AbstractModel):
     It follows the service dispatch pattern from llm.service.mixin to allow
     different implementations to handle task execution.
     """
-    _name = 'llm.task.executor'
-    _description = 'LLM Task Executor'
+    _name = 'llm.agent.task.executor'
+    _description = 'LLM Agent Task Executor'
     _inherit = ['llm.service.mixin']
 
     service = fields.Selection(
