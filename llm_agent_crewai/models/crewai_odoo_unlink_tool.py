@@ -1,5 +1,5 @@
 from odoo import api, models
-from .odoo_tools.unlink_tool import OdooUnlinkTool
+from .odoo_tools import OdooUnlinkTool
 
 
 class LLMAgentTool(models.Model):

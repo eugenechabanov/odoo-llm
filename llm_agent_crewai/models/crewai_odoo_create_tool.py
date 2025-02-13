@@ -1,5 +1,5 @@
 from odoo import api, models
-from .odoo_tools.create_tool import OdooCreateTool
+from .odoo_tools import OdooCreateTool
 
 
 class LLMAgentTool(models.Model):

@@ -1,5 +1,5 @@
 from odoo import api, models
-from .odoo_tools.search_tool import OdooSearchTool
+from .odoo_tools import OdooSearchTool
 
 
 class LLMAgentTool(models.Model):
