@@ -1,10 +1,10 @@
 {
-    'name': 'LLM Agent Base',
+    'name': 'LLM Agent',
     'version': '1.0',
     'category': 'Technical',
-    'summary': 'Base module for LLM agent management',
+    'summary': 'Module for LLM agent management',
     'description': """
-        Base module providing core functionality for managing LLM agents and their tools.
+        Module providing functionality for managing LLM agents and their tools.
         Includes models and views for agent configuration, team structure, and tool management.
     """,
     'author': 'Apexive Solutions LLC',
