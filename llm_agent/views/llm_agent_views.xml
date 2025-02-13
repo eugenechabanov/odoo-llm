@@ -38,7 +38,6 @@
                             <field name="service" />
                             <field name="llm_provider_id" />
                             <field name="llm_model_id" />
-                            <field name="tool_provider_id" />
                             <field
                 name="parent_id"
                 attrs="{'invisible': [('is_manager', '=', True)]}"
@@ -48,7 +47,7 @@
                     <notebook>
                         <page string="Tools" name="tools">
                             <field
-                name="available_tool_ids"
+                name="tool_ids"
                 widget="many2many_tags"
               />
                         </page>
