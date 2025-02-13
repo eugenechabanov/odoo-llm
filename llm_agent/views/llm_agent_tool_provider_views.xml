@@ -92,7 +92,7 @@
     </record>
 
     <!-- Action -->
-    <record id="llm_agent_tool_provider_action" model="ir.actions.act_window">
+    <record id="action_llm_agent_tool_provider" model="ir.actions.act_window">
         <field name="name">Tool Providers</field>
         <field name="res_model">llm.agent.tool.provider</field>
         <field name="view_mode">tree,form</field>
@@ -106,13 +106,4 @@
             </p>
         </field>
     </record>
-
-    <!-- Menu Item -->
-    <menuitem
-    id="llm_agent_tool_provider_menu"
-    name="Tool Providers"
-    parent="llm_agent_menu_root"
-    action="llm_agent_tool_provider_action"
-    sequence="15"
-  />
 </odoo>

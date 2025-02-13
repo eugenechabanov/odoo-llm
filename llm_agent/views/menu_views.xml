@@ -1,22 +1,37 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    
+    <!-- Root Configuration Menu -->
+    <menuitem
+        id="menu_llm_agent_config_root"
+        name="Agents Configuration"
+        parent="llm.menu_llm_root"
+        sequence="10"
+    />
 
-    <!-- Menu -->
-    <!-- Root Menu -->
+    <!-- LLM Agents Menu -->
     <menuitem
-      id="menu_llm_agent"
-      name="LLM Agents"
-      parent="llm.menu_llm_root"
-      action="action_llm_agent"
-      sequence="1"
-   />
-    <!-- Menu -->
+        id="menu_llm_agent"
+        name="LLM Agents"
+        parent="menu_llm_agent_config_root"
+        action="action_llm_agent"
+        sequence="10"
+    />
+
+    <!-- LLM Agent Tool Provider Menu -->
     <menuitem
-      id="menu_llm_agent_tool"
-      name="LLM Agent Tools"
-      parent="llm.menu_llm_root"
-      action="action_llm_agent_tool"
-      sequence="2"
+        id="menu_llm_agent_tool_provider"
+        name="LLM Agent Tool Provider"
+        parent="menu_llm_agent_config_root"
+        action="action_llm_agent_tool_provider"
+        sequence="20"
+    />
+
+    <!-- LLM Agent Tools Menu -->
+    <menuitem
+        id="menu_llm_agent_tool"
+        name="LLM Agent Tools"
+        parent="menu_llm_agent_config_root"
+        action="action_llm_agent_tool"
+        sequence="30"
     />
 </odoo>
