@@ -5,7 +5,8 @@ from .odoo_tools.create_tool import OdooCreateTool
 class LLMAgentTool(models.Model):
     """Extends the base tool model to support CrewAI create tool."""
     _inherit = 'llm.agent.tool'
-
+    # https://docs.crewai.com/concepts/tools#structured-tools
+    # TODO: Check structured tool later
     @api.model
     def _get_available_services(self):
         """Add CrewAI create tool service."""
