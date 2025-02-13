@@ -21,7 +21,7 @@
         "views/llm_agent_views.xml",
         "views/llm_agent_tool_views.xml",
         "views/llm_agent_tool_provider_views.xml",
-        "views/llm_agent_menus.xml",
+        "views/menu_views.xml",
     ],
     "installable": True,
     "application": True,

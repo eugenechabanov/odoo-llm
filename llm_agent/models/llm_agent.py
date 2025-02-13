@@ -1,4 +1,4 @@
-from odoo import api, fields, models
+from odoo import api, fields, models, exceptions
 
 
 class LLMAgent(models.Model):
@@ -34,33 +34,16 @@ class LLMAgent(models.Model):
         required=True, tracking=True, help="Goal that the agent should achieve"
     )
     backstory = fields.Text(tracking=True, help="Optional backstory for the agent")
-    llm_provider_id = fields.Many2one(
-        "llm.provider",
-        string="LLM Provider",
-        required=True,
-        tracking=True,
-        help="Provider used by this agent for language model capabilities",
-        index=True,
-    )
     llm_model_id = fields.Many2one(
         "llm.model",
         string="LLM Model",
         required=True,
         tracking=True,
-        domain="[('provider_id', '=', llm_provider_id)]",
         help="The specific LLM model to use for this agent",
     )
-    tool_provider_id = fields.Many2one(
-        "llm.agent.tool.provider",
-        string="Tool Provider",
-        required=True,
-        tracking=True,
-        help="Provider that supplies tools for this agent",
-        index=True,
-    )
-    available_tool_ids = fields.Many2many(
+    tool_ids = fields.Many2many(
         "llm.agent.tool",
-        string="Available Tools",
+        string="Tools that LLM Agent can use",
         tracking=True,
         help="Tools that this agent can use",
     )
@@ -100,10 +83,10 @@ class LLMAgent(models.Model):
         for agent in self:
             agent.is_manager = bool(agent.member_ids)
 
-    def get_available_tools(self):
-        """Get list of tools available to this agent.
-
-        Returns:
-            list: List of tool instances that this agent can use
-        """
-        return [tool.get_instance() for tool in self.available_tool_ids if tool.active]
+    @api.constrains('tool_ids')
+    def _check_tools_same_provider(self):
+        """Ensure all selected tools belong to the same provider."""
+        for agent in self:
+            providers = agent.tool_ids.mapped('provider_id')
+            if len(providers) > 1:
+                raise exceptions.ValidationError("All selected tools must belong to the same provider.")

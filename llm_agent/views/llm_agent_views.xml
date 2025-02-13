@@ -36,9 +36,7 @@
                         </group>
                         <group name="settings">
                             <field name="service" />
-                            <field name="llm_provider_id" />
                             <field name="llm_model_id" />
-                            <field name="tool_provider_id" />
                             <field
                 name="parent_id"
                 attrs="{'invisible': [('is_manager', '=', True)]}"
@@ -48,7 +46,7 @@
                     <notebook>
                         <page string="Tools" name="tools">
                             <field
-                name="available_tool_ids"
+                name="tool_ids"
                 widget="many2many_tags"
               />
                         </page>
@@ -147,12 +145,6 @@
             context="{'group_by': 'user_id'}"
           />
                     <filter
-            string="LLM Provider"
-            name="group_by_provider"
-            domain="[]"
-            context="{'group_by': 'llm_provider_id'}"
-          />
-                    <filter
             string="LLM Model"
             name="group_by_model"
             domain="[]"
@@ -164,7 +156,7 @@
     </record>
 
     <!-- Action -->
-    <record id="llm_agent_action" model="ir.actions.act_window">
+    <record id="action_llm_agent" model="ir.actions.act_window">
         <field name="name">Agents</field>
         <field name="res_model">llm.agent</field>
         <field name="view_mode">tree,form</field>
@@ -179,13 +171,4 @@
             </p>
         </field>
     </record>
-
-    <!-- Menu Item -->
-    <menuitem
-    id="llm_agent_menu"
-    name="Agents"
-    parent="llm_agent_menu_root"
-    action="llm_agent_action"
-    sequence="10"
-  />
 </odoo>
