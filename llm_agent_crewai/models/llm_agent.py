@@ -9,17 +9,34 @@ class LLMAgent(models.Model):
     _inherit = 'llm.agent'
 
     def _generate_step_message(self, step):
-        """Generate a message for a step in the agent's execution.
-        
+        """Generate formatted message for step callback.
+
         Args:
-            step: The step information from CrewAI
-            
+            step: AgentAction or AgentFinish object from CrewAI
+
         Returns:
-            str: Formatted message describing the step
+            string: html_message
         """
-        return f"""Step: {step.step}
-Input: {step.input}
-Output: {step.output}"""
+        # Extract values with defaults
+        thought = getattr(step, "thought", "No thought provided")
+        tool = getattr(step, "tool", None)
+        tool_input = getattr(step, "tool_input", None)
+        output = getattr(step, "output", None)
+        result = getattr(step, "result", None)
+
+        # Build HTML message
+        html_parts = [
+            f"<b>Agent {self.name}:</b><br/>",
+            f"<b>Thought:</b> {thought}<br/>",
+            f"<b>Tool:</b> {tool}<br/>" if tool else "",
+            f"<b>Tool Input:</b> {tool_input}<br/>" if tool_input else "",
+            f"<b>Output:</b> {output}"
+            if output
+            else (f"<b>Result:</b> {result}" if result else str(step)),
+        ]
+        html_message = "".join(html_parts)
+
+        return html_message
 
     @api.model
     def _get_available_services(self):
@@ -51,12 +68,20 @@ Output: {step.output}"""
         if not self.goal:
             raise UserError(_("Goal is required for CrewAI agent"))
 
+        # Get tools from the agent's tool_ids
+        tools = []
+        for tool in self.tool_ids:
+            tool_instance = tool.get_instance()
+            if tool_instance:
+                tools.append(tool_instance)
+
         # Create the CrewAI agent with our configuration
         agent = Agent(
             role=self.role,
             goal=self.goal,
             backstory=self.backstory or "",
             allow_delegation=self.is_manager,
+            tools=tools,
             verbose=True,
             llm=LLM(
                 temperature=0.5,
