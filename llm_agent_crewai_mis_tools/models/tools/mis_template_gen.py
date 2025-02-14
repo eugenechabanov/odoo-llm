@@ -241,6 +241,28 @@ class MISTemplateGenTool(BaseTool):
     ]
      Standard KPIS for Profit And Loss statement Example:
      "kpis": [
+       {
+            "name": "depreciation",
+            "description": "Depreciation",
+            "expression": "balp[('account_type', '=', 'expense_depreciation')][]",
+            "type": "num",
+            "compare_method": "diff",
+            "accumulation_method": "sum",
+            "sequence": 8,
+            "style": {"color": "#000000", "font_style": "italic"},
+            "show_account_details": true
+        },
+        {
+          "name": "other_inc",
+          "description": "Other Income",
+          "expression": "-balp[('account_type', '=', 'income_other')][]",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 5,
+          "style": {"color": "#000000", "font_style": "italic"},
+          "show_account_details": true
+        },
         {
           "name": "net_profit",
           "description": "Net Profit",
@@ -290,6 +312,28 @@ class MISTemplateGenTool(BaseTool):
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 4,
+          "style": {"color": "#000000", "font_style": "italic"},
+          "show_account_details": true
+        },
+        {
+          "name": "other_inc",
+          "description": "Other Income",
+          "expression": "-balp[('account_type', '=', 'income_other')][]",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 5,
+          "style": {"color": "#000000", "font_style": "italic"},
+          "show_account_details": true
+        },
+        {
+          "name": "depreciation",
+          "description": "Depreciation",
+          "expression": "balp[('account_type', '=', 'expense_depreciation')][]",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 8,
           "style": {"color": "#000000", "font_style": "italic"},
           "show_account_details": true
         }
