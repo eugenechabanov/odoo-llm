@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from crewai.tools import BaseTool
-
+import random
 _logger = logging.getLogger(__name__)
 
 
@@ -153,279 +153,132 @@ class MISTemplateGenTool(BaseTool):
 
     name: str = "MIS Template Generator for Odoo"
     description: str = """
-   Important models,fields and relations:
-        {
-  "models": [
-    {
-      "name": "mis.report",
-      "description": "A MIS report template (without period information). Holds queries and KPIs.",
-      "attributes": [
-        "name (Char): Report name",
-        "description (Char): Report description",
-        "style_id (Many2one): Style for the report",
-        "query_ids (One2many): Queries used in the report",
-        "kpi_ids (One2many): KPIs in the report",
-        "subkpi_ids (One2many): Sub KPIs in the report",
-        "subreport_ids (One2many): Subreports included in the report",
-        "move_lines_source (Many2one): Model used as the source for move lines (e.g., account.move.line)"
-      ],
-      "relationships": [
-        "Has many mis.report.query",
-        "Has many mis.report.kpi",
-        "Has many mis.report.subkpi",
-        "Has many mis.report.subreport",
-        "Uses mis.report.style"
-      ]
-    },
-    {
-      "name": "mis.report.subreport",
-      "description": "Defines the relationship between a MIS report and its sub-reports.",
-      "attributes": [
-        "name (Char): Subreport name",
-        "report_id (Many2one): The main report",
-        "subreport_id (Many2one): The subreport"
-      ],
-      "relationships": [
-        "Belongs to mis.report (report_id)",
-        "References mis.report (subreport_id)"
-      ]
-    },
-    {
-      "name": "mis.report.instance",
-      "description": "Combines a MIS report template with specific periods to compute a report.",
-      "attributes": [
-        "name (Char): Instance name",
-        "report_id (Many2one): The report template",
-        "period_ids (One2many): Periods for the instance",
-        "target_move (Selection): Target moves (posted or all)",
-        "target_move options: posted, all",
-        "company_id (Many2one): Allowed company",
-        "company_ids (Many2many): Allowed companies",
-        "currency_id (Many2one): Currency for the report",
-        "analytic_domain (Text): Domain to filter move lines"
-      ],
-      "relationships": [
-        "Belongs to mis.report",
-        "Has many mis.report.instance.period"
-      ]
-    },
-    {
-      "name": "mis.report.style",
-      "description": "Defines styles for KPIs in MIS reports, including colors, fonts, and number formatting.",
-      "attributes": [
-        "name (Char): Style name",
-        "color (Char): Text color",
-        "background_color (Char): Background color",
-        "font_style (Selection): Font style options: normal, italic",
-        "font_weight (Selection): Font weight options: nornal, bold",
-        "font_size (Selection): Font size options: xx-small, x-small, small, medium, large, x-large, xx-large",
-        "indent_level (Integer): Indent level",
-        "prefix (Char): Prefix for numbers",
-        "suffix (Char): Suffix for numbers",
-        "dp (Integer): Decimal places",
-        "divider (Selection): Divider for numbers"
-      ]
-    },
-    {
-      "name": "aep",
-      "description": "Processes accounting expressions within MIS reports.",
-      "attributes": [
-        "companies (Many2many): Companies used in the expression",
-        "currency (Many2one): Currency used in the expression"
-      ],
-      "methods": [
-        "parse_expr(): Parses an accounting expression",
-        "done_parsing(): Prepares for querying",
-        "do_queries(): Executes queries",
-        "replace_expr(): Replaces expressions with values"
-      ]
-    },
-    {
-      "name": "mis.kpi.data",
-      "description": "Represents manually entered KPI values.",
-      "attributes": [
-        "kpi_expression_id (Many2one): The KPI expression",
-        "date_from (Date): Start date",
-        "date_to (Date): End date",
-        "amount (Float): KPI value"
-      ],
-      "relationships": [
-        "Belongs to mis.report.kpi.expression"
-      ]
-    },
-    {
-      "name": "prorata.read_group.mixin",
-      "description": "Provides pro-rata temporis adjustments for models with date_from and date_to fields when using the read_group method.",
-      "attributes": [
-        "date_from (Date): Start date",
-        "date_to (Date): End date"
-      ],
-      "methods": [
-        "read_group(): Overrides the standard read_group method to apply pro-rata adjustments"
-      ]
-    }
-  ],
-  // Example data for reports(mis.report)
-  {
-  "balance_sheet_report": {
-    "description": "Balance Sheet report KPIs configuration in Odoo (US GAAP).",
-    "json_data": {
-      "kpis": [
+    This tool generates MIS report templates with KPIs and styles. 
+    Below we have some examples and documentation on how to use it.
+    
+    Standard KPIS for Balance Sheet Example:
+    kpis: [
         {
           "name": "liabilities_equity",
           "description": "LIABILITIES + EQUITY",
           "expression": "liability_header+equity",
-          "auto_expand_accounts": false,
-          "style_id": "mis_template_financial_report.style_header",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 20,
-          "report_id": "report_bs_us"
+          "style": {"color": "#000000", "font_weight": "bold"}
         },
         {
           "name": "os",
           "description": "OFF BALANCE SHEET ACCOUNTS",
           "expression": "abs(bale[('account_type', '=', 'off_balance')])",
-          "auto_expand_accounts": true,
-          "auto_expand_accounts_style_id": "mis_template_financial_report.style_details_double_indent",
-          "style_id": "mis_template_financial_report.style_header_indent",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 21,
-          "report_id": "report_bs_us",
-          "split_after": true
+          "style": {"color": "#000000", "font_style": "italic"},
+          "show_account_details": true
         },
         {
           "name": "assets",
           "description": "Assets",
           "expression": "current_assets + fixed_assets + non_current_assets",
-          "auto_expand_accounts": false,
-          "style_id": "mis_template_financial_report.style_header",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 0,
-          "report_id": "report_bs_us"
+          "style": {"color": "#000000", "font_weight": "bold"}
         },
         {
           "name": "current_assets",
           "description": "Current Assets",
           "expression": "bank_and_cash_accounts + receivables + current_assets_ca + prepayments",
-          "auto_expand_accounts": false,
-          "style_id": "mis_template_financial_report.style_header_indent",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 1,
-          "report_id": "report_bs_us"
+          "style": {"color": "#000000", "font_style": "italic"}
         },
         {
           "name": "bank_and_cash_accounts",
           "description": "Bank and Cash Accounts",
           "expression": "bale[('account_type', '=', 'asset_cash')]",
-          "auto_expand_accounts": true,
-          "auto_expand_accounts_style_id": "style_details_triple_indent",
-          "style_id": "style_double_header_indent",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 2,
-          "report_id": "report_bs_us",
-          "split_after": true
+          "style": {"color": "#000000", "font_style": "italic"},
+          "show_account_details": true
         },
         {
           "name": "receivables",
           "description": "Receivables",
           "expression": "bale[('account_type', '=', 'asset_receivable'), ('non_trade', '=', False)]",
-          "auto_expand_accounts": true,
-          "auto_expand_accounts_style_id": "style_details_triple_indent",
-          "style_id": "style_double_header_indent",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 3,
-          "report_id": "report_bs_us",
-          "split_after": true
-        }
-      ]
-    }
-  },
-  // Example data for reports(mis.report)
-  "pnl_report": {
-    "description": "P&L report KPIs configuration in Odoo (US GAAP).",
-    "json_data": {
-      "kpis": [
+          "style": {"color": "#000000", "font_style": "italic"},
+          "show_account_details": true
+        },
+    ]
+     Standard KPIS for Profit And Loss statement Example:
+     "kpis": [
         {
           "name": "net_profit",
           "description": "Net Profit",
           "expression": "op_inc + other_inc - cost_of_reven - expenses - depreciation",
-          "style_id": "mis_template_financial_report.style_header",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 0,
-          "report_id": "report_pl_us"
+          "style": {"color": "#000000", "font_weight": "bold"}
         },
         {
           "name": "income",
           "description": "Income",
           "expression": "op_inc + other_inc",
-          "style_id": "mis_template_financial_report.style_header",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 1,
-          "report_id": "report_pl_us"
+          "style": {"color": "#000000", "font_weight": "bold"}
         },
         {
           "name": "gross_profit",
           "description": "Gross Profit",
           "expression": "op_inc - cost_of_reven",
-          "style_id": "mis_template_financial_report.style_header_indent",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 2,
-          "report_id": "report_pl_us"
+          "style": {"color": "#000000", "font_style": "italic"}
         },
         {
           "name": "op_inc",
           "description": "Operating Income",
           "expression": "-balp[('account_type', '=', 'income')][]",
-          "auto_expand_accounts": true,
-          "auto_expand_accounts_style_id": "style_details_triple_indent",
-          "style_id": "style_double_header_indent",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 3,
-          "report_id": "report_pl_us",
-          "split_after": true
+          "style": {"color": "#000000", "font_style": "italic"},
+          "show_account_details": true
         },
         {
           "name": "cost_of_reven",
           "description": "Cost of Revenue",
           "expression": "balp[('account_type', '=', 'expense_direct_cost')][]",
-          "auto_expand_accounts": true,
-          "auto_expand_accounts_style_id": "style_details_triple_indent",
-          "style_id": "style_double_header_indent",
           "type": "num",
           "compare_method": "diff",
           "accumulation_method": "sum",
           "sequence": 4,
-          "report_id": "report_pl_us",
-          "split_after": true
+          "style": {"color": "#000000", "font_style": "italic"},
+          "show_account_details": true
         }
-      ]
-    }
-  }
-}
-}
+    ]
 
-The following special elements are recognized in the expressions to compute accounting data: {bal|crd|deb|pbal|nbal|fld}{pieu}(.fieldname)[account selector][journal items domain].
-
+    The following special elements are recognized in the expressions to compute accounting data: {bal|crd|deb|pbal|nbal|fld}{pieu}(.fieldname)[account selector][journal items domain].
     bal, crd, deb, pbal, nbal, fld : balance, debit, credit, positive balance, negative balance, other numerical field.
     p, i, e : respectively variation over the period, initial balance, ending balance
     when fld is used : a field name specifier must be provided (e.g. fldp.quantity
@@ -470,17 +323,27 @@ The following special elements are recognized in the expressions to compute acco
             return config.style_id
 
         style_vals = {
-            "name": config.name or f"style_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            "name": config.name or f"Style_{random.randint(1, 100000)}",
             "color": config.color,
+            "color_inherit": False if config.color else True,
             "background_color": config.background_color,
+            "background_color_inherit": False if config.background_color else True,
             "font_style": config.font_style,
+            "font_style_inherit": False if config.font_style else True,
             "font_weight": config.font_weight,
+            "font_weight_inherit": False if config.font_weight else True,
             "font_size": config.font_size,
+            "font_size_inherit": False if config.font_size else True,
             "indent_level": config.indent_level,
+            "indent_level_inherit": False if config.indent_level else True,
             "prefix": config.prefix,
+            "prefix_inherit": False if config.prefix else True,
             "suffix": config.suffix,
+            "suffix_inherit": False if config.suffix else True,
             "dp": config.dp,
+            "dp_inherit": False if config.dp else True,
             "divider": config.divider,
+            "divider_inherit": False if config.divider else True,
             "hide_empty": config.hide_empty,
             "hide_always": config.hide_always,
         }
@@ -489,10 +352,10 @@ The following special elements are recognized in the expressions to compute acco
         return style.id
 
     def _create_kpi(
-        self, report_id: int, config: MISKPIConfig, default_style_id: int
+        self, report_id: int, config: MISKPIConfig
     ) -> Any:
         """Create a KPI record"""
-        style_id = default_style_id
+        style_id = None
         if config.style:
             style_id = self._create_style(config.style)
 
@@ -529,8 +392,7 @@ The following special elements are recognized in the expressions to compute acco
                 default_style=default_style,
             )
 
-            # Create default style if specified
-            style_id = 1  # Default style
+            style_id = None
             if template_config.default_style:
                 style_id = self._create_style(template_config.default_style)
 
@@ -546,7 +408,7 @@ The following special elements are recognized in the expressions to compute acco
 
             # Create KPIs
             for kpi_config in template_config.kpis:
-                self._create_kpi(template.id, kpi_config, style_id)
+                self._create_kpi(template.id, kpi_config)
 
             return {
                 "success": True,
