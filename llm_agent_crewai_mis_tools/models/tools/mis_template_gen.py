@@ -155,7 +155,24 @@ class MISTemplateGenTool(BaseTool):
     description: str = """
     This tool generates MIS report templates with KPIs and styles. 
     Below we have some examples and documentation on how to use it.
-    
+
+    MISStyleConfig Schema (JSON format):
+    {
+        "name": "Style name (optional)",
+        "color": "#000000",
+        "background_color": "#FFFFFF",
+        "font_style": "normal | italic",
+        "font_weight": "nornal | bold", // notice it should be normal, a typo but correct
+        "font_size": "medium | xx-small | x-small | small | large | x-large | xx-large",
+        "indent_level": 0,
+        "prefix": "Prefix (optional)",
+        "suffix": "Suffix (optional)",
+        "dp": 0,
+        "divider": "1e-6 | 1e-3 | 1 | 1e3 | 1e6",
+        "hide_empty": false,
+        "hide_always": false
+    }
+
     Standard KPIS for Balance Sheet Example:
     kpis: [
         {
