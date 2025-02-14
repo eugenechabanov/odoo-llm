@@ -87,7 +87,7 @@ class ProjectTask(models.Model):
 
         except Exception as e:
             self.kanban_state = 'blocked'
-            self._post_error_message(str(e))
+            self._print_error_message(str(e))
             raise
 
     def _post_execution_message(self, execution_time, result):
@@ -108,11 +108,12 @@ Process: {self.process}<br/>"""
             author_id=agent.user_id.partner_id.id
         )
 
-    def _post_error_message(self, error):
-        """Post error message in chatter."""
-        agent = self.env['llm.agent.task.executor']._get_agent_for_task(self)
-        self.message_post(
-            body=f"<b>AI Task Failed</b><br/>{error}",
-            message_type="comment",
-            author_id=agent.user_id.partner_id.id
-        )
+    def _print_error_message(self, error):
+        print(error)
+        # """Post error message in chatter."""
+        # agent = self.env['llm.agent.task.executor']._get_agent_for_task(self)
+        # self.message_post(
+        #     body=f"<b>AI Task Failed</b><br/>{error}",
+        #     message_type="comment",
+        #     author_id=agent.user_id.partner_id.id
+        # )
