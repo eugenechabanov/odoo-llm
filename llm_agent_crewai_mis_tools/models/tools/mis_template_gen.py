@@ -153,36 +153,278 @@ class MISTemplateGenTool(BaseTool):
 
     name: str = "MIS Template Generator for Odoo"
     description: str = """
-    Creates Management Information System (MIS) report templates in Odoo.
-    This tool creates only the template structure, not the actual report instances.
+   Important models,fields and relations:
+        {
+  "models": [
+    {
+      "name": "mis.report",
+      "description": "A MIS report template (without period information). Holds queries and KPIs.",
+      "attributes": [
+        "name (Char): Report name",
+        "description (Char): Report description",
+        "style_id (Many2one): Style for the report",
+        "query_ids (One2many): Queries used in the report",
+        "kpi_ids (One2many): KPIs in the report",
+        "subkpi_ids (One2many): Sub KPIs in the report",
+        "subreport_ids (One2many): Subreports included in the report",
+        "move_lines_source (Many2one): Model used as the source for move lines (e.g., account.move.line)"
+      ],
+      "relationships": [
+        "Has many mis.report.query",
+        "Has many mis.report.kpi",
+        "Has many mis.report.subkpi",
+        "Has many mis.report.subreport",
+        "Uses mis.report.style"
+      ]
+    },
+    {
+      "name": "mis.report.subreport",
+      "description": "Defines the relationship between a MIS report and its sub-reports.",
+      "attributes": [
+        "name (Char): Subreport name",
+        "report_id (Many2one): The main report",
+        "subreport_id (Many2one): The subreport"
+      ],
+      "relationships": [
+        "Belongs to mis.report (report_id)",
+        "References mis.report (subreport_id)"
+      ]
+    },
+    {
+      "name": "mis.report.instance",
+      "description": "Combines a MIS report template with specific periods to compute a report.",
+      "attributes": [
+        "name (Char): Instance name",
+        "report_id (Many2one): The report template",
+        "period_ids (One2many): Periods for the instance",
+        "target_move (Selection): Target moves (posted or all)",
+        "target_move options: posted, all",
+        "company_id (Many2one): Allowed company",
+        "company_ids (Many2many): Allowed companies",
+        "currency_id (Many2one): Currency for the report",
+        "analytic_domain (Text): Domain to filter move lines"
+      ],
+      "relationships": [
+        "Belongs to mis.report",
+        "Has many mis.report.instance.period"
+      ]
+    },
+    {
+      "name": "mis.report.style",
+      "description": "Defines styles for KPIs in MIS reports, including colors, fonts, and number formatting.",
+      "attributes": [
+        "name (Char): Style name",
+        "color (Char): Text color",
+        "background_color (Char): Background color",
+        "font_style (Selection): Font style options: normal, italic",
+        "font_weight (Selection): Font weight options: nornal, bold",
+        "font_size (Selection): Font size options: xx-small, x-small, small, medium, large, x-large, xx-large",
+        "indent_level (Integer): Indent level",
+        "prefix (Char): Prefix for numbers",
+        "suffix (Char): Suffix for numbers",
+        "dp (Integer): Decimal places",
+        "divider (Selection): Divider for numbers"
+      ]
+    },
+    {
+      "name": "aep",
+      "description": "Processes accounting expressions within MIS reports.",
+      "attributes": [
+        "companies (Many2many): Companies used in the expression",
+        "currency (Many2one): Currency used in the expression"
+      ],
+      "methods": [
+        "parse_expr(): Parses an accounting expression",
+        "done_parsing(): Prepares for querying",
+        "do_queries(): Executes queries",
+        "replace_expr(): Replaces expressions with values"
+      ]
+    },
+    {
+      "name": "mis.kpi.data",
+      "description": "Represents manually entered KPI values.",
+      "attributes": [
+        "kpi_expression_id (Many2one): The KPI expression",
+        "date_from (Date): Start date",
+        "date_to (Date): End date",
+        "amount (Float): KPI value"
+      ],
+      "relationships": [
+        "Belongs to mis.report.kpi.expression"
+      ]
+    },
+    {
+      "name": "prorata.read_group.mixin",
+      "description": "Provides pro-rata temporis adjustments for models with date_from and date_to fields when using the read_group method.",
+      "attributes": [
+        "date_from (Date): Start date",
+        "date_to (Date): End date"
+      ],
+      "methods": [
+        "read_group(): Overrides the standard read_group method to apply pro-rata adjustments"
+      ]
+    }
+  ],
+  // Example data for reports(mis.report)
+  {
+  "balance_sheet_report": {
+    "description": "Balance Sheet report KPIs configuration in Odoo (US GAAP).",
+    "json_data": {
+      "kpis": [
+        {
+          "name": "liabilities_equity",
+          "description": "LIABILITIES + EQUITY",
+          "expression": "liability_header+equity",
+          "auto_expand_accounts": false,
+          "style_id": "mis_template_financial_report.style_header",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 20,
+          "report_id": "report_bs_us"
+        },
+        {
+          "name": "os",
+          "description": "OFF BALANCE SHEET ACCOUNTS",
+          "expression": "abs(bale[('account_type', '=', 'off_balance')])",
+          "auto_expand_accounts": true,
+          "auto_expand_accounts_style_id": "mis_template_financial_report.style_details_double_indent",
+          "style_id": "mis_template_financial_report.style_header_indent",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 21,
+          "report_id": "report_bs_us",
+          "split_after": true
+        },
+        {
+          "name": "assets",
+          "description": "Assets",
+          "expression": "current_assets + fixed_assets + non_current_assets",
+          "auto_expand_accounts": false,
+          "style_id": "mis_template_financial_report.style_header",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 0,
+          "report_id": "report_bs_us"
+        },
+        {
+          "name": "current_assets",
+          "description": "Current Assets",
+          "expression": "bank_and_cash_accounts + receivables + current_assets_ca + prepayments",
+          "auto_expand_accounts": false,
+          "style_id": "mis_template_financial_report.style_header_indent",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 1,
+          "report_id": "report_bs_us"
+        },
+        {
+          "name": "bank_and_cash_accounts",
+          "description": "Bank and Cash Accounts",
+          "expression": "bale[('account_type', '=', 'asset_cash')]",
+          "auto_expand_accounts": true,
+          "auto_expand_accounts_style_id": "style_details_triple_indent",
+          "style_id": "style_double_header_indent",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 2,
+          "report_id": "report_bs_us",
+          "split_after": true
+        },
+        {
+          "name": "receivables",
+          "description": "Receivables",
+          "expression": "bale[('account_type', '=', 'asset_receivable'), ('non_trade', '=', False)]",
+          "auto_expand_accounts": true,
+          "auto_expand_accounts_style_id": "style_details_triple_indent",
+          "style_id": "style_double_header_indent",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 3,
+          "report_id": "report_bs_us",
+          "split_after": true
+        }
+      ]
+    }
+  },
+  // Example data for reports(mis.report)
+  "pnl_report": {
+    "description": "P&L report KPIs configuration in Odoo (US GAAP).",
+    "json_data": {
+      "kpis": [
+        {
+          "name": "net_profit",
+          "description": "Net Profit",
+          "expression": "op_inc + other_inc - cost_of_reven - expenses - depreciation",
+          "style_id": "mis_template_financial_report.style_header",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 0,
+          "report_id": "report_pl_us"
+        },
+        {
+          "name": "income",
+          "description": "Income",
+          "expression": "op_inc + other_inc",
+          "style_id": "mis_template_financial_report.style_header",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 1,
+          "report_id": "report_pl_us"
+        },
+        {
+          "name": "gross_profit",
+          "description": "Gross Profit",
+          "expression": "op_inc - cost_of_reven",
+          "style_id": "mis_template_financial_report.style_header_indent",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 2,
+          "report_id": "report_pl_us"
+        },
+        {
+          "name": "op_inc",
+          "description": "Operating Income",
+          "expression": "-balp[('account_type', '=', 'income')][]",
+          "auto_expand_accounts": true,
+          "auto_expand_accounts_style_id": "style_details_triple_indent",
+          "style_id": "style_double_header_indent",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 3,
+          "report_id": "report_pl_us",
+          "split_after": true
+        },
+        {
+          "name": "cost_of_reven",
+          "description": "Cost of Revenue",
+          "expression": "balp[('account_type', '=', 'expense_direct_cost')][]",
+          "auto_expand_accounts": true,
+          "auto_expand_accounts_style_id": "style_details_triple_indent",
+          "style_id": "style_double_header_indent",
+          "type": "num",
+          "compare_method": "diff",
+          "accumulation_method": "sum",
+          "sequence": 4,
+          "report_id": "report_pl_us",
+          "split_after": true
+        }
+      ]
+    }
+  }
+}
+}
 
-    Templates can be used to generate various financial reports such as:
-    - Profit and Loss Statement
-    - Balance Sheet
-    - Cash Flow Statement
-    - Sales Analysis
-    - Expense Report
-    - Custom Financial Reports
-
-    The tool requires:
-    1. Template information (name, description)
-    2. List of KPIs with:
-       - Technical name (valid Python identifier)
-       - Description
-       - Calculation expression
-       - Type (num, pct, str)
-       - Optional comparison and accumulation methods
-
-    1. Account balances:
-       - Revenue: -balp[7%]
-       - Expenses: balp[6%]
-    2. Calculations:
-       - Gross Profit: revenue + cogs
-       - Profit Margin: gross_profit / revenue * 100
-    3. Complex formulas:
-       - Operating Income: sum(balp[70%,71%,72%]) + other_income
-
-    The following special elements are recognized in the expressions to compute accounting data: {bal|crd|deb|pbal|nbal|fld}{pieu}(.fieldname)[account selector][journal items domain].
+The following special elements are recognized in the expressions to compute accounting data: {bal|crd|deb|pbal|nbal|fld}{pieu}(.fieldname)[account selector][journal items domain].
 
     bal, crd, deb, pbal, nbal, fld : balance, debit, credit, positive balance, negative balance, other numerical field.
     p, i, e : respectively variation over the period, initial balance, ending balance
@@ -210,57 +452,6 @@ class MISTemplateGenTool(BaseTool):
 
     TIP: Use a negative sign (-balp[...]) for liabilities, revenues, and contra accounts to correctly subtract them in financial calculations. Do not use a negative sign for assets, expenses, and subtotals, as they naturally carry the correct balance for addition.
     And when computing another kpi using different KPIs, we can keep usual formulas for example: gross_profit = revenue - expenses.
-
-    Style Configuration Options:
-    You can customize the appearance of each KPI using the following style options:
-
-    1. Colors:
-       - color: Text color in RGB code (e.g., "#000000" for black)
-       - background_color: Background color in RGB code (e.g., "#FFFFFF" for white)
-
-    2. Font Settings:
-       - font_style: "normal" or "italic"
-       - font_weight: "nornal" or "bold" (notice type nornal, it should be as it is, don't use normal here for font_weight)
-       - font_size: "medium" (default), "xx-small", "x-small", "small", "large", "x-large", "xx-large"
-
-    3. Layout:
-       - indent_level: Indentation level, must be >= 0
-
-    4. Number Formatting:
-       - prefix: Text to add before numbers (e.g., "€", "$")
-       - suffix: Text to add after numbers (e.g., "%", "units")
-       - dp: Number of decimal places (e.g., 2 for "1234.56")
-       - divider: Number scaling - "1" (no scaling), "1e3" (thousands), "1e6" (millions)
-
-    5. Visibility:
-       - hide_empty: Hide when value is empty/zero
-       - hide_always: Always hide this element
-
-    Example KPI:
-    {
-        "name": "gross_profit",
-        "description": "Gross Profit",
-        "expression": "revenue - expenses",
-        "type": "num",
-        "compare_method": "pct",
-        "sequence": 30,
-        "style": {
-            "name": "gross_profit_style",
-            "style_id": null,
-            "color": "#000000",
-            "background_color": "#FFFFFF",
-            "font_style": "normal",
-            "font_weight": "bold",
-            "font_size": "large",
-            "indent_level": 1,
-            "prefix": "€",
-            "suffix": null,
-            "dp": 2,
-            "divider": "1e3",
-            "hide_empty": false,
-            "hide_always": false
-        }
-    }
     """
     args_schema: type[BaseModel] = MISTemplateConfig
 
