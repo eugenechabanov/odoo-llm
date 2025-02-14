@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Odoo ORM Tool -->
+        <record id="llm_agent_tool_odoo_orm" model="llm.agent.tool">
+            <field name="name">Odoo ORM Tool</field>
+            <field name="service">crewai_odoo_orm_tool</field>
+            <field name="description">Unified tool for Odoo ORM operations including search, create, write, unlink, copy, and more. Supports complex domain filters, batch operations, and aggregations.</field>
+            <field name="provider_id" search="[('service', '=', 'crewai')]"/>
+        </record>
+    </data>
+</odoo>
