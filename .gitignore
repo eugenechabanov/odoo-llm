@@ -80,3 +80,5 @@ mis-builder/
 mis_template_financial_report/
 l10n_us_mis_financial_report/
 llm_agent_old/
+llm_thread/gptree_output.txt
+llm_thread/.gptree_config
