@@ -21,11 +21,10 @@ class LLMToolRecordCreator(models.Model):
 
             model_config = ConfigDict(
                 title=self.name or "odoo_record_creator",
+                extra="allow",
             )
             model: str = Field(..., description="The Odoo model to create a record in")
-            fields: dict = Field(
-                ..., description="Dictionary of field values for the new record"
-            )
+            fields: Dict[str, Any] = Field(..., description="Dictionary of field values for the new record")
 
         return RecordCreatorParams
 
