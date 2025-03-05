@@ -1,6 +1,6 @@
 import json
 import logging
-
+import openai
 from openai import OpenAI
 
 from odoo import api, models
@@ -50,8 +50,9 @@ class LLMProvider(models.Model):
             pydantic_model = tool.get_pydantic_model()
             if pydantic_model:
                 # Get schema directly from Pydantic model
-                model_schema = pydantic_model.model_json_schema()
-                return self._create_openai_tool_from_schema(model_schema, tool)
+                formatted_tool =  openai.pydantic_function_tool(pydantic_model,name=tool.name)
+                print(formatted_tool)
+                return formatted_tool
         except Exception as e:
             _logger.error(f"Error using Pydantic model for {tool.name}: {str(e)}")
             # Continue to fallback approach

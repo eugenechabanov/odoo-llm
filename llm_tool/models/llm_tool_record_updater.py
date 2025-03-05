@@ -30,7 +30,7 @@ class LLMToolRecordUpdater(models.Model):
                 ..., description="Dictionary of field values to update"
             )
             limit: int = Field(
-                1,
+                ...,
                 description="Maximum number of records to update (default: 1 for safety)",
             )
 

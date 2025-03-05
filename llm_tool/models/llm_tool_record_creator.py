@@ -1,7 +1,7 @@
 import logging
 
 from pydantic import BaseModel, ConfigDict, Field
-
+from typing import Dict, Any, Union
 from odoo import api, models
 
 _logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class LLMToolRecordCreator(models.Model):
                 title=self.name or "odoo_record_creator",
             )
             model: str = Field(..., description="The Odoo model to create a record in")
-            values: dict = Field(
+            values: dict[str, Union[str, int, float, bool]] = Field(
                 ..., description="Dictionary of field values for the new record"
             )
 
