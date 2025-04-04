@@ -306,9 +306,8 @@ class LLMProvider(models.Model):
         # Get embeddings for each text
         embeddings = []
         for text in texts:
-            response = self.client.embeddings(model=model.name, prompt=text)
-            embeddings.append(response["embedding"])
-
+            response = self.client.embed(model=model.name, input=[text])
+            embeddings.append(response["embeddings"][0])
         return embeddings
 
     def ollama_models(self):
