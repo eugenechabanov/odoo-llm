@@ -1,7 +1,9 @@
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 import json
+import logging
 
+_logger = logging.getLogger(__name__)
 class ModelLine(models.TransientModel):
     _name = "llm.fetch.models.line"
     _description = "LLM Model Import Line"
@@ -133,7 +135,7 @@ class FetchModelsWizard(models.TransientModel):
                 "name": name,
                 "model_use": model_use,
                 "status": status,
-                "details": json.dumps(details, indent=2) if details else False,
+                "details":details,
                 "existing_model_id": existing.id if existing else False,
                 "selected": status in ["new", "modified"],
             }

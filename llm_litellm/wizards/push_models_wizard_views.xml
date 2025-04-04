@@ -54,7 +54,7 @@
                             <!-- Technical Details -->
                             <field
                 name="details"
-                widget="text"
+                widget="json"
                 optional="show"
                 readonly="1"
                 force_save="1"

@@ -13,7 +13,7 @@
     "website": "https://github.com/apexive/odoo-llm",
     "category": "Technical",
     "version": "16.0.1.1.0",
-    "depends": ["mail", "web"],
+    "depends": ["mail", "web", "web_field_json"],
     "data": [
         "security/llm_security.xml",
         "security/ir.model.access.csv",

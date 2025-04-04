@@ -63,7 +63,7 @@
                                     <field name="active" />
                                     <field
                     name="details"
-                    widget="text"
+                    widget="json"
                   />
                                 </tree>
                             </field>
