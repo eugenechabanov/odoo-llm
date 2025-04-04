@@ -49,7 +49,7 @@
                             <!-- Technical Details -->
                             <field
                 name="details"
-                widget="json_inline"
+                widget="text"
                 optional="show"
                 readonly="1"
                 force_save="1"

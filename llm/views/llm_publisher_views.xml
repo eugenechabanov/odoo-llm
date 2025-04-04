@@ -20,7 +20,7 @@
                             <field name="model_count" />
                         </group>
                         <group>
-                            <field name="meta" widget="json_inline" />
+                            <field name="meta" widget="text" />
                         </group>
                     </group>
                     <notebook>

@@ -34,8 +34,8 @@
                             <field name="default" />
                         </group>
                         <group>
-                            <field name="details" widget="json_inline" />
-                            <field name="model_info" widget="json_inline" />
+                            <field name="details" widget="text" />
+                            <field name="model_info" widget="text" />
                             <field name="parameters" widget="text" />
                             <field name="template" widget="text" />
                         </group>

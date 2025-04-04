@@ -323,24 +323,51 @@ class LLMProvider(models.Model):
             _logger.error(error_msg)
             raise ValueError(error_msg)
         
+        _logger.info(f"Ollama models response: {models}")
+        
         for model in models:
             model_name = model.model
             
+            # Create a serializable details dictionary
+            details = {
+                "id": model_name,
+                "capabilities": ["chat"],  # Default capability
+            }
+            
+            # Add additional attributes if they exist, ensuring they're serializable
+            if hasattr(model, 'modified_at'):
+                details["modified_at"] = str(model.modified_at)
+            
+            if hasattr(model, 'size'):
+                details["size"] = int(model.size) if model.size is not None else None
+                
+            if hasattr(model, 'digest'):
+                details["digest"] = str(model.digest) if model.digest else None
+                
+            # Add model details attributes
+            if hasattr(model, 'details'):
+                try:
+                    # Access ModelDetails attributes directly with proper serialization
+                    details["parent_model"] = str(model.details.parent_model) if model.details.parent_model else ""
+                    details["format"] = str(model.details.format) if model.details.format else ""
+                    details["family"] = str(model.details.family) if model.details.family else ""
+                    # Ensure families is a list of strings
+                    details["families"] = [str(f) for f in model.details.families] if model.details.families else []
+                    details["parameter_size"] = str(model.details.parameter_size) if model.details.parameter_size else ""
+                    details["quantization_level"] = str(model.details.quantization_level) if model.details.quantization_level else ""
+                except Exception as e:
+                    _logger.warning(f"Could not process model details for {model_name}: {e}")
+            
             model_info = {
                 "name": model_name,
-                "details": {
-                    "id": model_name,
-                    "capabilities": ["chat"],  # Default capability
-                    "modified_at": str(model.modified_at) if hasattr(model, 'modified_at') else None,
-                    "size": model.size if hasattr(model, 'size') else None,
-                    "digest": model.digest if hasattr(model, 'digest') else None,
-                }
+                "details": details
             }
             
             # Add embedding capability if model name suggests it
             if "embedding" in model_name.lower():
-                model_info["details"]["capabilities"].append("embedding")
-
+                model_info["details"]["capabilities"] = ["embedding"]
+            
+            _logger.info(f"Yielding model info for {model_name}: {model_info}")
             yield model_info
 
     def ollama_format_messages(self, messages, system_prompt=None):
