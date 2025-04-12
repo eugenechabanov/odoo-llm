@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_llm_model_public,llm.model.public,llm.model_llm_model,base.group_public,1,0,0,0
+access_llm_provider_public,llm.provider.public,llm.model_llm_provider,base.group_public,1,0,0,0
+access_llm_publisher_public,llm.publisher.public,llm.model_llm_publisher,base.group_public,1,0,0,0

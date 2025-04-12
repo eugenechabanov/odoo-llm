@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Main template for LLM Models page -->
+    <template id="website_llm_model.models_page" name="LLM Models">
+        <t t-call="website.layout">
+            <div id="wrap" class="oe_structure">
+                <section class="s_cover parallax s_parallax_is_fixed bg-black-50 pt64 pb64" data-scroll-background-ratio="1">
+                    <div class="container">
+                        <div class="row s_nb_column_fixed">
+                            <div class="col-lg-12 pt32 pb32 text-center">
+                                <h1 class="display-3 mb-0 text-white" style="font-weight: 600;">
+                                    Available LLM Models
+                                </h1>
+                                <h3 class="text-white">
+                                    Explore our integrated AI language models
+                                </h3>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Introduction section -->
+                <section class="pt48 pb16">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-12">
+                                <h2 class="text-center mb32">AI Models by Type</h2>
+                                <p class="lead text-center mb32">
+                                    Discover the different types of Large Language Models available in our system,
+                                    categorized by their primary functionality.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Models by Type -->
+                <section class="pb48">
+                    <div class="container">
+                        <div class="row">
+                            <t t-foreach="model_types.items()" t-as="model_type">
+                                <t t-set="type_id" t-value="model_type[0]"/>
+                                <t t-set="type_name" t-value="model_type[1]"/>
+                                <t t-set="type_models" t-value="models_by_type[type_id]"/>
+
+                                <div class="col-lg-12 mb16" t-if="type_models">
+                                    <div class="card shadow-sm">
+                                        <div class="card-header bg-primary">
+                                            <h3 class="text-white mb0">
+                                                <i t-if="type_id == 'chat'" class="fa fa-comments mr-2"/>
+                                                <i t-elif="type_id == 'completion'" class="fa fa-edit mr-2"/>
+                                                <i t-elif="type_id == 'embedding'" class="fa fa-vector-square mr-2"/>
+                                                <i t-elif="type_id == 'multimodal'" class="fa fa-images mr-2"/>
+                                                <t t-esc="type_name"/>
+                                                <span class="badge badge-light ml-2">
+                                                    <t t-esc="len(type_models)"/>
+                                                </span>
+                                            </h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Model Name</th>
+                                                            <th>Provider</th>
+                                                            <th>Publisher</th>
+                                                            <th>Default</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <t t-foreach="type_models" t-as="model">
+                                                            <tr>
+                                                                <td>
+                                                                    <strong t-esc="model.name"/>
+                                                                </td>
+                                                                <td>
+                                                                    <span class="badge badge-info" t-esc="model.provider_id.name"/>
+                                                                </td>
+                                                                <td>
+                                                                    <t t-if="model.publisher_id">
+                                                                        <span t-esc="model.publisher_id.name"/>
+                                                                        <t t-if="model.publisher_id.official">
+                                                                            <span class="badge badge-success ml-1">Official</span>
+                                                                        </t>
+                                                                    </t>
+                                                                    <t t-else="">
+                                                                        <span class="text-muted">-</span>
+                                                                    </t>
+                                                                </td>
+                                                                <td>
+                                                                    <span t-if="model.default" class="badge badge-success">
+                                                                        <i class="fa fa-check"/> Default
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        </t>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Providers section -->
+                <section class="pt32 pb48 bg-light">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-12 mb16">
+                                <h2 class="text-center mb32">AI Models by Provider</h2>
+                                <p class="lead text-center mb32">
+                                    Explore models categorized by their service providers.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <t t-foreach="providers" t-as="provider">
+                                <t t-set="provider_models" t-value="models_by_provider.get(provider.id, False)"/>
+
+                                <div class="col-lg-6 mb32" t-if="provider_models">
+                                    <div class="card h-100 shadow-sm">
+                                        <div class="card-header bg-secondary">
+                                            <h4 class="text-white mb0">
+                                                <i class="fa fa-server mr-2"/>
+                                                <t t-esc="provider.name"/>
+                                                <span class="badge badge-light ml-2">
+                                                    <t t-esc="len(provider_models)"/>
+                                                </span>
+                                            </h4>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="list-group">
+                                                <t t-foreach="provider_models" t-as="model">
+                                                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <strong t-esc="model.name"/>
+                                                            <t t-if="model.model_use == 'chat'">
+                                                                <span class="badge badge-primary ml-2">Chat</span>
+                                                            </t>
+                                                            <t t-elif="model.model_use == 'completion'">
+                                                                <span class="badge badge-info ml-2">Completion</span>
+                                                            </t>
+                                                            <t t-elif="model.model_use == 'embedding'">
+                                                                <span class="badge badge-warning ml-2">Embedding</span>
+                                                            </t>
+                                                            <t t-elif="model.model_use == 'multimodal'">
+                                                                <span class="badge badge-success ml-2">Multimodal</span>
+                                                            </t>
+                                                        </div>
+                                                        <div>
+                                                            <t t-if="model.default">
+                                                                <span class="badge badge-success">
+                                                                    <i class="fa fa-check"/> Default
+                                                                </span>
+                                                            </t>
+                                                            <t t-if="model.publisher_id">
+                                                                <span class="badge badge-dark ml-1" t-esc="model.publisher_id.name"/>
+                                                            </t>
+                                                        </div>
+                                                    </div>
+                                                </t>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Publishers section -->
+                <section class="pt48 pb48" t-if="publishers">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-12 mb16">
+                                <h2 class="text-center mb32">Model Publishers</h2>
+                                <p class="lead text-center mb32">
+                                    Organizations and entities that publish and maintain the AI models.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <t t-foreach="publishers" t-as="publisher">
+                                <div class="col-lg-4 col-md-6 mb32">
+                                    <div class="card h-100 shadow-sm">
+                                        <div class="card-body text-center">
+                                            <t t-if="publisher.logo">
+                                                <img t-attf-src="data:image/*;base64,#{publisher.logo}" class="img-fluid mb-3" style="max-height: 80px;"/>
+                                            </t>
+                                            <t t-else="">
+                                                <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                                                    <span t-esc="publisher.name[0]" style="font-size: 2.5rem;"/>
+                                                </div>
+                                            </t>
+
+                                            <h4 t-esc="publisher.name"/>
+
+                                            <div class="mb-2">
+                                                <t t-if="publisher.official">
+                                                    <span class="badge badge-success mr-1">Official</span>
+                                                </t>
+                                                <t t-if="publisher.frontier">
+                                                    <span class="badge badge-warning">Frontier AI</span>
+                                                </t>
+                                            </div>
+
+                                            <p class="text-muted" t-if="publisher.description">
+                                                <t t-esc="publisher.description[:150] + '...' if len(publisher.description) > 150 else publisher.description"/>
+                                            </p>
+
+                                            <div class="mt-3">
+                                                <span class="badge badge-pill badge-light">
+                                                    <t t-esc="len(publisher.model_ids.filtered(lambda m: m.active))"/> Active Models
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Call-to-action section -->
+                <section class="pt32 pb32 bg-primary">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-12 text-center text-white">
+                                <h3 class="mb16">Want to learn more about our AI capabilities?</h3>
+                                <p class="mb16">Contact us to discover how our AI integrations can enhance your business processes.</p>
+                                <a href="/contactus" class="btn btn-light">Contact Us</a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+</odoo>

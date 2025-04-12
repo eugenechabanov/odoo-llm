@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Website Menu Entry -->
+    <record id="menu_llm_models" model="website.menu">
+        <field name="name">AI Models</field>
+        <field name="url">/llm/models</field>
+        <field name="parent_id" ref="website.main_menu"/>
+        <field name="sequence" type="int">50</field>
+    </record>
+</odoo>
