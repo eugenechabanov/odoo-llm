@@ -11,13 +11,13 @@ odoo.define('llm.tours', ['web.core', 'web_tour.tour'], function(require) {
         sequence: 250,
     }, [
         {
-            trigger: '.o_form_view[data-model="llm.provider"] .oe_title',
+            trigger: ".o_form_sheet .oe_title input#name",
             content: _t("You should be on the Provider configuration form."),
             position: 'bottom',
             run: function () {},
         },
         {
-            trigger: '.o_form_view[data-model="llm.provider"] header button[name="%(llm.action_fetch_models_wizard)d"]',
+            trigger: '.o_form_statusbar button[data-tooltip-info*=\'"string":"Fetch Models"\']',
             content: _t("<b>Crucial step:</b> After saving provider details, click <b>Fetch Models</b> to import compatible AI models."),
             position: 'bottom',
         },
