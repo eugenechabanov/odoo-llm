@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- Define the Onboarding Panel for LLM Providers -->
+        <record id="onboarding_llm_provider_panel" model="onboarding.onboarding">
+            <field name="name">LLM Provider Setup</field>
+            <!-- The route name used in banner_route and the controller -->
+            <field name="route_name">llm_provider_onboarding</field>
+            <!-- Keep track per company -->
+            <field name="is_per_company" eval="True"/>
+            <!-- Optional: Set a background color -->
+            <field name="panel_background_color">violet</field>
+            <!-- Optional: Define a custom close action if needed -->
+            <!-- <field name="panel_close_action_name">action_close_llm_onboarding</field> -->
+        </record>
+
+            <!-- Step 1: Create Provider -->
+            <record id="onboarding_llm_step_create_provider" model="onboarding.onboarding.step">
+            <field name="onboarding_id" ref="onboarding_llm_provider_panel"/>
+            <field name="title">1. Configure an AI Provider</field>
+            <field name="description">Connect Odoo to an AI service like OpenAI, Ollama, or Anthropic.</field>
+            <field name="button_text">Configure Provider</field>
+            <!-- Use the METHOD NAME now -->
+            <field name="panel_step_open_action_name">action_llm_open_provider_form</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <!-- Step 2: Fetch Models (Launches a Tour via Wrapper Method) -->
+        <record id="onboarding_llm_step_fetch_models" model="onboarding.onboarding.step">
+            <field name="onboarding_id" ref="onboarding_llm_provider_panel"/>
+            <field name="title">2. Fetch Available Models</field>
+            <field name="description">After saving Provider details (API key etc.), fetch the available models from the service.</field>
+            <field name="button_text">Show Me Where</field>
+                <!-- Use the METHOD NAME now -->
+            <field name="panel_step_open_action_name">action_llm_launch_fetch_models_tour</field>
+            <field name="sequence">20</field>
+        </record>
+
+        <!-- Optional Step 3: Completion Message -->
+            <record id="onboarding_llm_step_done" model="onboarding.onboarding.step">
+            <field name="onboarding_id" ref="onboarding_llm_provider_panel"/>
+            <field name="title">Setup Recommendations</field>
+            <field name="description">Ensure you have set API keys and fetched models before using LLM features.</field>
+            <field name="button_text">Got it!</field>
+            <!-- Use the METHOD NAME now -->
+            <field name="panel_step_open_action_name">action_llm_onboarding_step_done</field>
+            <field name="sequence">30</field>
+        </record>    
+
+    </data>
+</odoo>

@@ -92,4 +92,28 @@
             </p>
         </field>
     </record>
+    <record id="llm_provider_view_tree" model="ir.ui.view">
+        <field name="name">llm.provider.view.tree</field>
+        <field name="model">llm.provider</field>
+        <field name="arch" type="xml">
+           <!-- Make sure tree has an arch definition -->
+           <tree>
+               <field name="name"/>
+               <field name="service"/>
+               <field name="active" invisible="1"/>
+           </tree>
+        </field>
+    </record>
+    <!-- Inherit Tree View to Add Banner -->
+    <record id="llm_provider_view_tree_onboarding" model="ir.ui.view">
+        <field name="name">llm.provider.view.tree.onboarding</field>
+        <field name="model">llm.provider</field>
+        <field name="inherit_id" ref="llm.llm_provider_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree" position="attributes">
+                <!-- The route_name must match the one defined in onboarding.onboarding -->
+                <attribute name="banner_route">/onboarding/llm_provider_onboarding</attribute>
+            </xpath>
+        </field>
+    </record>
 </odoo>
