@@ -4,15 +4,8 @@ odoo.define('llm.tours', ['web.core', 'web_tour.tour', 'web.Dialog'], function(r
     var core = require('web.core');
     var tour = require('web_tour.tour');
     var _t = core._t;
-    
-    // Provider Setup Tour
-    tour.register('fetch_models_tour', {
-        url: "/web",
-        sequence: 250,
-        test: false,
-        rainbowMan: true,
-        rainbowManMessage: _t("Congratulations! You've successfully set up your first AI provider."),
-    }, [
+
+    var steps = [
         ...tour.stepUtils.goToAppSteps('llm.menu_llm_root', _t('Set up your AI capabilities with the <b>LLM App</b>')),
         {
             trigger: '.o-kanban-button-new, .o_list_button_add, button[data-menu-xmlid="llm.menu_llm_provider_action"]',
@@ -62,7 +55,16 @@ odoo.define('llm.tours', ['web.core', 'web_tour.tour', 'web.Dialog'], function(r
             position: 'bottom',
             auto: false,
         }
-    ]);
+    ];
+    
+    // Provider Setup Tour
+    tour.register('configure_llm_provider', {
+        url: "/web",
+        sequence: 250,
+        test: false,
+        rainbowMan: true,
+        rainbowManMessage: _t("Congratulations! You've successfully set up your first AI provider."),
+    }, steps);
 
     // --- Client Action Handler ---
     function runLlmTour(parent, action) {

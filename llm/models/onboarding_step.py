@@ -55,22 +55,12 @@ class OnboardingStep(models.Model):
     # --- Decorated Methods ---
 
     @api.model
-    def action_llm_open_provider_form(self, **kwargs):
-        _logger.info(f"Executing @api.model action_llm_open_provider_form with kwargs: {kwargs}")
+    def action_llm_launch_configure_llm_provider_tour(self, **kwargs):
+        _logger.info(f"Executing @api.model action_llm_launch_configure_llm_provider_tour with kwargs: {kwargs}")
         # Mark corresponding step done
-        self._find_and_mark_progress_step_done('llm.onboarding_llm_step_create_provider')
+        self._find_and_mark_progress_step_done('llm.onboarding_llm_step_configure_llm_provider_tour')
         # Execute the original action
-        server_action = self.env.ref('llm.action_open_llm_provider_form')
-        action_vals = server_action.sudo().run()
-        return action_vals
-
-    @api.model
-    def action_llm_launch_fetch_models_tour(self, **kwargs):
-        _logger.info(f"Executing @api.model action_llm_launch_fetch_models_tour with kwargs: {kwargs}")
-        # Mark corresponding step done
-        self._find_and_mark_progress_step_done('llm.onboarding_llm_step_fetch_models')
-        # Execute the original action
-        server_action = self.env.ref('llm.action_launch_fetch_models_tour')
+        server_action = self.env.ref('llm.action_llm_launch_configure_llm_provider_tour')
         action_vals = server_action.sudo().run()
         return action_vals
 
