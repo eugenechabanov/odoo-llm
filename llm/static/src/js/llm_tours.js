@@ -1,14 +1,74 @@
-odoo.define('llm.tours', ['web.core', 'web_tour.tour'], function(require) {
+odoo.define('llm.tours', ['web.core', 'web_tour.tour', 'web.Dialog'], function(require) {
     "use strict";
 
     var core = require('web.core');
     var tour = require('web_tour.tour');
+    var Dialog = require('web.Dialog');
     var _t = core._t;
+    
+    // Helper function to check if provider modules are installed
+    function checkProviderModulesInstalled() {
+        return new Promise(function(resolve) {
+            $.ajax({
+                url: '/llm/check_providers',
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    resolve(data && data.has_providers);
+                },
+                error: function() {
+                    console.error("Error checking for provider modules");
+                    resolve(false);
+                }
+            });
+        });
+    }
+    
+    // Function to show provider modules required dialog
+    function showProviderModulesRequiredDialog() {
+        new Dialog(null, {
+            title: _t("Provider Modules Required"),
+            $content: $('<div>').html(
+                _t("<p>No AI service providers are available.</p>" +
+                   "<p>You need to install at least one provider module such as:</p>" +
+                   "<ul>" +
+                   "<li><strong>llm_openai</strong> - For OpenAI integration</li>" +
+                   "<li><strong>llm_ollama</strong> - For local Ollama integration</li>" +
+                   "<li><strong>llm_anthropic</strong> - For Anthropic Claude integration</li>" +
+                   "</ul>" +
+                   "<p>Please install one of these modules from the Apps menu and try again.</p>")
+            ),
+            buttons: [{
+                text: _t("Go to Apps"),
+                classes: 'btn-primary',
+                click: function () {
+                    window.location.href = '/web#action=base.open_module_tree';
+                    this.close();
+                }
+            }, {
+                text: _t("Close"),
+                close: true
+            }]
+        }).open();
+    }
     
     // Provider Setup Tour
     tour.register('fetch_models_tour', {
         url: "/web",
         sequence: 250,
+        wait_for: Promise.resolve().then(function() {
+            // Check if any provider modules are installed before starting the tour
+            return checkProviderModulesInstalled().then(function(hasProviders) {
+                if (!hasProviders) {
+                    // If no providers are installed, show dialog and don't start the tour
+                    showProviderModulesRequiredDialog();
+                    return new Promise(function() {}); // Never resolve to prevent tour from starting
+                }
+                return Promise.resolve(); // Continue with tour
+            });
+        }),
+        rainbowMan: true,
+        rainbowManMessage: _t("Congratulations! You've successfully set up your first AI provider."),
     }, [
         ...tour.stepUtils.goToAppSteps('llm.menu_llm_root', _t('Set up your AI capabilities with the <b>LLM App</b>')),
         {
@@ -23,20 +83,10 @@ odoo.define('llm.tours', ['web.core', 'web_tour.tour'], function(require) {
         },
         {
             trigger: 'div[name="service"] select, select#service',
-            content: _t("Select which AI service you want to connect to. If no options appear, you need to install provider modules like 'llm_openai' or 'llm_ollama'."),
+            content: _t("Select which AI service you want to connect to."),
             position: 'bottom',
             run: function (actions) {
-                // Check if there are any options
-                const $options = this.$anchor.find('option:not([value="false"])');
-                if ($options.length === 0) {
-                    // Only the default empty option exists
-                    console.log("No service options available - provider modules may not be installed");
-                    // Skip to the next step that makes sense
-                    tour._consume_tour('fetch_models_tour', "No service options available - please install provider modules");
-                    return;
-                }
-                
-                // If options exist, open the dropdown
+                console.log("Service select element:", this.$anchor);
                 actions.click(this.$anchor);
             },
         },
@@ -45,6 +95,7 @@ odoo.define('llm.tours', ['web.core', 'web_tour.tour'], function(require) {
             auto: true,
             position: 'bottom',
             run: function (actions) {
+                console.log("Service options:", this.$anchor);
                 actions.click(this.$anchor);
             },
         },
