@@ -60,7 +60,7 @@ class OnboardingStep(models.Model):
         # Mark corresponding step done
         self._find_and_mark_progress_step_done('llm.onboarding_llm_step_configure_llm_provider_tour')
         # Execute the original action
-        server_action = self.env.ref('llm.action_llm_launch_configure_llm_provider_tour')
+        server_action = self.env.ref('llm.action_launch_configure_llm_provider_tour')
         action_vals = server_action.sudo().run()
         return action_vals
 
@@ -69,5 +69,8 @@ class OnboardingStep(models.Model):
         _logger.info(f"Executing @api.model action_llm_onboarding_step_done with kwargs: {kwargs}")
         # Mark corresponding step done
         self._find_and_mark_progress_step_done('llm.onboarding_llm_step_done')
-        # No further UI action needed for this specific step
-        return False
+        # Return a valid action dictionary
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'reload',
+        }

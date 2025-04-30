@@ -3,7 +3,7 @@
     <data noupdate="1">
 
         <!-- Server Action to Launch the Provider Configuration Tour -->
-<record id="action_llm_launch_configure_llm_provider_tour" model="ir.actions.server">
+<record id="action_launch_configure_llm_provider_tour" model="ir.actions.server">
     <field name="name">LLM: Launch Provider Configuration Tour</field>
     <field name="model_id" ref="model_llm_provider"/>
     <field name="state">code</field>
