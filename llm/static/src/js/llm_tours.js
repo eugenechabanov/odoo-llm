@@ -4,20 +4,19 @@ odoo.define('llm.tours', ['web.core', 'web_tour.tour'], function(require) {
     var core = require('web.core');
     var tour = require('web_tour.tour'); // Import the tour manager
     var _t = core._t;
-
+    
     // --- Your existing Tour Definition ---
     tour.register('fetch_models_tour', {
         url: "/web",
         sequence: 250,
-    }, [
+    }, [...tour.stepUtils.goToAppSteps('llm.menu_llm_root', _t('Set up LLM providers and knowledge base with <br>LLM App</br>')),
         {
             trigger: ".o_form_sheet .oe_title input#name",
             content: _t("You should be on the Provider configuration form."),
             position: 'bottom',
-            run: function () {},
         },
         {
-            trigger: '.o_form_statusbar button[data-tooltip-info*=\'"string":"Fetch Models"\']',
+            trigger: '.o_statusbar_buttons button.btn-primary:contains("Fetch Models")',
             content: _t("<b>Crucial step:</b> After saving provider details, click <b>Fetch Models</b> to import compatible AI models."),
             position: 'bottom',
         },
