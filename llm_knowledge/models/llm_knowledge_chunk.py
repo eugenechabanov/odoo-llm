@@ -45,18 +45,16 @@ class LLMKnowledgeChunk(models.Model):
         related="resource_id.collection_ids",
         store=False,
     )
-    #TODO: Is this only for searching?
+    # TODO: Is this only for searching?
     embedding = fields.Char(
-        string='Embedding',
+        string="Embedding",
         compute=None,
         store=False,
     )
 
     # Virtual field to store similarity score in search results
     similarity = fields.Float(
-        string="Similarity Score",
-        store=False,
-        compute="_compute_similarity"
+        string="Similarity Score", store=False, compute="_compute_similarity"
     )
 
     @api.depends("resource_id.name", "sequence")
@@ -89,23 +87,23 @@ class LLMKnowledgeChunk(models.Model):
     def get_collection_embedding_models(self):
         """Helper method to get embedding models for this chunk's collections"""
         self.ensure_one()
-        models = self.env['llm.model']
+        models = self.env["llm.model"]
         for collection in self.collection_ids:
             if collection.embedding_model_id:
                 models |= collection.embedding_model_id
         return models
-    
+
     @api.model
     def search(self, args, offset=0, limit=None, order=None, count=False, **kwargs):
         vector_search_term = None
-        original_args = list(args) # Keep original args for potential fallback
-        search_args = [] # Args to pass to vector store filter or fallback search
+        original_args = list(args)  # Keep original args for potential fallback
+        search_args = []  # Args to pass to vector store filter or fallback search
         for arg in args:
             if (
-                    isinstance(arg, (list, tuple))
-                    and len(arg) == 3
-                    and arg[0] == "embedding"
-                    and isinstance(arg[2], str)
+                isinstance(arg, (list, tuple))
+                and len(arg) == 3
+                and arg[0] == "embedding"
+                and isinstance(arg[2], str)
             ):
                 vector_search_term = arg[2]
             else:
@@ -123,15 +121,35 @@ class LLMKnowledgeChunk(models.Model):
 
         can_vector_search = bool(query_vector or vector_search_term)
         if not can_vector_search:
-            return super().search(original_args, offset=offset, limit=limit, order=order, count=count, **kwargs)
+            return super().search(
+                original_args,
+                offset=offset,
+                limit=limit,
+                order=order,
+                count=count,
+                **kwargs,
+            )
 
         collections = self.env["llm.knowledge.collection"]
         if specific_collection_id:
-            collection = self.env["llm.knowledge.collection"].browse(specific_collection_id)
-            if collection.exists() and collection.store_id and (query_vector or collection.embedding_model_id):
+            collection = self.env["llm.knowledge.collection"].browse(
+                specific_collection_id
+            )
+            if (
+                collection.exists()
+                and collection.store_id
+                and (query_vector or collection.embedding_model_id)
+            ):
                 collections |= collection
             else:
-                return super().search(original_args, offset=offset, limit=limit, order=order, count=count, **kwargs)
+                return super().search(
+                    original_args,
+                    offset=offset,
+                    limit=limit,
+                    order=order,
+                    count=count,
+                    **kwargs,
+                )
         else:
             domain = [
                 ("active", "=", True),
@@ -148,16 +166,35 @@ class LLMKnowledgeChunk(models.Model):
         if vector_search_term and not query_vector:
             embedding_models = collections.mapped("embedding_model_id")
             if not embedding_models:
-                return super().search(original_args, offset=offset, limit=limit, order=order, count=count, **kwargs)
+                return super().search(
+                    original_args,
+                    offset=offset,
+                    limit=limit,
+                    order=order,
+                    count=count,
+                    **kwargs,
+                )
 
             for model in embedding_models:
                 try:
-                    model_vector_map[model.id] = model.embedding(vector_search_term.strip())[0]
+                    model_vector_map[model.id] = model.embedding(
+                        vector_search_term.strip()
+                    )[0]
                 except Exception:
-                    collections = collections.filtered(lambda c, failed_model_id=model.id: c.embedding_model_id.id != failed_model_id)
+                    collections = collections.filtered(
+                        lambda c, failed_model_id=model.id: c.embedding_model_id.id
+                        != failed_model_id
+                    )
 
         if not collections:
-            return super().search(original_args, offset=offset, limit=limit, order=order, count=count, **kwargs)
+            return super().search(
+                original_args,
+                offset=offset,
+                limit=limit,
+                order=order,
+                count=count,
+                **kwargs,
+            )
 
         return self._vector_search_aggregate(
             collections=collections,
@@ -165,8 +202,13 @@ class LLMKnowledgeChunk(models.Model):
             vector_search_term=vector_search_term,
             model_vector_map=model_vector_map,
             search_args=search_args,
-            min_similarity=kwargs.get("query_min_similarity", self.env.context.get("search_min_similarity", 0.5)),
-            query_operator=kwargs.get("query_operator", self.env.context.get("search_vector_operator", "<=>")),
+            min_similarity=kwargs.get(
+                "query_min_similarity",
+                self.env.context.get("search_min_similarity", 0.5),
+            ),
+            query_operator=kwargs.get(
+                "query_operator", self.env.context.get("search_vector_operator", "<=>")
+            ),
             offset=offset,
             limit=limit,
             count=count,
@@ -192,7 +234,9 @@ class LLMKnowledgeChunk(models.Model):
         for collection in collections:
             current_query_vector = query_vector
             if not current_query_vector and vector_search_term:
-                current_query_vector = model_vector_map.get(collection.embedding_model_id.id)
+                current_query_vector = model_vector_map.get(
+                    collection.embedding_model_id.id
+                )
 
             if not current_query_vector or not collection.store_id:
                 continue
@@ -207,7 +251,9 @@ class LLMKnowledgeChunk(models.Model):
                     offset=0,
                 )
                 for result in results:
-                    aggregated_results.append((result.get('score', 0.0), result.get('id')))
+                    aggregated_results.append(
+                        (result.get("score", 0.0), result.get("id"))
+                    )
             except Exception as e:
                 _logger.error(f"Error searching collection {collection.name}: {e}")
                 continue
@@ -223,5 +269,5 @@ class LLMKnowledgeChunk(models.Model):
         final_results = aggregated_results[offset : offset + limit if limit else None]
         chunk_ids = [res[1] for res in final_results]
         similarities = [res[0] for res in final_results]
-        similarity_scores = dict(zip(chunk_ids, similarities))
+        similarity_scores = dict(zip(chunk_ids, similarities))  # noqa: B905
         return self.browse(chunk_ids).with_context(similarity_scores=similarity_scores)
