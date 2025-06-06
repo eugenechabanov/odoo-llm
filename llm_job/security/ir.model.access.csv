@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_llm_job_mixin_user,llm.job.mixin.user,model_llm_job_mixin,,1,0,0,0
+access_llm_job_mixin_manager,llm.job.mixin.manager,model_llm_job_mixin,,1,1,1,1
+access_llm_generate_job_user,llm.generate.job.user,model_llm_generate_job,,1,0,0,0
+access_llm_generate_job_manager,llm.generate.job.manager,model_llm_generate_job,,1,1,1,1

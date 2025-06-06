@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form view for generation jobs -->
+    <record id="view_llm_generate_job_form" model="ir.ui.view">
+        <field name="name">llm.generate.job.form</field>
+        <field name="model">llm.generate.job</field>
+        <field name="arch" type="xml">
+            <form string="LLM Generation Job">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,queued,running,completed,failed"/>
+                    <button name="check_status" type="object" string="Check Status"
+                            attrs="{'invisible': [('state', 'in', ['completed', 'failed', 'cancelled'])]}"
+                            class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Job name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="provider_id" options="{'no_create': True}"/>
+                            <field name="model_id" options="{'no_create': True}"/>
+                            <field name="thread_id" options="{'no_create': True}"/>
+                            <field name="external_job_id"/>
+                        </group>
+                        <group>
+                            <field name="start_time"/>
+                            <field name="end_time"/>
+                            <field name="state" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Input Messages">
+                            <field name="messages" widget="text_field" nolabel="1"/>
+                        </page>
+                        <page string="System Prompt">
+                            <field name="prompt" widget="text_field" nolabel="1"/>
+                        </page>
+                        <page string="Result" attrs="{'invisible': [('result', '=', False)]}">
+                            <field name="result" widget="text_field" nolabel="1"/>
+                        </page>
+                        <page string="Error" attrs="{'invisible': [('error_message', '=', False)]}">
+                            <field name="error_message" widget="text_field" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree view for generation jobs -->
+    <record id="view_llm_generate_job_tree" model="ir.ui.view">
+        <field name="name">llm.generate.job.tree</field>
+        <field name="model">llm.generate.job</field>
+        <field name="arch" type="xml">
+            <tree string="LLM Generation Jobs" decoration-info="state in ('draft', 'queued')"
+                  decoration-warning="state == 'running'" decoration-success="state == 'completed'"
+                  decoration-danger="state == 'failed'" decoration-muted="state == 'cancelled'">
+                <field name="name"/>
+                <field name="provider_id"/>
+                <field name="model_id"/>
+                <field name="thread_id"/>
+                <field name="start_time"/>
+                <field name="end_time"/>
+                <field name="state"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Search view for generation jobs -->
+    <record id="view_llm_generate_job_search" model="ir.ui.view">
+        <field name="name">llm.generate.job.search</field>
+        <field name="model">llm.generate.job</field>
+        <field name="arch" type="xml">
+            <search string="Search Generation Jobs">
+                <field name="name"/>
+                <field name="provider_id"/>
+                <field name="thread_id"/>
+                <field name="model_id"/>
+                <field name="external_job_id"/>
+                <separator/>
+                <filter string="Draft" name="draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Queued" name="queued" domain="[('state', '=', 'queued')]"/>
+                <filter string="Running" name="running" domain="[('state', '=', 'running')]"/>
+                <filter string="Completed" name="completed" domain="[('state', '=', 'completed')]"/>
+                <filter string="Failed" name="failed" domain="[('state', '=', 'failed')]"/>
+                <filter string="Cancelled" name="cancelled" domain="[('state', '=', 'cancelled')]"/>
+                <separator/>
+                <filter string="Pending" name="pending" domain="[('state', 'in', ['draft', 'queued', 'running'])]"/>
+                <filter string="Finished" name="finished" domain="[('state', 'in', ['completed', 'failed', 'cancelled'])]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Provider" name="group_by_provider" domain="[]" context="{'group_by': 'provider_id'}"/>
+                    <filter string="Model" name="group_by_model" domain="[]" context="{'group_by': 'model_id'}"/>
+                    <filter string="State" name="group_by_state" domain="[]" context="{'group_by': 'state'}"/>
+                    <filter string="Thread" name="group_by_thread" domain="[]" context="{'group_by': 'thread_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action for generation jobs -->
+    <record id="action_llm_generate_job" model="ir.actions.act_window">
+        <field name="name">Generation Jobs</field>
+        <field name="res_model">llm.generate.job</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_llm_generate_job_search"/>
+        <field name="context">{'search_default_pending': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No generation jobs have been created yet.
+            </p>
+            <p>
+                Generation jobs are created automatically when using asynchronous generation in LLM threads.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_llm_job_root"
+              name="LLM Jobs"
+              parent="llm.menu_llm_config"
+              sequence="20"/>
+
+    <!-- Submenu for generation jobs -->
+    <menuitem id="menu_llm_generate_job"
+              name="Generation Jobs"
+              parent="menu_llm_job_root"
+              action="action_llm_generate_job"
+              sequence="10"/>
+</odoo>

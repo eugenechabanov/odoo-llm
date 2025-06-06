@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="llm_model_fal_ai" model="llm.model">
+        <field name="name">fal-ai/flux/schnell</field>
+        <field name="provider_id" ref="llm_provider_fal_ai" />
+        <field name="publisher_id" ref="llm_publisher_fal_ai" />
+        <field name="model_use">chat</field>
+        <field name="default" eval="True" />
+        <field name="active" eval="True" />
+    </record>
+</odoo>
