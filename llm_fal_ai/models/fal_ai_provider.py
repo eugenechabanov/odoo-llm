@@ -11,7 +11,7 @@ _logger = logging.getLogger(__name__)
 try:
     import fal_client
 except ImportError:
-    _logger.warning("No se pudo importar fal_client. Instala el paquete con pip: pip install fal_client")
+    _logger.warning("Could not import fal_client. Install the package with pip: pip install fal_client")
     fal_client = None
 
 
@@ -28,64 +28,64 @@ class LLMProvider(models.Model):
         return services
 
     def fal_ai_get_client(self):
-        """Inicializa y devuelve el cliente de fal.ai."""
+        """Initializes and returns the fal.ai client."""
         if not fal_client:
-            raise UserError(_("El paquete fal_client no está instalado. Instálalo con pip: pip install fal_client"))
+            raise UserError(_("The fal_client package is not installed. Install it with pip: pip install fal_client"))
 
-        # fal.ai usa variables de entorno para la API_KEY, pero también podemos configurarla programáticamente
-        os.environ.setdefault('FAL_KEY',self.api_key)
+        # fal.ai uses environment variables for the API_KEY, but we can also set it programmatically
+        os.environ.setdefault('FAL_KEY', self.api_key)
         return fal_client
 
     def fal_ai_models(self, model_id=None):
-        """Obtiene la lista de modelos disponibles en fal.ai."""
-        # Actualmente fal.ai no proporciona un endpoint para listar modelos
-        # Implementación con modelos conocidos
+        """Retrieves the list of available models on fal.ai."""
+        # Currently, fal.ai does not provide an endpoint to list models
+        # Hardcoded known models
         models = [
-            {"id": "fal-ai/flux/dev", "name": "fal-ai/flux/dev", "description": "Modelo para generación de imágenes",
+            {"id": "fal-ai/flux/dev", "name": "fal-ai/flux/dev", "description": "Image generation model",
              "capabilities": "multimodal"},
             {"id": "fal-ai/lcm", "name": "fal-ai/lcm", "description": "Latent Consistency Model",
              "capabilities": "multimodal"}
-            # Añadir más modelos según disponibilidad en fal.ai
+            # Add more models as available on fal.ai
         ]
 
         return models
 
     def fal_ai_generate_io_schema(self, model_record):
-        """Genera los esquemas de entrada y salida para modelos de generación de imágenes fal.ai."""
+        """Generates input and output schemas for fal.ai image generation models."""
         model_record.input_schema = {
             "type": "object",
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "Descripción de la imagen a generar",
+                    "description": "Description of the image to generate",
                     "title": "Prompt"
                 },
                 "negative_prompt": {
                     "type": "string",
-                    "description": "Elementos a evitar en la imagen generada",
-                    "title": "Prompt Negativo",
+                    "description": "Elements to avoid in the generated image",
+                    "title": "Negative Prompt",
                     "default": ""
                 },
                 "image_size": {
                     "type": "string",
-                    "description": "Tamaño de la imagen generada",
+                    "description": "Size of the generated image",
                     "enum": ["square", "portrait", "landscape", "landscape_16_9", "landscape_4_3"],
                     "default": "square",
-                    "title": "Tamaño de imagen"
+                    "title": "Image Size"
                 },
                 "num_images": {
                     "type": "integer",
-                    "description": "Número de imágenes a generar",
+                    "description": "Number of images to generate",
                     "minimum": 1,
                     "maximum": 4,
                     "default": 1,
-                    "title": "Cantidad de imágenes"
+                    "title": "Image Quantity"
                 },
                 "seed": {
                     "type": "integer",
-                    "description": "Semilla para reproducibilidad",
+                    "description": "Seed for reproducibility",
                     "default": 42,
-                    "title": "Semilla"
+                    "title": "Seed"
                 }
             },
             "required": ["prompt"]
@@ -170,7 +170,7 @@ class LLMProvider(models.Model):
 
         if result is None:
             return urls
-        # Example of fal_ai result: {'has_nsfw_concepts': [False], 'images': [{'content_type': 'image/png', 'height': 768, 'url': 'https://v3.fal.media/files/zebra/3Sa_l4tFKlX4-bai5Z0ST.png', 'width': 1024}], 'prompt': 'un gato azul', 'seed': 6252023, 'timings': {'inference': 2.1407407799270004}}
+        # Example of fal_ai result: {'has_nsfw_concepts': [False], 'images': [{'content_type': 'image/png', 'height': 768, 'url': 'https://v3.fal.media/files/zebra/3Sa_l4tFKlX4-bai5Z0ST.png', 'width': 1024}], 'prompt': 'a blue cat', 'seed': 6252023, 'timings': {'inference': 2.1407407799270004}}
         if isinstance(result, list):
             # If result is a list, extract URLs from each item
             for item in result:
