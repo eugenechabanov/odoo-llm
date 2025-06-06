@@ -1,8 +1,6 @@
-import json
 import logging
 import os
-
-import jsonref
+import json
 from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 
@@ -35,6 +33,14 @@ class LLMProvider(models.Model):
         # fal.ai uses environment variables for the API_KEY, but we can also set it programmatically
         os.environ.setdefault('FAL_KEY', self.api_key)
         return fal_client
+
+    def falai_chat(self, messages, model=None, stream=False):
+        """FAL AI doesn't support chat directly, redirect to appropriate method"""
+        raise UserError(_("FAL AI provider does not support chat functionality"))
+
+    def falai_embedding(self, texts, model=None):
+        """FAL AI doesn't support embeddings directly"""
+        raise UserError(_("FAL AI provider does not support embedding functionality"))
 
     def fal_ai_models(self, model_id=None):
         """Retrieves the list of available models on fal.ai."""
@@ -100,23 +106,63 @@ class LLMProvider(models.Model):
             "title": "Output"
         }
 
-    def fal_ai_generate_media(self, inputs, model_record=None, stream=False):
-        """Generate media content using this provider"""
-        # Get full model name including version if specified
-        model_name = model_obj = self.env["llm.model"].search(
-            [("provider_id", "=", self.id), ("default", "=", True), ("model_use", "=", "multimodal")],
-            limit=1,
-        )
-        if not model_name:
-            model_name = model_record.name
+    def falai_generate_media(self, inputs, model_record=None, stream=False, job=None):
+        """Generate media using FAL AI"""
+        self.ensure_one()
+        client = self.init_client()
 
+        # Get the model name
+        model_name = model_record.name if model_record else None
         if not model_name:
             raise ValueError("Model name is required")
 
-        # Run the model
-        result = self.client.subscribe(model_name, arguments=inputs)
-        urls = self._fal_ai_extract_urls_from_result(result)
-        yield {"content": urls}
+        # If we have a job, use the asynchronous API
+        if job:
+            return self._falai_generate_media_async(client, model_name, inputs, job)
+        elif stream:
+            return self._falai_stream_media(client, model_name, inputs)
+        else:
+            # Simple synchronous call using run
+            return self._falai_generate_media_sync(client, model_name, inputs)
+
+    def _falai_generate_media_sync(self, client, model_name, inputs):
+        """Generate media synchronously"""
+        try:
+            result = client.run(model_name, arguments=inputs)
+            return self._falai_extract_urls_from_result(result)
+        except Exception as e:
+            _logger.error(f"Error in FAL AI generate_media: {e}")
+            raise UserError(_(f"FAL AI generation failed: {str(e)}"))
+
+    def _falai_stream_media(self, client, model_name, inputs):
+        """Stream media generation results"""
+        try:
+            stream = client.stream(model_name, arguments=inputs)
+            for event in stream:
+                yield {"content": event}
+        except Exception as e:
+            _logger.error(f"Error in FAL AI stream_media: {e}")
+            raise UserError(_(f"FAL AI streaming failed: {str(e)}"))
+
+    def _falai_generate_media_async(self, client, model_name, inputs, job):
+        """Submit an asynchronous job to FAL AI"""
+        try:
+            handler = client.submit(model_name, arguments=inputs)
+
+            # Update job with FAL AI request ID
+            job.write({
+                'provider_job_id': handler.request_id,
+                'state': 'pending',
+            })
+
+            return {'job_id': job.id, 'provider_job_id': handler.request_id}
+        except Exception as e:
+            _logger.error(f"Error in FAL AI submit job: {e}")
+            job.write({
+                'state': 'failed',
+                'result': json.dumps({'error': str(e)})
+            })
+            raise UserError(_(f"FAL AI job submission failed: {str(e)}"))
 
     def fal_ai_format_generation_response(self, raw_response, output_schema):
         """Format the raw generation response according to the output processing config
@@ -162,7 +208,6 @@ class LLMProvider(models.Model):
 
         _logger.info(f"Replicate: Extracted strings: {extracted_strings}")
         return extracted_strings
-
 
     def _fal_ai_extract_urls_from_result(self, result):
         """Extract URLs from fal_ai result, handling FileOutput objects and other formats"""
