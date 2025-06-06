@@ -23,5 +23,5 @@
         "static/description/banner.jpeg"
     ],
     "license": "LGPL-3",
-    "installable": true
+    "installable": True
 }
