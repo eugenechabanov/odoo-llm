@@ -90,6 +90,10 @@ Contact: support@apexive.com
             # Streaming indicator component
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.js",
             "llm_thread/static/src/components/llm_streaming_indicator/llm_streaming_indicator.xml",
+            # LLMChatThreadRelatedRecord Component
+            "llm_thread/static/src/components/llm_chat_thread_related_record/llm_chat_thread_related_record.js",
+            "llm_thread/static/src/components/llm_chat_thread_related_record/llm_chat_thread_related_record.xml",
+            "llm_thread/static/src/components/llm_chat_thread_related_record/llm_chat_thread_related_record.scss",
             # Client Actions
             "llm_thread/static/src/llm_chat_client_action.js",
             # Styles

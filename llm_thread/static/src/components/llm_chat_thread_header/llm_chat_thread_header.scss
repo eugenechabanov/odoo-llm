@@ -28,4 +28,59 @@
     color: $primary;
     min-width: 0; // Enable truncation
   }
+
+  // Related record styles
+  .o_ThreadViewTopbar_relatedRecord {
+    .btn {
+      transition: all 0.2s ease;
+      border: 1px solid rgba(0, 0, 0, 0.125);
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-color: rgba(0, 0, 0, 0.25);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+
+      // Icon styling
+      i {
+        font-size: 14px;
+
+        &.text-primary {
+          color: $primary !important;
+        }
+
+        &.text-muted {
+          color: $text-muted !important;
+        }
+      }
+
+      // Text styling
+      .text-truncate {
+        font-weight: 500;
+      }
+
+      // Special styling for "no record" state
+      &:has(.text-muted) {
+        border-style: dashed;
+        opacity: 0.8;
+
+        &:hover {
+          opacity: 1;
+          border-style: solid;
+        }
+      }
+    }
+
+    // Mobile adjustments
+    @include media-breakpoint-down(sm) {
+      .btn {
+        min-width: 32px;
+        padding: 4px 6px !important;
+      }
+    }
+  }
 }

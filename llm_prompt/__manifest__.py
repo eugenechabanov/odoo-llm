@@ -22,6 +22,7 @@
         "security/ir.model.access.csv",
         "data/llm_prompt_tag_data.xml",
         "data/llm_prompt_category_data.xml",
+        "data/llm_prompt_export_data.xml",
         "views/llm_prompt_views.xml",
         "views/llm_prompt_template_views.xml",
         "views/llm_prompt_tag_views.xml",
