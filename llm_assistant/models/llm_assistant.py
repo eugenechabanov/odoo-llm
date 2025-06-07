@@ -36,6 +36,20 @@ class LLMAssistant(models.Model):
         tracking=True,
         required=False,
     )
+    is_public = fields.Boolean(
+        string="Public",
+        default=False,
+        help="If checked, this assistant will be available to all users",
+    )
+
+    allowed_group_ids = fields.Many2many(
+        "res.groups",
+        "llm_assistant_group_rel",
+        "assistant_id",
+        "group_id",
+        string="Allowed Groups",
+        help="Groups that can access this assistant. If empty and not public, only internal users can access it.",
+    )
 
     # Prompt template integration
     prompt_id = fields.Many2one(
@@ -406,3 +420,27 @@ class LLMAssistant(models.Model):
                 # Keep the original expression on error
 
         return result_str
+
+    def _get_allowed_assistants_for_user(self, user=None):
+        """Get assistants that the current user can access"""
+        if not user:
+            user = self.env.user
+
+        # Admin can access all assistants
+        if user.has_group("base.group_system"):
+            return self.search([])
+
+        # Build domain for assistants the user can access
+        domain = ["|"]
+
+        # Public assistants
+        domain.append(("is_public", "=", True))
+
+        # Assistants allowed for user's groups
+        if user.groups_id:
+            domain.append(("allowed_group_ids", "in", user.groups_id.ids))
+        else:
+            # If user has no groups, only public assistants
+            domain = [("is_public", "=", True)]
+
+        return self.search(domain)
