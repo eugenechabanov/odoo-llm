@@ -17,7 +17,7 @@ class LLMProvider(models.Model):
     _inherit = "llm.provider"
 
     def fal_ai_supports_async_generation(self, default=None):
-        return True
+        return False
 
     @api.model
     def _get_available_services(self):
@@ -34,11 +34,11 @@ class LLMProvider(models.Model):
         os.environ.setdefault('FAL_KEY', self.api_key)
         return fal_client
 
-    def falai_chat(self, messages, model=None, stream=False):
+    def fal_ai_chat(self, messages, model=None, stream=False):
         """FAL AI doesn't support chat directly, redirect to appropriate method"""
         raise UserError(_("FAL AI provider does not support chat functionality"))
 
-    def falai_embedding(self, texts, model=None):
+    def fal_ai_embedding(self, texts, model=None):
         """FAL AI doesn't support embeddings directly"""
         raise UserError(_("FAL AI provider does not support embedding functionality"))
 
@@ -106,10 +106,10 @@ class LLMProvider(models.Model):
             "title": "Output"
         }
 
-    def falai_generate_media(self, inputs, model_record=None, stream=False, job=None):
+    def fal_ai_generate_media(self, inputs, model_record=None, stream=False):
         """Generate media using FAL AI"""
         self.ensure_one()
-        client = self.init_client()
+        client = self.fal_ai_get_client()
 
         # Get the model name
         model_name = model_record.name if model_record else None
@@ -117,24 +117,24 @@ class LLMProvider(models.Model):
             raise ValueError("Model name is required")
 
         # If we have a job, use the asynchronous API
-        if job:
-            return self._falai_generate_media_async(client, model_name, inputs, job)
-        elif stream:
-            return self._falai_stream_media(client, model_name, inputs)
+        #if job:
+        #    return self._fal_ai_generate_media_async(client, model_name, inputs, job)
+        if stream:
+            return self._fal_ai_generate_media_sync(client, model_name, inputs)
         else:
             # Simple synchronous call using run
-            return self._falai_generate_media_sync(client, model_name, inputs)
+            return self._fal_ai_generate_media_sync(client, model_name, inputs)
 
-    def _falai_generate_media_sync(self, client, model_name, inputs):
+    def _fal_ai_generate_media_sync(self, client, model_name, inputs):
         """Generate media synchronously"""
         try:
             result = client.run(model_name, arguments=inputs)
-            return self._falai_extract_urls_from_result(result)
+            yield {"content":  self._fal_ai_extract_urls_from_result(result)}
         except Exception as e:
             _logger.error(f"Error in FAL AI generate_media: {e}")
             raise UserError(_(f"FAL AI generation failed: {str(e)}"))
 
-    def _falai_stream_media(self, client, model_name, inputs):
+    def _fal_ai_stream_media(self, client, model_name, inputs):
         """Stream media generation results"""
         try:
             stream = client.stream(model_name, arguments=inputs)
@@ -144,7 +144,7 @@ class LLMProvider(models.Model):
             _logger.error(f"Error in FAL AI stream_media: {e}")
             raise UserError(_(f"FAL AI streaming failed: {str(e)}"))
 
-    def _falai_generate_media_async(self, client, model_name, inputs, job):
+    def _fal_ai_generate_media_async(self, client, model_name, inputs, job):
         """Submit an asynchronous job to FAL AI"""
         try:
             handler = client.submit(model_name, arguments=inputs)
