@@ -188,12 +188,20 @@ export class LLMChatThreadRelatedRecord extends Component {
         }
 
         try {
-            await this.thread.updateLLMChatThreadSettings({
-                additionalValues: {
-                    'model': false,
-                    'res_id': false,
-                }
+            // Use direct RPC call to update the thread instead of updateLLMChatThreadSettings
+            await this.messaging.rpc({
+                model: "llm.thread",
+                method: "write",
+                args: [[this.thread.id], {
+                    model: false,
+                    res_id: false,
+                }],
             });
+
+            // Refresh the thread to get updated data
+            if (this.thread.llmChat) {
+                await this.thread.llmChat.refreshThread(this.thread.id);
+            }
 
             // Update local state for immediate UI feedback
             this.thread.update({
@@ -610,12 +618,20 @@ export class LLMChatThreadRelatedRecord extends Component {
      * @param {number} recordId - Record ID
      */
     async _linkRecordToThread(model, recordId) {
-        await this.thread.updateLLMChatThreadSettings({
-            additionalValues: {
-                'model': model,
-                'res_id': recordId,
-            }
+        // Use direct RPC call to update the thread instead of updateLLMChatThreadSettings
+        await this.messaging.rpc({
+            model: "llm.thread",
+            method: "write",
+            args: [[this.thread.id], {
+                model: model,
+                res_id: recordId,
+            }],
         });
+
+        // Refresh the thread to get updated data
+        if (this.thread.llmChat) {
+            await this.thread.llmChat.refreshThread(this.thread.id);
+        }
 
         // Update local state for immediate UI feedback
         this.thread.update({
