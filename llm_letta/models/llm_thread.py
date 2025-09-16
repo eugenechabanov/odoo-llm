@@ -366,6 +366,22 @@ class LLMThread(models.Model):
 
         return agent_id
 
+    def _should_continue(self, last_message):
+        """Override to handle Letta's internal conversation loop.
+
+        Letta handles tool execution and assistant responses internally,
+        so we should not continue the loop after tool messages.
+        """
+        if self.provider_id.service == LETTA_SERVICE:
+            # For Letta, only continue if last message is from user
+            # Letta handles tool execution internally, so don't continue after tool messages
+            if not last_message:
+                return False
+            return last_message.llm_role == "user"
+
+        # For other providers, use default behavior
+        return super()._should_continue(last_message)
+
     def sync_letta_tools(self):
         """Manual tool synchronization for Letta agent"""
         self.ensure_one()

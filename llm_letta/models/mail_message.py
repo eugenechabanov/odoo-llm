@@ -31,10 +31,35 @@ class MailMessage(models.Model):
             return formatted_message
 
         elif self.is_llm_tool_message()[self]:
-            # For Letta, tool messages might need different handling
-            # This is a placeholder for future tool integration
-            _logger.debug(f"Letta: Skipping tool message {self.id} for now")
-            return None
+            # Format tool messages for Letta (similar to OpenAI format)
+            tool_data = self.body_json
+            if not tool_data:
+                _logger.warning(
+                    f"Letta Format: Skipping tool message {self.id}: no tool data found."
+                )
+                return None
+
+            tool_call_id = tool_data.get("tool_call_id")
+            if not tool_call_id:
+                _logger.warning(
+                    f"Letta Format: Skipping tool message {self.id}: missing tool_call_id."
+                )
+                return None
+
+            # Get result content
+            if "result" in tool_data:
+                content = str(tool_data["result"])  # Letta prefers string content
+            elif "error" in tool_data:
+                content = f"Error: {tool_data['error']}"
+            else:
+                content = ""
+
+            formatted_message = {
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": content,
+            }
+            return formatted_message
 
         else:
             return None

@@ -100,7 +100,11 @@ class LLMProvider(models.Model):
             raise UserError("No messages provided")
 
         # Use the standard dispatch to format the message
+        _logger.info("Formatting latest message: ID=%s, llm_role=%s",
+                    getattr(latest_message, 'id', 'N/A'),
+                    getattr(latest_message, 'llm_role', 'N/A'))
         formatted_message = self._dispatch("format_message", record=latest_message)
+        _logger.info("Formatted message result: %s", formatted_message)
         if not formatted_message or not formatted_message.get("content"):
             raise UserError("Could not format message content")
 
@@ -108,7 +112,7 @@ class LLMProvider(models.Model):
 
         try:
             if stream:
-                return self._letta_stream_agent_response(client, agent_id, user_content)
+                return self._letta_stream_agent_response(client, agent_id, user_content, thread_record)
             else:
                 return self._letta_get_agent_response(client, agent_id, user_content)
 
@@ -389,7 +393,7 @@ class LLMProvider(models.Model):
         formatted_message = self._dispatch("format_message", record=latest_message)
         return [formatted_message] if formatted_message else []
 
-    def _letta_stream_agent_response(self, client, agent_id, user_content):
+    def _letta_stream_agent_response(self, client, agent_id, user_content, thread_record=None):
         """Stream response from Letta agent."""
 
         stream = client.agents.messages.create_stream(
@@ -398,7 +402,13 @@ class LLMProvider(models.Model):
             stream_tokens=True,
         )
 
-        response_content = ""
+        # Track different phases of the response
+        pre_tool_content = ""  # Content before tool calls
+        post_tool_content = ""  # Content after tool calls
+        tool_calls = {}  # tool_call_id -> {name, arguments}
+        tool_results = {}  # tool_call_id -> result
+        tool_calls_detected = False
+        tools_completed = False
 
         for chunk in stream:
             # Check if chunk has message_type attribute (Letta's streaming format)
@@ -408,8 +418,18 @@ class LLMProvider(models.Model):
                 # Handle assistant message chunks
                 if message_type == "assistant_message" and hasattr(chunk, "content"):
                     if chunk.content:
-                        response_content += chunk.content
-                        yield {"content": chunk.content}
+                        if not tool_calls_detected:
+                            # Before tool calls - yield immediately and store
+                            pre_tool_content += chunk.content
+                            yield {"content": chunk.content}
+                        elif tools_completed:
+                            # After tool completion - this is final assistant response
+                            post_tool_content += chunk.content
+                            _logger.info("Post-tool content: %s", chunk.content)
+                            # Don't yield yet - we'll yield this as final response
+                        else:
+                            # During tool processing - just store for now
+                            _logger.info("Tool processing content (not yielding): %s", chunk.content)
 
                 # Handle reasoning messages (debug level)
                 elif message_type == "reasoning_message" and hasattr(
@@ -417,24 +437,70 @@ class LLMProvider(models.Model):
                 ):
                     _logger.info("Agent reasoning: %s", chunk.reasoning)
 
-                # Handle tool call messages (debug level)
-                elif message_type == "tool_call_message" and hasattr(
-                    chunk, "tool_call"
-                ):
-                    if (
-                        chunk.tool_call
-                        and hasattr(chunk.tool_call, "name")
-                        and chunk.tool_call.name
-                    ):
-                        _logger.info("Agent calling tool: %s", chunk.tool_call.name)
+                # Handle tool call messages
+                elif message_type == "tool_call_message" and hasattr(chunk, "tool_call"):
+                    # Handle tool call assembly - first chunk has metadata, subsequent chunks have arguments
+                    tool_call_id = chunk.tool_call.tool_call_id
+                    tool_name = chunk.tool_call.name
+                    tool_arguments = chunk.tool_call.arguments
 
-                # Handle tool return messages (debug level)
-                elif (
-                    message_type == "tool_return_message"
-                    and hasattr(chunk, "tool_return")
-                    and hasattr(chunk, "tool_call_id")
-                ) and chunk.tool_return:
-                    _logger.info("Tool returned: %s", chunk.tool_return)
+                    # Debug log the chunk details
+                    _logger.info("Tool call chunk: ID=%s, name=%s, args=%s",
+                               tool_call_id, tool_name, tool_arguments)
+
+                    # Debug: Log the exact raw chunk data
+                    _logger.info("Raw chunk attributes: %s", {
+                        'tool_call_id': tool_call_id,
+                        'tool_name': tool_name,
+                        'tool_arguments': tool_arguments,
+                        'tool_arguments_type': type(tool_arguments).__name__,
+                        'tool_arguments_repr': repr(tool_arguments) if tool_arguments else None
+                    })
+
+                    # First chunk: has tool_call_id and name, but arguments might be None
+                    if tool_call_id and tool_name:
+                        if tool_call_id not in tool_calls:
+                            tool_calls[tool_call_id] = {
+                                "name": tool_name,
+                                "arguments": "",
+                                "arguments_chunks": []  # Track individual chunks for better assembly
+                            }
+                            _logger.info("Created new tool call entry for %s", tool_call_id)
+                        # Add arguments if present (could be None in first chunk)
+                        if tool_arguments:
+                            tool_calls[tool_call_id]["arguments_chunks"].append(tool_arguments)
+                            tool_calls[tool_call_id]["arguments"] = "".join(tool_calls[tool_call_id]["arguments_chunks"])
+                            _logger.info("Added args chunk to %s: %s", tool_call_id, tool_arguments)
+                            _logger.info("Current assembled args for %s: %s", tool_call_id, tool_calls[tool_call_id]["arguments"])
+                            _logger.info("All chunks so far for %s: %s", tool_call_id, tool_calls[tool_call_id]["arguments_chunks"])
+
+                    # Subsequent chunks: no tool_call_id/name, but have argument fragments
+                    elif tool_arguments and not tool_call_id and not tool_name:
+                        # Find the most recent tool call to append arguments to
+                        if tool_calls:
+                            latest_tool_id = list(tool_calls.keys())[-1]
+                            tool_calls[latest_tool_id]["arguments_chunks"].append(tool_arguments)
+                            tool_calls[latest_tool_id]["arguments"] = "".join(tool_calls[latest_tool_id]["arguments_chunks"])
+                            _logger.info("Appended args chunk to latest tool %s: %s", latest_tool_id, tool_arguments)
+                            _logger.info("Current assembled args for %s: %s", latest_tool_id, tool_calls[latest_tool_id]["arguments"])
+                            _logger.info("All chunks so far for %s: %s", latest_tool_id, tool_calls[latest_tool_id]["arguments_chunks"])
+
+                    # Mark that we've detected tool calls
+                    if not tool_calls_detected and tool_calls:
+                        tool_calls_detected = True
+                        _logger.info("Tool calls detected - switching to tool processing mode")
+
+                # Handle tool return messages
+                elif message_type == "tool_return_message":
+                    if hasattr(chunk, "tool_call_id") and hasattr(chunk, "tool_return"):
+                        tool_call_id = chunk.tool_call_id
+                        tool_results[tool_call_id] = chunk.tool_return
+                        _logger.info("Stored tool result for call ID: %s", tool_call_id)
+
+                        # Check if all tools are completed
+                        if len(tool_results) == len(tool_calls) and not tools_completed:
+                            tools_completed = True
+                            _logger.info("All tools completed - switching to final response mode")
 
             # Handle usage statistics (debug level)
             elif (
@@ -443,12 +509,115 @@ class LLMProvider(models.Model):
             ):
                 _logger.info("Letta usage: %s", chunk)
 
+            # Log unknown chunk types for discovery
+            else:
+                message_type = getattr(chunk, "message_type", "NO_TYPE")
+                if hasattr(chunk, "message_type"):
+                    _logger.info("Unknown chunk type: %s", message_type)
+                    _logger.info("Unknown chunk attributes: %s", dir(chunk))
+
         # Return empty content if nothing was streamed (shouldn't happen normally)
-        if not response_content:
+        total_content = pre_tool_content + post_tool_content
+        if not total_content:
             _logger.warning("No response content received from Letta stream")
 
-        # Yield final response
-        yield {"content": "", "finish_reason": "stop"}
+        # Prepare final response
+        final_response = {"content": "", "finish_reason": "stop"}
+
+        # Handle tool calls and results properly
+        if tool_calls:
+            # First, yield assistant message with tool calls
+            formatted_tool_calls = []
+            for tool_call_id, tool_data in tool_calls.items():
+                # Debug: Log assembled arguments and validate JSON
+                assembled_args = tool_data["arguments"]
+                _logger.info("Tool call %s assembled arguments: %r", tool_call_id, assembled_args)
+                _logger.info("Tool call %s - Character by character: %s", tool_call_id, [c for c in assembled_args])
+
+                # Try to validate JSON structure
+                try:
+                    import json
+                    json.loads(assembled_args)
+                    _logger.info("Tool call %s: JSON is valid", tool_call_id)
+                except json.JSONDecodeError as e:
+                    _logger.warning("Tool call %s: Invalid JSON - %s", tool_call_id, e)
+
+                formatted_tool_calls.append({
+                    "id": tool_call_id,
+                    "type": "function",
+                    "function": {
+                        "name": tool_data["name"],
+                        "arguments": tool_data["arguments"]
+                    }
+                })
+
+            # Yield tool calls chunk (this will be collected by _handle_streaming_response)
+            yield {"tool_calls": formatted_tool_calls}
+            _logger.info("Yielded tool calls chunk with %d tool calls", len(formatted_tool_calls))
+
+            # For Letta, we need to create tool messages manually since tools were executed via MCP
+            if thread_record:
+                for tool_call_id, result in tool_results.items():
+                    if tool_call_id in tool_calls:
+                        tool_name = tool_calls[tool_call_id]["name"]
+                        assembled_args = tool_calls[tool_call_id]["arguments"]
+
+                        # Use the assembled arguments directly - they are correct JSON
+                        import json
+                        try:
+                            parsed_args = json.loads(assembled_args)
+                            _logger.info("Successfully parsed tool arguments for %s: %s", tool_call_id, parsed_args)
+                        except json.JSONDecodeError as e:
+                            _logger.warning("Failed to parse tool arguments for %s: %s", tool_call_id, e)
+                            parsed_args = {}
+
+                        tool_data = {
+                            "type": "tool_execution",
+                            "tool_call_id": tool_call_id,
+                            "tool_call": {
+                                "id": tool_call_id,
+                                "type": "function",
+                                "function": {
+                                    "name": tool_name,
+                                    "arguments": assembled_args  # Use the correctly assembled arguments
+                                }
+                            },
+                            "status": "completed",
+                            "result": result,
+                            "tool_name": tool_name,
+                            "arguments": parsed_args,  # Use parsed dict for top-level arguments
+                        }
+                        tool_message = thread_record.message_post(
+                            body=f"Tool executed: {tool_name}",
+                            body_json=tool_data,
+                            llm_role="tool",
+                            author_id=False,
+                        )
+                        _logger.info("Created tool message for %s with arguments: %s", tool_call_id, assembled_args)
+
+                        # Yield message event for real-time UI update with proper mail store format
+                        yield {
+                            "type": "message_create",
+                            "message": {
+                                "id": tool_message.id,
+                                "llm_role": "tool",
+                                "body": tool_message.body,
+                                "body_json": tool_data,
+                                "res_id": thread_record.id,
+                                "model": "llm.thread",
+                            }
+                        }
+
+            # Yield final assistant response with post-tool content if any
+            if post_tool_content:
+                _logger.info("Yielding final response with post-tool content: %s", post_tool_content)
+                yield {"content": post_tool_content, "finish_reason": "stop"}
+            else:
+                _logger.info("No post-tool content, yielding empty final response")
+                yield {"content": "", "finish_reason": "stop"}
+        else:
+            # No tool calls, just regular assistant response
+            yield final_response
 
     def _letta_get_agent_response(self, client, agent_id, user_content):
         """Get non-streaming response from Letta agent."""
