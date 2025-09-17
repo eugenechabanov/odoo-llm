@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Letta Default Memory Block Template -->
+        <record id="prompt_letta_default_memory" model="llm.prompt">
+            <field name="name">Letta Default Memory Blocks</field>
+            <field name="description">Default memory block configuration for Letta agents</field>
+            <field name="format">yaml</field>
+            <field name="template">memory_blocks:
+  - label: "persona"
+    description: "The persona block: Stores details about your current persona"
+    value: "{{persona_content}}"
+
+  - label: "human"
+    description: "The human block: Stores key details about the person you are conversing with"
+    value: "{{human_content}}"
+
+system: "{{system_content}}"</field>
+            <field name="arguments_json">{
+  "persona_content": {
+    "type": "string",
+    "description": "AI assistant persona",
+    "default": "I am a helpful AI assistant.",
+    "required": true
+  },
+  "human_content": {
+    "type": "string",
+    "description": "Description of the human user",
+    "default": "The human I'm talking to.",
+    "required": true
+  },
+  "system_content": {
+    "type": "string",
+    "description": "System instruction",
+    "default": "You are a helpful assistant.",
+    "required": false
+  }
+}</field>
+        </record>
+    </data>
+</odoo>

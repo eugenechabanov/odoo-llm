@@ -1,5 +1,8 @@
+import json
 import logging
 from datetime import datetime, timedelta
+
+import yaml
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -101,6 +104,9 @@ class LLMThread(models.Model):
 
         if "tool_ids" in vals:
             self._handle_tool_changes()
+
+        # Note: Changes to assistant.prompt_id or assistant.default_values
+        # would require manual agent recreation via UI action
 
         return result
 
@@ -226,31 +232,54 @@ class LLMThread(models.Model):
         Returns:
             dict: Agent configuration for Letta API
         """
-        user_name = thread.user_id.name or "User"
+        # Get Letta-specific context using hook method
+        letta_context = thread.letta_get_agent_config_context()
+        full_context = thread.get_context(letta_context)
 
-        # Build memory blocks from thread context
-        memory_blocks = [
-            {"label": "persona", "value": DEFAULT_PERSONA_BLOCK},
-            {
-                "label": "human",
-                "value": DEFAULT_HUMAN_BLOCK_TEMPLATE.format(user_name=user_name),
-            },
-        ]
+        # Build memory blocks and system instruction
+        memory_blocks = None
+        system_instruction = None
 
+        if thread.assistant_id and thread.assistant_id.prompt_id:
+            prompt = thread.assistant_id.prompt_id
+            # Pass the full context (including user context) to assistant for default value evaluation
+            evaluated_values = thread.assistant_id.get_evaluated_default_values(full_context)
+
+            # Check if prompt is Letta-compatible (has memory_blocks structure)
+            if self._is_letta_compatible_prompt(prompt, full_context):
+                # Letta-compatible: extract memory blocks
+                try:
+                    messages = prompt.get_messages(evaluated_values)
+                    memory_blocks = self._extract_memory_blocks_from_messages(messages, prompt)
+                    if not memory_blocks:
+                        # Fallback to simple persona/human from default_values
+                        memory_blocks = self._build_memory_blocks_from_defaults(evaluated_values, thread)
+                except Exception as e:
+                    _logger.warning(
+                        "Error extracting memory blocks from Letta prompt %s: %s",
+                        prompt.name, str(e)
+                    )
+                    # Fallback to hardcoded defaults
+                    memory_blocks = self._get_default_memory_blocks(thread)
+            else:
+                # Traditional prompt: render as system instruction
+                
+                system_instruction = render_template(
+                    template=prompt.template, context=full_context
+                )
+                
+
+                # Use default memory blocks for traditional prompts
+                memory_blocks = self._get_default_memory_blocks(thread)
+        else:
+            # No assistant: use default memory blocks
+            memory_blocks = self._get_default_memory_blocks(thread)
 
         # Use the actual selected model (should already include provider prefix)
         model_name = thread.model_id.name
 
         # Get or create API key for MCP authentication
         api_key = self._ensure_api_key_for_agent(thread)
-
-        # Add system instruction if assistant is available
-        system_instruction = None
-        if thread.assistant_id and thread.assistant_id.prompt_id:
-            context = thread.get_context()
-            system_instruction = render_template(
-                template=thread.assistant_id.prompt_id.template, context=context
-            )
         
         embedding = thread.provider_id.letta_get_embedding_model()
         if not embedding:
@@ -405,3 +434,148 @@ class LLMThread(models.Model):
 
           # Call parent's implementation for standard markdown processing
           return super()._process_llm_body(body)
+
+    def letta_get_agent_config_context(self, base_context=None):
+        """Hook method to build context for Letta agent configuration templates.
+
+        Override this method to add custom context for Letta agent templates.
+
+        Args:
+            base_context (dict): Additional context from caller
+
+        Returns:
+            dict: Context for Letta agent configuration template rendering
+        """
+        context = base_context or {}
+
+        # Add standard user context
+        if self.user_id:
+            context["user"] = self.user_id.read(['id', 'name', 'email'])[0]
+
+        # Add standard thread context
+        context.update({
+            "thread_id": self.id,
+            "thread_name": self.name,
+        })
+        return context
+
+    def _is_letta_compatible_prompt(self, prompt, context=None):
+        """Check if a prompt is Letta-compatible (has memory_blocks structure)
+
+        Args:
+            prompt (llm.prompt): Prompt record to check
+            context (dict): Real context to use for checking (optional)
+
+        Returns:
+            bool: True if prompt contains memory_blocks structure
+        """
+        if not prompt or prompt.format not in ('json', 'yaml'):
+            return False
+
+        try:
+            # Use provided context or fallback to sample context
+            if context:
+                check_context = context
+            else:
+                # Fallback sample context if no real context provided
+                check_context = {
+                    "user": {"id": 1, "name": "Sample User", "email": "sample@example.com"},
+                    "thread_id": 1,
+                    "thread_name": "Sample Thread",
+                }
+
+            messages = prompt.get_messages(check_context)
+
+            for message in messages:
+                content = message.get('content', '')
+                if isinstance(content, list) and content:
+                    content = content[0].get('text', '')
+
+                if not content.strip():
+                    continue
+
+                if prompt.format == 'json':
+                    data = json.loads(content)
+                elif prompt.format == 'yaml':
+                    data = yaml.safe_load(content)
+
+                if isinstance(data, dict) and 'memory_blocks' in data:
+                    return True
+        except Exception as e:
+            _logger.error(f"Error parsing prompt '{prompt.name}': {e}")
+            # If parsing fails, assume not Letta-compatible
+            return False
+
+        return False
+
+    def _extract_memory_blocks_from_messages(self, messages, prompt=None):
+        """Extract memory blocks from prompt messages
+
+        Args:
+            messages (list): List of messages from prompt template
+            prompt (llm.prompt): Prompt record for format information
+
+        Returns:
+            list or None: List of memory blocks if found, None otherwise
+        """
+        for message in messages:
+            content = message.get('content', '')
+            if isinstance(content, list) and content:
+                content = content[0].get('text', '')
+
+            if not content.strip():
+                continue
+
+            # Only JSON and YAML formats are supported for memory blocks
+            if prompt.format not in ('json', 'yaml'):
+                raise UserError(
+                    f"Prompt '{prompt.name}' uses format '{prompt.format}' but Letta memory blocks "
+                    "only support 'json' and 'yaml' formats. Please change the prompt format."
+                )
+
+            if prompt.format == 'json':
+                data = json.loads(content)
+            elif prompt.format == 'yaml':
+                data = yaml.safe_load(content)
+
+            if isinstance(data, dict) and 'memory_blocks' in data:
+                return data['memory_blocks']
+
+        return None
+
+    def _build_memory_blocks_from_defaults(self, evaluated_values, thread):
+        """Build memory blocks from assistant default_values
+
+        Args:
+            evaluated_values (dict): Evaluated default values from assistant
+            thread: Thread record for fallback values
+
+        Returns:
+            list: List of memory blocks
+        """
+        user_name = thread.user_id.name or "User"
+        return [
+            {
+                "label": "persona",
+                "value": evaluated_values.get("persona", DEFAULT_PERSONA_BLOCK)
+            },
+            {
+                "label": "human",
+                "value": evaluated_values.get("human", DEFAULT_HUMAN_BLOCK_TEMPLATE.format(user_name=user_name))
+            },
+        ]
+
+    def _get_default_memory_blocks(self, thread):
+        """Fallback to hardcoded defaults
+
+        Args:
+            thread: Thread record
+
+        Returns:
+            list: List of default memory blocks
+        """
+        user_name = thread.user_id.name or "User"
+        return [
+            {"label": "persona", "value": DEFAULT_PERSONA_BLOCK},
+            {"label": "human", "value": DEFAULT_HUMAN_BLOCK_TEMPLATE.format(user_name=user_name)},
+        ]

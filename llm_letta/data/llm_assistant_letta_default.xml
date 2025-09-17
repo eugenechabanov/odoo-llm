@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Letta Default Assistant -->
+        <record id="assistant_letta_default" model="llm.assistant">
+            <field name="name">Letta Default Assistant</field>
+            <field name="code">letta_default</field>
+            <field name="is_public" eval="True"/>
+            <field name="prompt_id" ref="prompt_letta_default_memory"/>
+            <field name="has_dynamic_defaults" eval="True"/>
+            <field name="default_values">{
+  "persona_content": "I am a helpful AI assistant. I can remember our conversation and assist you with various tasks.",
+  "human_content": "The human's name is {{user.name}}.",
+  "system_content": "You are a helpful AI assistant."
+}</field>
+        </record>
+    </data>
+</odoo>

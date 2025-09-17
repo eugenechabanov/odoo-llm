@@ -27,6 +27,8 @@
         "security/res_groups.xml",
         "data/llm_publisher.xml",
         "data/llm_provider.xml",
+        "data/llm_prompt_letta_default.xml",
+        "data/llm_assistant_letta_default.xml",
         "views/llm_thread_views.xml",
     ],
     "images": [
