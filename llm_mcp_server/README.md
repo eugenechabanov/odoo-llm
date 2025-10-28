@@ -1,47 +1,22 @@
 # LLM MCP Server for Odoo
 
-Production-ready Model Context Protocol (MCP) server that exposes Odoo LLM tools to AI clients.
-
-**✅ Verified Working With:**
-
-- **Claude Desktop** - Full integration with native MCP support
-- **Letta Agents** - Complete tool discovery and execution
-- **Any MCP-compatible client** - Standards-compliant implementation
+Expose your Odoo tools to Claude Desktop, Letta agents, and any MCP-compatible AI client.
 
 ## Quick Start
 
-1. **Configure MCP Server**: Go to **LLM → Configuration → MCP Server** and copy your API key
-2. **Add to Claude Desktop**: Use the configuration below with your API key
-3. **Start using**: Ask Claude "What tools do you have available?"
+**3 minutes to connect Claude Desktop:**
 
-## Core Features
+**1. Install mcp-remote:**
+```bash
+npm install -g mcp-remote
+```
 
-- **Native Odoo Implementation**: 100% pure Odoo module using standard HTTP controllers and models
-- **MCP 2025-06-18 Compliance**: Full protocol implementation with JSON-RPC 2.0
-- **Bearer Authentication**: Secure API key-based authentication
-- **Auto Tool Discovery**: Exposes all active `llm.tool` records automatically
-- **Session Management**: Stateful operation with concurrent request handling
-- **Production Ready**: Optimized logging, error handling, and performance
-- **Future SSE Support**: Architecture ready for Server-Sent Events streaming (planned)
+**2. Get API key from Odoo:**
+- User avatar (top right) → Preferences → Account Security → API Keys → New
 
-## Integration with Claude Desktop
+**3. Add to Claude Desktop config:**
 
-### Prerequisites
-
-1. **Install mcp-remote globally**:
-
-   ```bash
-   npm install -g mcp-remote
-   ```
-
-2. **Get your API key** from Odoo:
-   - Follow -> https://www.odoo.com/documentation/18.0/developer/reference/external_api.html#api-keys
-
-### Claude Desktop Configuration
-
-Add this configuration to your Claude Desktop config file:
-
-**Location**: `~/.config/claude_desktop/claude_desktop_config.json` (Linux/macOS) or `%APPDATA%/Claude/claude_desktop_config.json` (Windows)
+Location: `~/.config/claude_desktop/claude_desktop_config.json` (Linux/macOS) or `%APPDATA%/Claude/claude_desktop_config.json` (Windows)
 
 ```json
 {
@@ -49,52 +24,70 @@ Add this configuration to your Claude Desktop config file:
     "odoo-llm-mcp-server": {
       "type": "stdio",
       "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "http://localhost:8069/mcp",
-        "--header",
-        "Authorization: Bearer YOUR_API_KEY_HERE"
-      ],
-      "env": {
-        "MCP_TRANSPORT": "streamable-http"
-      }
+      "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
+               "--header", "Authorization: Bearer YOUR_API_KEY"],
+      "env": {"MCP_TRANSPORT": "streamable-http"}
     }
   }
 }
 ```
 
-**⚠️ Important**: Replace `YOUR_API_KEY_HERE` with your actual API key from the Odoo MCP Server configuration.
+**For Claude Code users:**
+```bash
+claude mcp add-json odoo-llm-mcp-server '{
+  "type": "stdio",
+  "command": "npx",
+  "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
+           "--header", "Authorization: Bearer YOUR_API_KEY"],
+  "env": {"MCP_TRANSPORT": "streamable-http"}
+}'
+```
 
-### Testing the Connection
+**For Codex CLI users:**
 
-After adding the configuration to Claude Desktop:
+Add to `~/.codex/config.toml`:
+```toml
+experimental_use_rmcp_client = true
 
-1. **Restart Claude Desktop**
-2. **Start a new conversation**
-3. **Type**: "What tools do you have available?"
-4. **Expected**: Claude should list your Odoo LLM tools
+[mcp_servers.odoo-llm-mcp-server]
+url = "http://localhost:8069/mcp"
+http_headers.Authorization = "Bearer YOUR_API_KEY"
+```
 
-## Supported MCP Clients
+**4. Restart Claude Desktop / Codex** → Ask "What tools do you have?"
 
-### ✅ **Claude Desktop** (Verified)
+**That's it!** All your active Odoo tools are now available to Claude.
 
-Complete integration with Anthropic's Claude Desktop application using the configuration above.
+**✅ Works with:** Claude Desktop • Letta Agents • Any MCP client
 
-### ✅ **Letta Agents** (Verified)
+**📺 Video Tutorial**: [Watch setup guide](https://drive.google.com/file/d/1TgPrfLuAtql3en3B_McKlMmDWuYn3wXM/view?usp=drive_link) - Complete walkthrough of MCP server setup and Claude Desktop connection
 
-Full compatibility with Letta's MCP client for AI agent tool integration. Use our llm_letta module.
+## Architecture
 
-### 🔧 **Other MCP Client Libraries**
+- **Native Odoo**: Pure Odoo implementation using standard HTTP controllers
+- **MCP Compliant**: Full MCP 2025-06-18 protocol with JSON-RPC 2.0
+- **Auto Discovery**: Exposes all active `llm.tool` records
+- **Secure**: Bearer token authentication with Odoo ACL enforcement
 
-For any MCP-compatible client, configure them to connect to:
+## Docker/Remote Setup
 
-- **URL**: `http://your-odoo-server:8069/mcp`
-- **Transport**: `streamable_http`
-- **Authentication**: Bearer token with API key
+If your MCP client runs in Docker or remotely (e.g., Letta server in Docker):
+
+```bash
+# Configure external URL in Odoo
+# LLM → Configuration → MCP Server → External URL
+# Set to: http://host.docker.internal:8069  (Docker accessing host Odoo)
+# Or: http://your-server-ip:8069  (remote access)
+```
+
+This allows containers/remote clients to access your Odoo MCP server.
+
+## Other MCP Clients
+
+**Letta Agents**: Use `llm_letta` module for automatic integration
+
+**Custom clients**: Connect to `http://your-server:8069/mcp` with Bearer auth
 
 ## Security
 
-- **API Key Authentication**: Integrated with Odoo's user system
-- **Access Control**: Respects all Odoo permissions and ACL rules
-- **User Context**: Tools execute with authenticated user's permissions
+Tools execute with API key user's permissions - all Odoo ACL rules enforced.
