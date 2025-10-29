@@ -75,6 +75,18 @@ http_headers.Authorization = "Bearer YOUR_API_KEY"
 
 **📺 Video Tutorial**: [Watch setup guide](https://drive.google.com/file/d/1TgPrfLuAtql3en3B_McKlMmDWuYn3wXM/view?usp=drive_link) - Complete walkthrough of MCP server setup and Claude Desktop connection
 
+## Testing & Debugging
+
+To test your MCP server and available tools, use the official **MCP Inspector**:
+
+[https://modelcontextprotocol.io/docs/tools/inspector](https://modelcontextprotocol.io/docs/tools/inspector)
+
+The inspector allows you to:
+- Verify your server is running correctly
+- Browse available tools and their schemas
+- Test tool execution with sample inputs
+- Debug connection issues
+
 ## Architecture
 
 - **Native Odoo**: Pure Odoo implementation using standard HTTP controllers
