@@ -2,6 +2,10 @@
 
 Expose your Odoo tools to Claude Desktop, Letta agents, and any MCP-compatible AI client.
 
+## Requirements
+
+**Python 3.10 or newer** is required to install and use this module due to MCP Python SDK dependencies.
+
 ## Quick Start
 
 **3 minutes to connect Claude Desktop:**
