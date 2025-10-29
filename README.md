@@ -73,6 +73,7 @@ The architecture centers around five core modules that provide the foundation fo
 | `llm_pgvector` | 16.0.1.0.0 | pgvector (PostgreSQL) vector store integration |
 | `llm_qdrant` | 16.0.1.0.0 | Qdrant vector store integration |
 | **Specialized Features** | | |
+| `llm_mcp_server` | 16.0.1.0.0 | MCP server for Claude Desktop and MCP client integration |
 | `llm_mcp` | 16.0.1.0.0 | Model Context Protocol support |
 | `llm_training` | 16.0.1.0.0 | Fine-tuning and model training capabilities |
 | `llm_generate_job` | 16.0.1.0.0 | Job queue management for content generation |
