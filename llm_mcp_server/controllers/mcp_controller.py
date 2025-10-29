@@ -35,10 +35,15 @@ class MCPInitializeResponse(BaseModel):
 
 
 def requires_bearer_auth(handler_func):
-    """Decorator that applies MCP-compatible bearer authentication"""
+    """
+    Decorator that applies MCP-compatible bearer authentication.
+
+    This decorator ensures the request is authenticated using Bearer token
+    by calling the _auth_method_bearer method (backported from Odoo 18.0).
+    """
 
     def wrapper(self, *args, **kwargs):
-        # Clean up the public uid and use built-in _auth_method_bearer
+        # Clean up the public uid and use the backported _auth_method_bearer
         request.update_env(user=False)
         request.env["ir.http"]._auth_method_bearer()
 
