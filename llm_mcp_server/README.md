@@ -7,11 +7,13 @@ Expose your Odoo tools to Claude Desktop, Letta agents, and any MCP-compatible A
 **3 minutes to connect Claude Desktop:**
 
 **1. Install mcp-remote:**
+
 ```bash
 npm install -g mcp-remote
 ```
 
 **2. Get API key from Odoo:**
+
 - User avatar (top right) → Preferences → Account Security → API Keys → New
 
 **3. Add to Claude Desktop config:**
@@ -24,15 +26,21 @@ Location: `~/.config/claude_desktop/claude_desktop_config.json` (Linux/macOS) or
     "odoo-llm-mcp-server": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
-               "--header", "Authorization: Bearer YOUR_API_KEY"],
-      "env": {"MCP_TRANSPORT": "streamable-http"}
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:8069/mcp",
+        "--header",
+        "Authorization: Bearer YOUR_API_KEY"
+      ],
+      "env": { "MCP_TRANSPORT": "streamable-http" }
     }
   }
 }
 ```
 
 **For Claude Code users:**
+
 ```bash
 claude mcp add-json odoo-llm-mcp-server '{
   "type": "stdio",
@@ -46,6 +54,7 @@ claude mcp add-json odoo-llm-mcp-server '{
 **For Codex CLI users:**
 
 Add to `~/.codex/config.toml`:
+
 ```toml
 experimental_use_rmcp_client = true
 
