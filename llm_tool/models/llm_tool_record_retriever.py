@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Union
 
 from odoo import api, models
 
@@ -18,7 +18,7 @@ class LLMToolRecordRetriever(models.Model):
     def odoo_record_retriever_execute(
         self,
         model: str,
-        domain: list[list[Any]] = [],  # noqa: B006
+        domain: list[list[Union[str, int, bool, float, None]]] = [],  # noqa: B006
         fields: list[str] = [],  # noqa: B006
         limit: int = 100,
     ) -> dict[str, Any]:

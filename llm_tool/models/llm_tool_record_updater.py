@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Union
 
 from odoo import api, models
 
@@ -17,7 +17,7 @@ class LLMToolRecordUpdater(models.Model):
     def odoo_record_updater_execute(
         self,
         model: str,
-        domain: list[list[Any]],
+        domain: list[list[Union[str, int, bool, float, None]]],
         values: dict[str, Any],
         limit: int = 1,
     ) -> dict[str, Any]:
