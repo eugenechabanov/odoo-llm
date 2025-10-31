@@ -1,28 +1,32 @@
 # LLM MCP Server for Odoo
 
-Expose your Odoo tools to Claude Desktop, Letta agents, and any MCP-compatible AI client.
+HTTP-based MCP server that exposes Odoo tools to any MCP-compatible AI client.
+
+## What is MCP?
+
+[Model Context Protocol (MCP)](https://modelcontextprotocol.io/) is an open standard by Anthropic that lets AI assistants securely access external tools and data sources. This module implements an MCP server directly in Odoo.
 
 ## Requirements
 
-**Python 3.10 or newer** is required to install and use this module due to MCP Python SDK dependencies.
+- **Python**: 3.10+
+- **Odoo**: 16.0
+- **Dependencies**: See [requirements.txt](https://github.com/apexive/odoo-llm/blob/16.0/requirements.txt)
 
 ## Quick Start
 
-**3 minutes to connect Claude Desktop:**
-
-**1. Install mcp-remote:**
+### 1. Install Module
 
 ```bash
-npm install -g mcp-remote
+odoo-bin -d your_db -i llm_mcp_server
 ```
 
-**2. Get API key from Odoo:**
+### 2. Get API Key
 
-- User avatar (top right) → Preferences → Account Security → API Keys → New
+Odoo → User Avatar → Preferences → Account Security → API Keys → New
 
-**3. Add to Claude Desktop config:**
+### 3. Configure Client
 
-Location: `~/.config/claude_desktop/claude_desktop_config.json` (Linux/macOS) or `%APPDATA%/Claude/claude_desktop_config.json` (Windows)
+**Claude Desktop** (`~/.config/claude_desktop/claude_desktop_config.json`):
 
 ```json
 {
@@ -30,20 +34,15 @@ Location: `~/.config/claude_desktop/claude_desktop_config.json` (Linux/macOS) or
     "odoo-llm-mcp-server": {
       "type": "stdio",
       "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote",
-        "http://localhost:8069/mcp",
-        "--header",
-        "Authorization: Bearer YOUR_API_KEY"
-      ],
+      "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
+               "--header", "Authorization: Bearer YOUR_API_KEY"],
       "env": { "MCP_TRANSPORT": "streamable-http" }
     }
   }
 }
 ```
 
-**For Claude Code users:**
+**Claude Code**:
 
 ```bash
 claude mcp add-json odoo-llm-mcp-server '{
@@ -55,9 +54,7 @@ claude mcp add-json odoo-llm-mcp-server '{
 }'
 ```
 
-**For Codex CLI users:**
-
-Add to `~/.codex/config.toml`:
+**Codex CLI** (`~/.codex/config.toml`):
 
 ```toml
 experimental_use_rmcp_client = true
@@ -67,52 +64,141 @@ url = "http://localhost:8069/mcp"
 http_headers.Authorization = "Bearer YOUR_API_KEY"
 ```
 
-**4. Restart Claude Desktop / Codex** → Ask "What tools do you have?"
+**Other clients**: Connect to `http://localhost:8069/mcp` with Bearer auth
 
-**That's it!** All your active Odoo tools are now available to Claude.
+### 4. Restart & Test
 
-**✅ Works with:** Claude Desktop • Letta Agents • Any MCP client
-
-**📺 Video Tutorial**: [Watch setup guide](https://drive.google.com/file/d/1TgPrfLuAtql3en3B_McKlMmDWuYn3wXM/view?usp=drive_link) - Complete walkthrough of MCP server setup and Claude Desktop connection
-
-## Testing & Debugging
-
-To test your MCP server and available tools, use the official **MCP Inspector**:
-
-[https://modelcontextprotocol.io/docs/tools/inspector](https://modelcontextprotocol.io/docs/tools/inspector)
-
-The inspector allows you to:
-- Verify your server is running correctly
-- Browse available tools and their schemas
-- Test tool execution with sample inputs
-- Debug connection issues
+Restart your client → Ask "What tools do you have?"
 
 ## Architecture
 
-- **Native Odoo**: Pure Odoo implementation using standard HTTP controllers
-- **MCP Compliant**: Full MCP 2025-06-18 protocol with JSON-RPC 2.0
-- **Auto Discovery**: Exposes all active `llm.tool` records
-- **Secure**: Bearer token authentication with Odoo ACL enforcement
-
-## Docker/Remote Setup
-
-If your MCP client runs in Docker or remotely (e.g., Letta server in Docker):
-
-```bash
-# Configure external URL in Odoo
-# LLM → Configuration → MCP Server → External URL
-# Set to: http://host.docker.internal:8069  (Docker accessing host Odoo)
-# Or: http://your-server-ip:8069  (remote access)
+```
+┌─────────────┐   streamable-http   ┌──────────────┐      ┌─────────────┐
+│ MCP Client  │ ←─────────────────→ │ Odoo MCP     │ ───→ │ llm.tool    │
+│ (Claude)    │   JSON-RPC 2.0      │ Controller   │      │ Registry    │
+└─────────────┘                     └──────────────┘      └─────────────┘
 ```
 
-This allows containers/remote clients to access your Odoo MCP server.
+- **Protocol**: MCP 2025-06-18 spec via JSON-RPC 2.0
+- **Transport**: `streamable-http` (HTTP with streaming responses)
+- **Endpoint**: `/mcp` (POST for requests, streaming responses)
+- **Auth**: Bearer token (Odoo API keys)
+- **Tools**: Auto-discovered from `llm.tool` registry
 
-## Other MCP Clients
+### Request Flow
 
-**Letta Agents**: Use `llm_letta` module for automatic integration
+1. Client sends JSON-RPC request to `/mcp` via POST
+2. Server validates Bearer token → loads user session
+3. For `tools/list`: Returns all active tools user can access
+4. For `tools/call`: Executes tool with user's permissions
+5. Response streamed back via HTTP streaming
 
-**Custom clients**: Connect to `http://your-server:8069/mcp` with Bearer auth
+## API Reference
+
+### Initialize
+
+```json
+// Request
+{"jsonrpc": "2.0", "id": 1, "method": "initialize",
+ "params": {"protocolVersion": "2025-06-18", "capabilities": {}}}
+
+// Response
+{"jsonrpc": "2.0", "id": 1,
+ "result": {"protocolVersion": "2025-06-18",
+            "capabilities": {"tools": {}},
+            "serverInfo": {"name": "odoo-mcp-server", "version": "1.0.0"}}}
+```
+
+### List Tools
+
+```json
+// Request
+{"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
+
+// Response
+{"jsonrpc": "2.0", "id": 2,
+ "result": {"tools": [
+   {"name": "search_records",
+    "description": "Search for records in any Odoo model",
+    "inputSchema": {"type": "object", "properties": {...}}}
+ ]}}
+```
+
+### Call Tool
+
+```json
+// Request
+{"jsonrpc": "2.0", "id": 3, "method": "tools/call",
+ "params": {"name": "search_records",
+            "arguments": {"model": "res.partner", "domain": []}}}
+
+// Response
+{"jsonrpc": "2.0", "id": 3,
+ "result": {"content": [{"type": "text", "text": "..."}]}}
+```
+
+## Creating Tools
+
+Tools are auto-discovered from the `llm.tool` model. See [llm_tool module](https://github.com/apexive/odoo-llm/tree/16.0/llm_tool) for creating custom tools.
+
+## Testing & Debugging
+
+**MCP Inspector**: [https://modelcontextprotocol.io/docs/tools/inspector](https://modelcontextprotocol.io/docs/tools/inspector)
+
+Test your server:
+- Verify connectivity
+- Browse available tools
+- Test tool execution
+- Debug authentication issues
+
+**Odoo Logs**: Check server logs for MCP-related errors
+
+```bash
+# Enable debug mode
+odoo-bin --log-level=debug
+```
+
+## Troubleshooting
+
+**No tools showing up?**
+- Check that tools are active in Odoo (LLM → Tools)
+- Verify API key has access to tools
+- Check user permissions
+
+**Authentication failed?**
+- Verify API key is correct
+- Check key hasn't expired
+- Ensure Bearer token format: `Authorization: Bearer YOUR_KEY`
+
+**Connection refused?**
+- Verify Odoo is running on specified port
+- Check firewall settings
+- For remote access, ensure Odoo is accessible from client
+
+**Tools failing to execute?**
+- Check Odoo logs for errors
+- Verify user has required permissions
+- Test tool manually in Odoo UI first
 
 ## Security
 
-Tools execute with API key user's permissions - all Odoo ACL rules enforced.
+- **User-scoped**: Each API key executes with that user's permissions
+- **ACL enforced**: All Odoo access control rules apply
+- **No shared state**: Each request is isolated
+- **Audit trail**: All tool calls logged in Odoo
+
+## Roadmap
+
+Future enhancements planned:
+
+- **MCP Resources** - Expose Odoo records and documents as MCP resources for context injection
+- **MCP Prompts** - Pre-built prompts for common Odoo workflows (sales, inventory, accounting)
+- **MCP Utilities** - Additional MCP features like sampling and logging support
+
+Contributions and feature requests welcome!
+
+## Resources
+
+- [MCP Protocol Spec](https://modelcontextprotocol.io/)
+- [Odoo LLM Repository](https://github.com/apexive/odoo-llm)
+- [Video Tutorial](https://drive.google.com/file/d/1TgPrfLuAtql3en3B_McKlMmDWuYn3wXM/view)
