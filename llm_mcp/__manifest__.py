@@ -29,6 +29,7 @@
     ],
     "images": [
         "static/description/banner.jpeg",
+        "static/description/mcp-diagram.png",
     ],
     "auto_install": False,
     "application": False,
