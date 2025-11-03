@@ -39,6 +39,13 @@
     ],
     "images": [
         "static/description/banner.jpeg",
+        "static/description/llm_mcp_server_demo.gif",
+        "static/description/client_claude_desktop.png",
+        "static/description/client_claude_code.png",
+        "static/description/client_cursor.png",
+        "static/description/client_windsurf.png",
+        "static/description/client_vscode.png",
+        "static/description/client_codex.png",
     ],
     "auto_install": False,
     "application": False,
