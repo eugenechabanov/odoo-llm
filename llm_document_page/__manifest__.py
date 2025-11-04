@@ -18,7 +18,7 @@
     },
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
-    "license": "LGPL-3",
+    "license": "AGPL-3",
     "installable": True,
     "application": False,
     "auto_install": False,
