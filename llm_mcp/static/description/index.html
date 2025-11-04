@@ -212,19 +212,37 @@
 </header>
 
 <!-- Important Notice -->
-<section class="py-4" style="background-color: #fff3cd; border-bottom: 3px solid #ffc107;">
+<section class="py-4" style="background-color:#fff3cd; border-bottom:3px solid #ffc107">
     <div class="container">
-        <div class="alert alert-warning mb-0 d-flex align-items-center border-0" style="background-color: transparent;">
-            <i class="fas fa-info-circle fa-2x me-3" style="color: #856404;"></i>
-            <div>
-                <h5 class="alert-heading mb-2" style="color: #856404; font-weight: 700;">Looking for an MCP Server?</h5>
-                <p class="mb-2" style="color: #856404;">This module allows Odoo to <strong>connect to external MCP servers</strong> as a client.</p>
-                <p class="mb-0" style="color: #856404;">
-                    If you want to <strong>expose Odoo as an MCP server</strong> to AI clients like Claude Desktop, check out our
-                    <a href="https://apps.odoo.com/apps/modules/18.0/llm_mcp_server" target="_blank" class="alert-link" style="color: #533f03; font-weight: 700; text-decoration: underline;">
-                        LLM MCP Server module <i class="fas fa-external-link-alt fa-sm"></i>
-                    </a>
-                </p>
+        <div class="d-flex align-items-start">
+            <i class="fa fa-info-circle" style="font-size:32px; color:#856404; margin-right:1rem"></i>
+            <div style="flex:1">
+                <h5 style="color:#856404; font-weight:700; margin-bottom:1rem">Which MCP Module Do You Need?</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <div class="bg-white" style="padding:1rem; border-radius:8px; border-left:4px solid #856404">
+                            <h6 style="color:#856404; font-weight:700; margin-bottom:0.5rem">
+                                <i class="fa fa-arrow-right" style="margin-right:0.5rem"></i>This Module (LLM MCP)
+                            </h6>
+                            <p style="color:#856404; font-size:0.9rem; margin-bottom:0">
+                                Connect <strong>external MCP servers to Odoo</strong> to use their tools in your LLM Thread chats within Odoo.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="bg-white" style="padding:1rem; border-radius:8px; border-left:4px solid #856404">
+                            <h6 style="color:#856404; font-weight:700; margin-bottom:0.5rem">
+                                <i class="fa fa-arrow-left" style="margin-right:0.5rem"></i>Need LLM MCP Server Instead?
+                            </h6>
+                            <p style="color:#856404; font-size:0.9rem; margin-bottom:0.5rem">
+                                Expose <strong>Odoo tools to external AI clients</strong> like Claude Desktop, Claude Code, etc.
+                            </p>
+                            <code style="font-size:0.85rem; background-color:#f8f9fa; padding:0.25rem 0.5rem; border-radius:4px; color:#533f03; display:inline-block">
+                                apps.odoo.com/apps/modules/18.0/llm_mcp_server
+                            </code>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
