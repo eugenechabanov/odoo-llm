@@ -419,14 +419,11 @@
                         </div>
 
                         <p style="margin-bottom:1rem; color:#495057"><strong>Step 1:</strong> Install mcp-remote package</p>
-                        <div class="bg-dark text-white" style="padding:1rem; border-radius:8px; font-size:0.875rem; margin-bottom:1.5rem">
-                            <pre style="color:#ffffff; margin:0; font-family:monospace; background:none; border:none">npm install -g mcp-remote</pre>
-                        </div>
+                        <pre class="bg-dark" style="color:#ffffff; margin:0 0 1.5rem 0; padding:1rem; border-radius:8px; font-size:0.875rem; font-family:monospace; border:none">npm install -g mcp-remote</pre>
 
                         <p style="margin-bottom:0.75rem; color:#495057"><strong>Step 2:</strong> Add to config file</p>
                         <p style="margin-bottom:0.5rem; font-size:0.9rem; color:#6c757d"><code class="bg-light" style="padding:0.2rem 0.4rem; border-radius:4px; color:#495057">~/.config/claude_desktop/claude_desktop_config.json</code> (Linux/macOS)<br>or <code class="bg-light" style="padding:0.2rem 0.4rem; border-radius:4px; color:#495057">%APPDATA%/Claude/claude_desktop_config.json</code> (Windows)</p>
-                        <div class="bg-dark text-white" style="padding:1rem; border-radius:8px; font-size:0.875rem">
-                            <pre style="color:#ffffff; margin:0; font-family:monospace; background:none; border:none; white-space:pre">{
+                        <pre class="bg-dark" style="color:#ffffff; margin:0; padding:1rem; border-radius:8px; font-size:0.875rem; font-family:monospace; border:none; white-space:pre">{
   "mcpServers": {
     "odoo": {
       "type": "stdio",
@@ -437,7 +434,6 @@
     }
   }
 }</pre>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -454,8 +450,7 @@
                         </div>
 
                         <p style="margin-bottom:1rem; color:#495057">Run this command:</p>
-                        <div class="bg-dark text-white" style="padding:1rem; border-radius:8px; font-size:0.875rem">
-                            <pre style="color:#ffffff; margin:0; font-family:monospace; background:none; border:none; white-space:pre">claude mcp add-json odoo '{
+                        <pre class="bg-dark" style="color:#ffffff; margin:0; padding:1rem; border-radius:8px; font-size:0.875rem; font-family:monospace; border:none; white-space:pre">claude mcp add-json odoo '{
   "type": "stdio",
   "command": "npx",
   "args": ["-y", "mcp-remote",
@@ -464,7 +459,6 @@
     "Authorization: Bearer YOUR_API_KEY"],
   "env": {"MCP_TRANSPORT": "streamable-http"}
 }'</pre>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -481,13 +475,11 @@
                         </div>
 
                         <p style="margin-bottom:1rem; color:#495057">Add to <code class="bg-light" style="padding:0.2rem 0.4rem; border-radius:4px; color:#495057">~/.codex/config.toml</code>:</p>
-                        <div class="bg-dark text-white" style="padding:1rem; border-radius:8px; font-size:0.875rem">
-                            <pre style="color:#ffffff; margin:0; font-family:monospace; background:none; border:none; white-space:pre">experimental_use_rmcp_client = true
+                        <pre class="bg-dark" style="color:#ffffff; margin:0; padding:1rem; border-radius:8px; font-size:0.875rem; font-family:monospace; border:none; white-space:pre">experimental_use_rmcp_client = true
 
 [mcp_servers.odoo]
 url = "http://localhost:8069/mcp"
 http_headers.Authorization = "Bearer YOUR_API_KEY"</pre>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -517,8 +509,7 @@ http_headers.Authorization = "Bearer YOUR_API_KEY"</pre>
                         </div>
                         <h3 style="font-size:1.5rem; font-weight:700; color:#212529; margin-bottom:1rem">Dead Simple Decorator</h3>
                         <p style="color:#495057; margin-bottom:1rem">Just add <code class="bg-light" style="padding:0.2rem 0.4rem; border-radius:4px; color:#71639e; font-weight:600">@llm_tool</code> to any Python method. That's it!</p>
-                        <div class="bg-dark" style="padding:1.25rem; border-radius:12px">
-                            <pre style="color:#f8f8f2; margin:0; background:none; border:none; white-space:pre; font-family:monospace; font-size:0.85rem; line-height:1.6">from odoo.addons.llm_tool.decorators import llm_tool
+                        <pre class="bg-dark" style="color:#ffffff; margin:0; padding:1.25rem; border-radius:12px; border:none; white-space:pre; font-family:monospace; font-size:0.85rem; line-height:1.6">from odoo.addons.llm_tool.decorators import llm_tool
 
 class SaleOrder(models.Model):
     _inherit = "sale.order"
@@ -532,7 +523,6 @@ class SaleOrder(models.Model):
         ])
         return [{'id': o.id, 'name': o.name}
                 for o in orders]</pre>
-                        </div>
                         <div class="bg-light" style="padding:1rem; border-radius:8px; margin-top:1rem">
                             <p style="color:#5b4c7d; margin:0; font-weight:600"><i class="fa fa-magic" style="margin-right:0.5rem"></i>Auto-registered! Tool appears instantly on next Odoo restart.</p>
                         </div>
