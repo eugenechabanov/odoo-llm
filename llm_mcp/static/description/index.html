@@ -214,33 +214,33 @@
 <!-- Important Notice -->
 <section class="py-4" style="background-color:#fff3cd; border-bottom:3px solid #ffc107">
     <div class="container">
-        <div class="d-flex align-items-start">
-            <i class="fa fa-info-circle" style="font-size:32px; color:#856404; margin-right:1rem"></i>
-            <div style="flex:1">
-                <h5 style="color:#856404; font-weight:700; margin-bottom:1rem">Which MCP Module Do You Need?</h5>
-                <div class="row">
-                    <div class="col-md-6 mb-3 mb-md-0">
-                        <div class="bg-white" style="padding:1rem; border-radius:8px; border-left:4px solid #856404">
-                            <h6 style="color:#856404; font-weight:700; margin-bottom:0.5rem">
-                                <i class="fa fa-arrow-right" style="margin-right:0.5rem"></i>This Module (LLM MCP)
-                            </h6>
-                            <p style="color:#856404; font-size:0.9rem; margin-bottom:0">
-                                Connect <strong>external MCP servers to Odoo</strong> to use their tools in your LLM Thread chats within Odoo.
-                            </p>
-                        </div>
+        <div class="text-center mb-4">
+            <i class="fa fa-info-circle" style="font-size:36px; color:#856404"></i>
+            <h5 class="mt-2 mb-1" style="color:#856404; font-weight:700">Which MCP Module Do You Need?</h5>
+            <p class="mb-0" style="color:#856404">Choose based on your integration direction</p>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <div class="card h-100 border-success" style="border-left-width:4px">
+                    <div class="card-body text-center">
+                        <i class="fa fa-arrow-right mb-3" style="font-size:32px; color:#28a745"></i>
+                        <h6 class="font-weight-bold mb-2" style="color:#155724">This Module (LLM MCP)</h6>
+                        <p class="mb-0" style="color:#495057; font-size:0.95rem">
+                            Connect <strong>external MCP servers to Odoo</strong> to use their tools in your LLM Thread chats within Odoo
+                        </p>
                     </div>
-                    <div class="col-md-6">
-                        <div class="bg-white" style="padding:1rem; border-radius:8px; border-left:4px solid #856404">
-                            <h6 style="color:#856404; font-weight:700; margin-bottom:0.5rem">
-                                <i class="fa fa-arrow-left" style="margin-right:0.5rem"></i>Need LLM MCP Server Instead?
-                            </h6>
-                            <p style="color:#856404; font-size:0.9rem; margin-bottom:0.5rem">
-                                Expose <strong>Odoo tools to external AI clients</strong> like Claude Desktop, Claude Code, etc.
-                            </p>
-                            <code style="font-size:0.85rem; background-color:#f8f9fa; padding:0.25rem 0.5rem; border-radius:4px; color:#533f03; display:inline-block">
-                                apps.odoo.com/apps/modules/18.0/llm_mcp_server
-                            </code>
-                        </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 border-info" style="border-left-width:4px">
+                    <div class="card-body text-center">
+                        <i class="fa fa-arrow-left mb-3" style="font-size:32px; color:#17a2b8"></i>
+                        <h6 class="font-weight-bold mb-2" style="color:#0c5460">Need LLM MCP Server?</h6>
+                        <p class="mb-3" style="color:#495057; font-size:0.95rem">
+                            Expose <strong>Odoo tools to external AI clients</strong> like Claude Desktop, Claude Code, etc.
+                        </p>
+                        <code class="bg-info text-white px-2 py-1" style="font-size:0.85rem">apps.odoo.com/apps/modules/18.0/llm_mcp_server</code>
                     </div>
                 </div>
             </div>
