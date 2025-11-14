@@ -128,12 +128,23 @@ class FetchModelsWizard(models.TransientModel):
         else:
             models_data = provider.list_models()
 
+        # Track models in this wizard to prevent duplicates
+        wizard_models = set()
+
         for model_data in models_data:
             details = model_data.get("details", {})
             name = model_data.get("name") or details.get("id")
 
             if not name:
                 continue
+
+            # Skip duplicates within this wizard (prevent constraint violation)
+            if name in wizard_models:
+                _logger.warning(
+                    f"Duplicate model '{name}' found in provider response, skipping duplicate"
+                )
+                continue
+            wizard_models.add(name)
 
             # Determine model use and capabilities
             capabilities = details.get("capabilities", ["chat"])
@@ -163,7 +174,12 @@ class FetchModelsWizard(models.TransientModel):
 
     @api.model
     def _determine_model_use(self, name, capabilities):
-        """Helper to determine model use based on name and capabilities"""
+        """Helper to determine model use based on name and capabilities
+
+        TODO: Move this logic to provider-level via provider.classify_model_use()
+        so each provider can implement their own model classification logic
+        based on their specific naming conventions and capabilities.
+        """
         if (
             any(cap in capabilities for cap in ["embedding", "text-embedding"])
             or "embedding" in name.lower()
