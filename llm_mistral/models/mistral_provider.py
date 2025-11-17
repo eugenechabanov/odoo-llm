@@ -73,6 +73,13 @@ class LLMProvider(models.Model):
             api_key=self.api_key,
         )
 
+    def _determine_model_use(self, name, capabilities):
+        """Override to add OCR model type support for Mistral"""
+        if any(cap in capabilities for cap in ["ocr"]):
+            return "ocr"
+        else:
+            return super()._determine_model_use(name, capabilities)
+
     def process_ocr(self, model_name, data, mimetype, **kwargs):
         self.ensure_one()
 

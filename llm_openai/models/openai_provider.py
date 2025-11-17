@@ -540,7 +540,7 @@ class LLMProvider(models.Model):
 
                 # Determine model use and capabilities
                 capabilities = details.get("capabilities", ["chat"])
-                model_use = self.env["llm.fetch.models.wizard"]._determine_model_use(
+                model_use = job.provider_id._determine_model_use(
                     name, capabilities
                 )
 
