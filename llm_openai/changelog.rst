@@ -1,3 +1,8 @@
+16.0.1.1.4 (2025-11-17)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Fixed _determine_model_use() call in training job handler to use provider method instead of wizard
+
 16.0.1.1.3 (2025-05-13)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -43,14 +43,14 @@ class LLMProvider(models.Model):
             model_json_dump = model.model_dump()
             capabilities = []
             model_caps = model_json_dump["capabilities"]
-            if model_caps["vision"]:
-                capabilities.append("multimodal")
-            elif model_caps["completion_chat"]:
-                capabilities.append("chat")
-            elif "ocr" in model.id:
+            if "ocr" in model.id:
                 capabilities.append("ocr")
             elif "embed" in model.id:
                 capabilities.append("embedding")
+            elif model_caps["vision"]:
+                capabilities.append("multimodal")
+            elif model_caps["completion_chat"]:
+                capabilities.append("chat")
             else:
                 capabilities.append("chat")
 
@@ -72,6 +72,35 @@ class LLMProvider(models.Model):
         return Mistral(
             api_key=self.api_key,
         )
+
+    def _determine_model_use(self, name, capabilities):
+        """
+        Override parent method to add Mistral-specific OCR model type.
+
+        Mistral provides OCR (Optical Character Recognition) models that can
+        extract text from images and documents. This override adds support for
+        the "ocr" model_use type which isn't in the base classification.
+
+        This demonstrates the extension pattern for providers that need custom
+        model types beyond the standard chat/embedding/multimodal categories.
+
+        Args:
+            name (str): Model name/ID
+            capabilities (list): Capabilities from _openai_parse_model()
+
+        Returns:
+            str: "ocr" if OCR capability detected, otherwise delegates to parent
+
+        Example:
+            Model "pixtral-12b-2409" with capabilities ["ocr"] → returns "ocr"
+            Model "mistral-embed" with ["embedding"] → returns "embedding" (via parent)
+        """
+        # Check for Mistral-specific OCR capability first
+        if any(cap in capabilities for cap in ["ocr"]):
+            return "ocr"
+
+        # Fall back to parent for standard classification (chat, embedding, multimodal)
+        return super()._determine_model_use(name, capabilities)
 
     def process_ocr(self, model_name, data, mimetype, **kwargs):
         self.ensure_one()
