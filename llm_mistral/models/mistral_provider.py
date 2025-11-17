@@ -43,14 +43,14 @@ class LLMProvider(models.Model):
             model_json_dump = model.model_dump()
             capabilities = []
             model_caps = model_json_dump["capabilities"]
-            if model_caps["vision"]:
-                capabilities.append("multimodal")
-            elif model_caps["completion_chat"]:
-                capabilities.append("chat")
-            elif "ocr" in model.id:
+            if "ocr" in model.id:
                 capabilities.append("ocr")
             elif "embed" in model.id:
                 capabilities.append("embedding")
+            elif model_caps["vision"]:
+                capabilities.append("multimodal")
+            elif model_caps["completion_chat"]:
+                capabilities.append("chat")
             else:
                 capabilities.append("chat")
 
