@@ -102,6 +102,89 @@ class LLMProvider(models.Model):
         """List available models from the provider"""
         return self._dispatch("models", model_id=model_id)
 
+    def action_fetch_models(self):
+        """Fetch models from provider and open import wizard"""
+        self.ensure_one()
+
+        # Create wizard first so it has an ID
+        wizard = self.env["llm.fetch.models.wizard"].create({
+            "provider_id": self.id,
+        })
+
+        # Get existing models for comparison
+        existing_models = {
+            model.name: model
+            for model in self.env["llm.model"].search([("provider_id", "=", self.id)])
+        }
+
+        # Fetch models from provider
+        model_to_fetch = self._context.get("default_model_to_fetch")
+        if model_to_fetch:
+            models_data = self.list_models(model_id=model_to_fetch)
+        else:
+            models_data = self.list_models()
+
+        # Track models to prevent duplicates
+        wizard_models = set()
+        lines_to_create = []
+
+        for model_data in models_data:
+            details = model_data.get("details", {})
+            name = model_data.get("name") or details.get("id")
+
+            if not name:
+                continue
+
+            # Skip duplicates
+            if name in wizard_models:
+                continue
+            wizard_models.add(name)
+
+            # Determine model use and capabilities
+            capabilities = details.get("capabilities", ["chat"])
+            model_use = self._determine_model_use(name, capabilities)
+
+            # Check against existing models
+            existing = existing_models.get(name)
+            status = "new"
+            if existing:
+                status = "modified" if existing.details != details else "existing"
+
+            lines_to_create.append({
+                "wizard_id": wizard.id,
+                "name": name,
+                "model_use": model_use,
+                "status": status,
+                "details": details,
+                "existing_model_id": existing.id if existing else False,
+                "selected": status in ["new", "modified"],
+            })
+
+        # Create all lines
+        if lines_to_create:
+            self.env["llm.fetch.models.line"].create(lines_to_create)
+
+        # Return action to open the wizard
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "llm.fetch.models.wizard",
+            "res_id": wizard.id,
+            "view_mode": "form",
+            "target": "new",
+            "name": _("Import Models"),
+        }
+
+    def _determine_model_use(self, name, capabilities):
+        """Helper to determine model use based on name and capabilities"""
+        if (
+            any(cap in capabilities for cap in ["embedding", "text-embedding"])
+            or "embedding" in name.lower()
+        ):
+            return "embedding"
+        elif any(cap in capabilities for cap in ["multimodal", "vision"]):
+            return "multimodal"
+        return "chat"  # default
+
     def get_model(self, model=None, model_use="chat"):
         """Get a model to use for the given purpose
 

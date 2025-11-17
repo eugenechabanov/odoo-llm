@@ -55,6 +55,7 @@
                 force_save="1"
               />
                             <field name="existing_model_id" invisible="1" />
+                            <field name="wizard_id" column_invisible="1" />
                         </tree>
                     </field>
 
@@ -86,13 +87,4 @@
         </field>
     </record>
 
-    <!-- Wizard Action -->
-    <record id="action_fetch_models_wizard" model="ir.actions.act_window">
-        <field name="name">Import Models</field>
-        <field name="res_model">llm.fetch.models.wizard</field>
-        <field name="view_mode">form</field>
-        <field name="target">new</field>
-        <field name="binding_model_id" ref="model_llm_provider" />
-        <field name="binding_view_types">form</field>
-    </record>
 </odoo>
