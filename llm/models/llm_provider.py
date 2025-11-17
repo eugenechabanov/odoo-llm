@@ -175,15 +175,67 @@ class LLMProvider(models.Model):
         }
 
     def _determine_model_use(self, name, capabilities):
-        """Helper to determine model use based on name and capabilities"""
+        """
+        Determine the primary model use based on capabilities.
+
+        This method classifies models into Odoo's model_use categories based on their
+        capabilities. The classification follows a priority order from most specialized
+        to most general.
+
+        EXTENSION POINT: Override this method in your provider class to add custom
+        model types or modify classification logic.
+
+        Args:
+            name (str): Model name/ID from the provider
+            capabilities (list): List of capability strings (usually from API response)
+
+        Returns:
+            str: One of the model_use values from _get_available_model_usages()
+                 Default options: "chat", "embedding", "multimodal", "completion", etc.
+
+        Priority Order:
+            1. embedding - Specialized embedding models
+            2. multimodal - Models with vision/image understanding
+            3. chat - General conversational models (default)
+
+        Standard Capability Names:
+            - "chat": Text-based conversations
+            - "embedding"/"text-embedding": Vector embeddings
+            - "multimodal"/"vision": Image/vision understanding
+            - "completion": Text completion
+            - "function_calling": Tool/function support
+            Provider-specific: "ocr", "image_generation", etc.
+
+        Example Override:
+            ```python
+            class MyProvider(models.Model):
+                _inherit = "llm.provider"
+
+                def _determine_model_use(self, name, capabilities):
+                    # Add custom model type
+                    if "ocr" in capabilities:
+                        return "ocr"
+                    # Fall back to parent logic for standard types
+                    return super()._determine_model_use(name, capabilities)
+            ```
+
+        See Also:
+            - llm_mistral.models.mistral_provider for a working example
+            - _<provider>_parse_model() for setting capabilities
+        """
+        # Priority 1: Embedding models (specialized, distinct use case)
         if (
             any(cap in capabilities for cap in ["embedding", "text-embedding"])
             or "embedding" in name.lower()
         ):
             return "embedding"
+
+        # Priority 2: Multimodal models (advanced capability)
         elif any(cap in capabilities for cap in ["multimodal", "vision"]):
             return "multimodal"
-        return "chat"  # default
+
+        # Priority 3: Chat models (default for most LLMs)
+        return "chat"
 
     def get_model(self, model=None, model_use="chat"):
         """Get a model to use for the given purpose

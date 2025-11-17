@@ -74,11 +74,33 @@ class LLMProvider(models.Model):
         )
 
     def _determine_model_use(self, name, capabilities):
-        """Override to add OCR model type support for Mistral"""
+        """
+        Override parent method to add Mistral-specific OCR model type.
+
+        Mistral provides OCR (Optical Character Recognition) models that can
+        extract text from images and documents. This override adds support for
+        the "ocr" model_use type which isn't in the base classification.
+
+        This demonstrates the extension pattern for providers that need custom
+        model types beyond the standard chat/embedding/multimodal categories.
+
+        Args:
+            name (str): Model name/ID
+            capabilities (list): Capabilities from _openai_parse_model()
+
+        Returns:
+            str: "ocr" if OCR capability detected, otherwise delegates to parent
+
+        Example:
+            Model "pixtral-12b-2409" with capabilities ["ocr"] → returns "ocr"
+            Model "mistral-embed" with ["embedding"] → returns "embedding" (via parent)
+        """
+        # Check for Mistral-specific OCR capability first
         if any(cap in capabilities for cap in ["ocr"]):
             return "ocr"
-        else:
-            return super()._determine_model_use(name, capabilities)
+
+        # Fall back to parent for standard classification (chat, embedding, multimodal)
+        return super()._determine_model_use(name, capabilities)
 
     def process_ocr(self, model_name, data, mimetype, **kwargs):
         self.ensure_one()
