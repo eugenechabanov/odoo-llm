@@ -35,9 +35,12 @@ registerPatch({
      * @param {string|null} messageBody - Optional message body (null/empty for auto-generation with prepended messages)
      */
     async startGeneration(messageBody = null) {
-      const thread = this.thread;
-      if (!thread) {
-        console.warn("No thread available for generation");
+      // Use llmChat.activeThread as single source of truth
+      const llmChat = this.messaging.llmChat;
+      const thread = llmChat?.activeThread;
+
+      if (!thread || thread.model !== "llm.thread") {
+        console.warn("No active LLM thread for generation");
         return;
       }
 
@@ -68,8 +71,9 @@ registerPatch({
               this.messaging.notify({ message: data.error, type: "danger" });
               break;
             case "done": {
-              const sameThread =
-                this.thread.id === this.thread.llmChat.activeThread.id;
+              // Check if this is the active thread (use messaging.llmChat, not this.thread.llmChat)
+              const llmChat = this.messaging.llmChat;
+              const sameThread = llmChat?.activeThread?.id === this.thread?.id;
               if (!sameThread) {
                 this.messaging.notify({
                   message:

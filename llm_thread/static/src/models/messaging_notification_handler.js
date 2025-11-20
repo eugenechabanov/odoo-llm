@@ -70,59 +70,50 @@ registerPatch({
      * @param {Number} message.payload.res_id - ID of related document
      */
     async _handleLLMThreadOpenInChatter(message) {
-      const { thread_id, model, res_id } = message.payload;
+      const { thread_id } = message.payload;
 
       // Validate payload
-      if (!thread_id || !model || !res_id) {
+      if (!thread_id) {
         return;
       }
 
-      // Ensure LLMChat exists
-      let llmChat = this.messaging.llmChat;
-
-      if (!llmChat) {
-        this.messaging.update({ llmChat: { isInitThreadHandled: false } });
-        llmChat = this.messaging.llmChat;
-      }
-
       try {
-        // Find the chatter for this specific record
-        let targetChatter = null;
-
-        for (const chatter of this.messaging.models['Chatter'].all()) {
-          if (chatter.thread && chatter.thread.model === model && chatter.thread.id === res_id) {
-            targetChatter = chatter;
-            break;
-          }
-        }
-
-        if (!targetChatter) {
-          throw new Error(
-            `No chatter found for ${model}:${res_id}. Make sure the form view has a chatter.`
-          );
-        }
-
-        // Toggle the LLM chat if not already open
-        if (!targetChatter.is_chatting_with_llm) {
-          await targetChatter.toggleLLMChat();
-        }
-
-        // Trigger auto-generation with prepended messages
-        const composer = llmChat.llmChatView?.composer;
-        if (composer) {
-          try {
-            await composer.startGeneration();
-          } catch (genError) {
-            // Don't fail the whole operation if generation fails
-            console.error("Error starting generation:", genError);
-          }
-        }
-
-        // Success notification
-        this.messaging.notify({
-          message: `AI Chat opened for ${model} #${res_id}`,
-          type: "info",
+        // Find or fetch the thread
+        let thread = this.messaging.models.Thread.findFromIdentifyingData({
+          id: thread_id,
+          model: "llm.thread",
         });
+
+        if (!thread) {
+          // Thread doesn't exist in frontend yet, fetch it from server
+          const threadData = await this.messaging.rpc({
+            model: "llm.thread",
+            method: "read",
+            args: [[thread_id], ["name", "model", "res_id"]],
+          });
+
+          if (threadData && threadData.length > 0) {
+            thread = this.messaging.models.Thread.insert({
+              id: thread_id,
+              model: "llm.thread",
+              name: threadData[0].name,
+            });
+          }
+        }
+
+        if (!thread) {
+          console.error("Could not find/create thread", thread_id);
+          return;
+        }
+
+        // Use the unified Odoo pattern to open the thread
+        await thread.openLLMThread({ focus: true });
+
+        // Auto-trigger generation (if needed)
+        const llmChat = this.messaging.llmChat;
+        if (llmChat?.llmChatView?.composer) {
+          await llmChat.llmChatView.composer.startGeneration();
+        }
       } catch (error) {
         console.error("Error opening LLM thread in chatter:", error);
         this.messaging.notify({
