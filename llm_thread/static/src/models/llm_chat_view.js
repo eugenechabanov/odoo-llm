@@ -7,9 +7,15 @@ registerModel({
   name: "LLMChatView",
   lifecycleHooks: {
     _created() {
-      // Initialize thread list visibility based on device size
+      // Initialize thread list visibility and collapse state
+      const isSmall = this._isSmall();
+      const isChatterMode = Boolean(this.llmChat.isChatterMode);
+
       this.update({
-        isThreadListVisible: !this.messaging.device.isSmall,
+        // Mobile: slide-in visibility (default hidden on mobile)
+        isThreadListVisible: !isSmall,
+        // Desktop: collapse state (default collapsed in chatter, expanded standalone)
+        isSidebarCollapsed: isChatterMode,
       });
     },
   },
@@ -23,11 +29,43 @@ registerModel({
         active_id: this.llmChat.activeId,
       });
     },
+
+    /**
+     * Check if should use mobile/small layout
+     * - On actual mobile devices (window < 768px)
+     * - In chatter positioned on the side (narrow panel)
+     *
+     * @returns {Boolean}
+     * @private
+     */
+    _isSmall() {
+      const isActuallySmall = this.messaging.device.isSmall;
+      // Check if in chatter aside mode (chatter in side panel)
+      const isChatterAside = this.messaging.models.Chatter.all().some(
+        (chatter) => chatter.hasThreadView && chatter.threadView.chatterOwner?.isDoingAction
+      );
+      return isActuallySmall || isChatterAside;
+    },
+
+    /**
+     * Toggle sidebar collapsed state (desktop only)
+     */
+    toggleSidebar() {
+      this.update({ isSidebarCollapsed: !this.isSidebarCollapsed });
+    },
   },
   fields: {
     actionId: attr(),
     isThreadListVisible: attr({
       default: true,
+    }),
+    isSidebarCollapsed: attr({
+      default: false,
+    }),
+    isSmall: attr({
+      compute() {
+        return this._isSmall();
+      },
     }),
     llmChat: one("LLMChat", {
       inverse: "llmChatView",

@@ -21,9 +21,16 @@ export class LLMChatSidebar extends Component {
    * Handle backdrop click to close sidebar on mobile
    */
   _onBackdropClick() {
-    if (this.messaging.device.isSmall) {
+    if (this.llmChatView.isSmall) {
       this.llmChatView.update({ isThreadListVisible: false });
     }
+  }
+
+  /**
+   * Toggle sidebar collapsed state (desktop only)
+   */
+  _onClickToggleSidebar() {
+    this.llmChatView.toggleSidebar();
   }
 
   /**
