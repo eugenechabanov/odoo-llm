@@ -191,10 +191,33 @@ class LLMThread(models.Model):
     def generate_messages(self, last_message):
         """Generate messages with actual AI intelligence."""
         self.ensure_one()
-        
+
         # Get last message if not provided
         if not last_message:
-            last_message = self.get_latest_llm_message()
+            try:
+                last_message = self.get_latest_llm_message()
+            except UserError:
+                # No DB messages found - check if prepended messages have a user message
+                prepend_msgs = self.get_prepend_messages()
+                user_msg = next((msg for msg in prepend_msgs if msg.get("role") == "user"), None)
+
+                if user_msg:
+                    # Extract content from prepended user message
+                    content = user_msg.get("content", [])
+                    if isinstance(content, list) and content:
+                        body = content[0].get("text", "")
+                    else:
+                        body = str(content)
+
+                    # Create actual user message from prepended content
+                    last_message = self.message_post(
+                        body=body,
+                        llm_role="user",
+                        author_id=self.env.user.partner_id.id,
+                    )
+                else:
+                    # No user message in prepended messages either
+                    raise
 
         # Continue generation loop
         while self._should_continue(last_message):
