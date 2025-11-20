@@ -88,15 +88,21 @@ class LLMAssistantActionMixin(models.AbstractModel):
         self._set_assistant_on_thread(thread, assistant_code)
 
         # Send bus notification to open AI chat in chatter
+        notification_payload = {
+            "thread_id": thread.id,
+            "model": self._name,
+            "res_id": self.id,
+        }
+        _logger.info(
+            "[DEBUG] Sending llm.thread/open_in_chatter notification: %s",
+            notification_payload
+        )
         self.env["bus.bus"]._sendone(
             self.env.user.partner_id,
             "llm.thread/open_in_chatter",
-            {
-                "thread_id": thread.id,
-                "model": self._name,
-                "res_id": self.id,
-            },
+            notification_payload,
         )
+        _logger.info("[DEBUG] Bus notification sent successfully")
 
         return True
 

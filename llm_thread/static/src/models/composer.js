@@ -29,26 +29,26 @@ registerPatch({
       // This should close event source
       this._closeEventSource();
     },
-    async postUserMessageForLLM() {
-      const thread = this.thread;
 
-      const messageBody = this.textInputContent.trim();
-      if (!messageBody || !thread) {
-        this.messaging.notify({
-          message: this.env._t("Please enter a message."),
-          type: "danger",
-        });
+    /**
+     * Start LLM generation with optional message
+     * @param {string|null} messageBody - Optional message body (null/empty for auto-generation with prepended messages)
+     */
+    async startGeneration(messageBody = null) {
+      const thread = this.thread;
+      if (!thread) {
+        console.warn("No thread available for generation");
         return;
       }
 
-      this._reset();
+      // Build URL - only include message param if provided
+      let url = `/llm/thread/generate?thread_id=${thread.id}`;
+      if (messageBody) {
+        url += `&message=${encodeURIComponent(messageBody)}`;
+      }
 
       try {
-        const eventSource = new EventSource(
-          `/llm/thread/generate?thread_id=${
-            thread.id
-          }&message=${encodeURIComponent(messageBody)}`
-        );
+        const eventSource = new EventSource(url);
         this.update({ eventSource });
 
         eventSource.onmessage = async (event) => {
@@ -102,6 +102,22 @@ registerPatch({
           composerView.update({ doFocus: true });
         }
       }
+    },
+
+    async postUserMessageForLLM() {
+      const thread = this.thread;
+
+      const messageBody = this.textInputContent.trim();
+      if (!messageBody || !thread) {
+        this.messaging.notify({
+          message: this.env._t("Please enter a message."),
+          type: "danger",
+        });
+        return;
+      }
+
+      this._reset();
+      await this.startGeneration(messageBody);
     },
 
     _closeEventSource() {
