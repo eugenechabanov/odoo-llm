@@ -97,6 +97,9 @@ registerPatch({
               id: thread_id,
               model: "llm.thread",
               name: threadData[0].name,
+              relatedThreadModel: threadData[0].model,
+              relatedThreadId: threadData[0].res_id,
+              llmChat: this.messaging.llmChat,
             });
           }
         }
