@@ -93,16 +93,11 @@ class LLMAssistantActionMixin(models.AbstractModel):
             "model": self._name,
             "res_id": self.id,
         }
-        _logger.info(
-            "[DEBUG] Sending llm.thread/open_in_chatter notification: %s",
-            notification_payload
-        )
         self.env["bus.bus"]._sendone(
             self.env.user.partner_id,
             "llm.thread/open_in_chatter",
             notification_payload,
         )
-        _logger.info("[DEBUG] Bus notification sent successfully")
 
         return True
 
