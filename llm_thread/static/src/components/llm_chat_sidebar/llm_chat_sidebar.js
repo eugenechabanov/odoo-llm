@@ -31,8 +31,31 @@ export class LLMChatSidebar extends Component {
    */
   async _onClickNewChat() {
     const llmChat = this.llmChatView.llmChat;
-    await llmChat.createNewThread();
-    this.llmChatView.update({ isThreadListVisible: false });
+
+    // If in chatter mode, create thread for the record
+    if (llmChat.isChatterMode) {
+      const name = `New Chat ${new Date().toLocaleString()}`;
+      const thread = await llmChat.createThread({
+        name,
+        relatedThreadModel: llmChat.relatedThreadModel,
+        relatedThreadId: llmChat.relatedThreadId,
+      });
+
+      if (thread) {
+        llmChat.update({ activeThread: thread });
+
+        // Close sidebar on mobile
+        if (this.messaging.device.isSmall) {
+          this.llmChatView.update({ isThreadListVisible: false });
+        }
+      }
+    } else {
+      // Standalone mode - existing behavior
+      await llmChat.createNewThread();
+      if (this.messaging.device.isSmall) {
+        this.llmChatView.update({ isThreadListVisible: false });
+      }
+    }
   }
 }
 

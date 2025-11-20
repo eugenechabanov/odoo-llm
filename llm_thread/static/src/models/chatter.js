@@ -107,21 +107,34 @@ registerPatch({
       const llmChat = messaging.llmChat;
 
       if (this.is_chatting_with_llm) {
-        // Close: Clear active thread
+        // Close: Clear active thread and context
         if (llmChat) {
-          llmChat.update({ activeThread: clear() });
+          llmChat.update({
+            activeThread: clear(),
+            relatedThreadModel: clear(),
+            relatedThreadId: clear(),
+          });
         }
       } else {
         // Open: Find/create thread for this record
         try {
+          console.log('[Chatter.toggleLLMChat] Opening AI chat for record:', {
+            model: this.thread.model,
+            id: this.thread.id,
+          });
+
           if (!llmChat) {
             messaging.update({ llmChat: { isInitThreadHandled: false } });
           }
 
+          console.log('[Chatter.toggleLLMChat] Calling ensureThread - it will handle context update and filtering');
+          // ensureThread handles context update, change detection, and loading threads
           const thread = await messaging.llmChat.ensureThread({
             relatedThreadModel: this.thread.model,
             relatedThreadId: this.thread.id,
           });
+
+          console.log('[Chatter.toggleLLMChat] ensureThread returned thread:', thread?.id);
 
           if (!thread) {
             throw new Error("Failed to ensure thread");

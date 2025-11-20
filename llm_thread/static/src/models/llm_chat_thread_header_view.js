@@ -143,7 +143,14 @@ registerModel({
         {
           onClose: () => {
             // Reload thread data when form is closed
-            this.threadView.thread.llmChat.loadThreads();
+            const llmChat = this.threadView.thread.llmChat;
+            const domain = [];
+            // If in chatter mode, maintain the filtered view
+            if (llmChat.isChatterMode) {
+              domain.push(["model", "=", llmChat.relatedThreadModel]);
+              domain.push(["res_id", "=", llmChat.relatedThreadId]);
+            }
+            llmChat.loadThreads([], domain);
           },
         }
       );

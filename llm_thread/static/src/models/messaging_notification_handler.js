@@ -70,7 +70,7 @@ registerPatch({
      * @param {Number} message.payload.res_id - ID of related document
      */
     async _handleLLMThreadOpenInChatter(message) {
-      const { thread_id } = message.payload;
+      const { thread_id, model, res_id } = message.payload;
 
       // Validate payload
       if (!thread_id) {
@@ -90,9 +90,14 @@ registerPatch({
         });
 
         if (!thread) {
-          // Thread doesn't exist in frontend yet, reload all threads
-          // This uses proper field list and mapping logic
-          await this.messaging.llmChat.loadThreads();
+          // Thread doesn't exist in frontend yet, reload threads
+          // If we have record context, filter by it
+          const domain = [];
+          if (model && res_id) {
+            domain.push(["model", "=", model]);
+            domain.push(["res_id", "=", res_id]);
+          }
+          await this.messaging.llmChat.loadThreads([], domain);
 
           // Now find the thread (should exist after loading)
           thread = this.messaging.models.Thread.findFromIdentifyingData({
