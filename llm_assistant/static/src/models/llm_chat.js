@@ -92,17 +92,15 @@ registerPatch({
     },
 
     /**
-     * Override ensureThread to load assistants as well
+     * Override ensureDataLoaded to load assistants as well
      * @override
      */
-    async ensureThread(options) {
+    async ensureDataLoaded() {
+      await this._super(); // Load models and tools
       // Load assistants if not already loaded
       if (!this.llmAssistants || this.llmAssistants.length === 0) {
         await this.loadAssistants();
       }
-
-      // Call the original method
-      return this._super(options);
     },
 
     /**

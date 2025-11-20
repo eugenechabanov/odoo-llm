@@ -295,6 +295,20 @@ registerModel({
     },
 
     /**
+     * Ensure basic LLM data (models, tools) is loaded.
+     * This is a reusable helper to avoid duplicating data loading logic.
+     * @returns {Promise<void>}
+     */
+    async ensureDataLoaded() {
+      if (this.llmModels.length === 0) {
+        await this.loadLLMModels();
+      }
+      if (!this.tools || this.tools.length === 0) {
+        await this.loadTools();
+      }
+    },
+
+    /**
      * Ensures LLM models and threads are loaded, creating a thread if needed.
      * @param {Object} [options] - Optional parameters
      * @param {String} [options.relatedThreadModel] - Related thread model
@@ -302,15 +316,9 @@ registerModel({
      * @returns {Promise<Object|null>} The active or created thread
      */
     async ensureThread({ relatedThreadModel, relatedThreadId } = {}) {
-      if (this.llmModels.length === 0) {
-        await this.loadLLMModels();
-      }
+      await this.ensureDataLoaded();
       if (this.threads.length === 0) {
         await this.loadThreads();
-      }
-      // Load tools if not already loaded
-      if (!this.tools || this.tools.length === 0) {
-        await this.loadTools();
       }
 
       if (relatedThreadModel && relatedThreadId) {

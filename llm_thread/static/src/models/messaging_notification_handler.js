@@ -78,35 +78,31 @@ registerPatch({
       }
 
       try {
-        // Find or fetch the thread
+        // Ensure llmChat exists
+        if (!this.messaging.llmChat) {
+          this.messaging.update({ llmChat: { isInitThreadHandled: false } });
+        }
+
+        // Find the thread (might already be in memory)
         let thread = this.messaging.models.Thread.findFromIdentifyingData({
           id: thread_id,
           model: "llm.thread",
         });
 
         if (!thread) {
-          // Thread doesn't exist in frontend yet, fetch it from server
-          const threadData = await this.messaging.rpc({
-            model: "llm.thread",
-            method: "read",
-            args: [[thread_id], ["name", "model", "res_id"]],
-          });
+          // Thread doesn't exist in frontend yet, reload all threads
+          // This uses proper field list and mapping logic
+          await this.messaging.llmChat.loadThreads();
 
-          if (threadData && threadData.length > 0) {
-            thread = this.messaging.models.Thread.insert({
-              id: thread_id,
-              model: "llm.thread",
-              name: threadData[0].name,
-              relatedThreadModel: threadData[0].model,
-              relatedThreadId: threadData[0].res_id,
-              llmChat: this.messaging.llmChat,
-            });
-          }
+          // Now find the thread (should exist after loading)
+          thread = this.messaging.models.Thread.findFromIdentifyingData({
+            id: thread_id,
+            model: "llm.thread",
+          });
         }
 
         if (!thread) {
-          console.error("Could not find/create thread", thread_id);
-          return;
+          throw new Error("Could not load the conversation thread. Please try again.");
         }
 
         // Use the unified Odoo pattern to open the thread

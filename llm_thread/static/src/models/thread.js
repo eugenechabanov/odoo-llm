@@ -83,6 +83,9 @@ registerPatch({
         llmChat = messaging.llmChat;
       }
 
+      // Load data if not already loaded
+      await llmChat.ensureDataLoaded();
+
       // Open view if not already open
       if (!llmChat.llmChatView) {
         // Wait for messaging to be fully initialized
