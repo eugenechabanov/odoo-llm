@@ -88,15 +88,6 @@ registerModel({
       const defaultDomain = [["create_uid", "=", this.env.services.user.userId]];
       const finalDomain = [...defaultDomain, ...domain];
 
-      console.log('[LLMChat.loadThreads] Loading threads with domain:', JSON.stringify(finalDomain));
-      console.log('[LLMChat.loadThreads] Domain details:', finalDomain);
-      console.log('[LLMChat.loadThreads] Current context:', {
-        relatedThreadModel: this.relatedThreadModel,
-        relatedThreadId: this.relatedThreadId,
-        isChatterMode: this.isChatterMode,
-      });
-      console.log('[LLMChat.loadThreads] Call stack:', new Error().stack);
-
       const result = await this.messaging.rpc({
         model: "llm.thread",
         method: "search_read",
@@ -106,8 +97,6 @@ registerModel({
           order: "write_date desc",
         },
       });
-
-      console.log('[LLMChat.loadThreads] Loaded', result.length, 'threads');
 
       const threadData = result.map((thread) =>
         this._mapThreadDataFromServer(thread)
@@ -332,53 +321,25 @@ registerModel({
      * @returns {Promise<Object|null>} The active or created thread
      */
     async ensureThread({ relatedThreadModel, relatedThreadId, forceReload = false } = {}) {
-      console.log('[LLMChat.ensureThread] Called with:', {
-        relatedThreadModel,
-        relatedThreadId,
-        forceReload,
-      });
-      console.log('[LLMChat.ensureThread] Current state BEFORE update:', {
-        currentModel: this.relatedThreadModel,
-        currentId: this.relatedThreadId,
-        threadsCount: this.threads.length,
-      });
-
       await this.ensureDataLoaded();
 
       // Build domain for filtering (if in chatter mode)
       const domain = [];
-      console.log('[LLMChat.ensureThread] Building domain. Parameters:', {
-        relatedThreadModel,
-        relatedThreadId,
-        bothTruthy: !!(relatedThreadModel && relatedThreadId),
-      });
       if (relatedThreadModel && relatedThreadId) {
         domain.push(["model", "=", relatedThreadModel]);
         domain.push(["res_id", "=", relatedThreadId]);
       }
-      console.log('[LLMChat.ensureThread] Built domain:', JSON.stringify(domain));
 
       // Check if context changed BEFORE updating
       const contextChanged = relatedThreadModel &&
         (this.relatedThreadModel !== relatedThreadModel ||
          this.relatedThreadId !== relatedThreadId);
 
-      console.log('[LLMChat.ensureThread] Decision:', {
-        threadsEmpty: this.threads.length === 0,
-        forceReload,
-        contextChanged,
-        willLoad: this.threads.length === 0 || forceReload || contextChanged,
-      });
-
       // Update context if provided
       if (relatedThreadModel !== undefined || relatedThreadId !== undefined) {
         this.update({
           relatedThreadModel: relatedThreadModel || this.relatedThreadModel,
           relatedThreadId: relatedThreadId !== undefined ? relatedThreadId : this.relatedThreadId,
-        });
-        console.log('[LLMChat.ensureThread] Context updated to:', {
-          relatedThreadModel: this.relatedThreadModel,
-          relatedThreadId: this.relatedThreadId,
         });
       }
 
