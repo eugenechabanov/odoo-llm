@@ -7,13 +7,31 @@ registerModel({
   name: "LLMChatView",
   lifecycleHooks: {
     _created() {
-      // Initialize thread list visibility based on device size
-      this.update({
-        isThreadListVisible: !this.messaging.device.isSmall,
-      });
+      this._updateLayoutState();
     },
   },
   recordMethods: {
+    /**
+     * Update layout state (isSmall, visibility, collapse)
+     * Called on creation and when context changes
+     * @private
+     */
+    _updateLayoutState() {
+      const isSmall = this._isSmall();
+      const isChatterMode = Boolean(this.llmChat.isChatterMode);
+
+      this.update({
+        // Set isSmall as stored value (not computed)
+        isSmall: isSmall,
+        // Thread list visibility:
+        // - Desktop (!isSmall): always visible
+        // - Mobile/Aside (isSmall): hidden by default, toggled by hamburger
+        isThreadListVisible: !isSmall,
+        // Desktop: collapse state (default collapsed in chatter, expanded standalone)
+        isSidebarCollapsed: isChatterMode,
+      });
+    },
+
     /**
      * @private
      */
@@ -23,11 +41,57 @@ registerModel({
         active_id: this.llmChat.activeId,
       });
     },
+
+    /**
+     * React to context changes (chatter mode changes)
+     * @private
+     */
+    _onContextChanged() {
+      this._updateLayoutState();
+    },
+
+    /**
+     * Check if should use mobile/small layout
+     * - On actual mobile devices (window < 768px)
+     * - In chatter positioned on the side (narrow panel)
+     *
+     * @returns {Boolean}
+     * @private
+     */
+    _isSmall() {
+      const isActuallySmall = this.messaging.device.isSmall;
+
+      // Only check chatter aside mode if we're actually in chatter mode
+      // Otherwise, a background chatter can incorrectly trigger mobile layout
+      let isChatterAside = false;
+      if (this.llmChat.isChatterMode) {
+        // When hasMessageListScrollAdjust is true, the chatter is on the form view's side
+        const chatters = this.messaging.models.Chatter.all();
+        isChatterAside = chatters.some(
+          (chatter) => chatter.hasMessageListScrollAdjust
+        );
+      }
+
+      return isActuallySmall || isChatterAside;
+    },
+
+    /**
+     * Toggle sidebar collapsed state (desktop only)
+     */
+    toggleSidebar() {
+      this.update({ isSidebarCollapsed: !this.isSidebarCollapsed });
+    },
   },
   fields: {
     actionId: attr(),
     isThreadListVisible: attr({
       default: true,
+    }),
+    isSidebarCollapsed: attr({
+      default: false,
+    }),
+    isSmall: attr({
+      default: false,
     }),
     llmChat: one("LLMChat", {
       inverse: "llmChatView",
@@ -80,6 +144,10 @@ registerModel({
     {
       dependencies: ["llmChat.activeThread"],
       methodName: "_onLLMChatActiveThreadChanged",
+    },
+    {
+      dependencies: ["llmChat.isChatterMode", "llmChat.relatedThreadModel", "llmChat.relatedThreadId"],
+      methodName: "_onContextChanged",
     },
   ],
 });

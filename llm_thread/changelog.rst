@@ -1,3 +1,15 @@
+16.0.1.3.1 (2025-11-21)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Fixed chatter aside detection for Odoo 16.0 using hasMessageListScrollAdjust
+* [FIX] Fixed context leakage between chatter and standalone LLM chat modes
+* [FIX] Fixed layout reactivity when switching between chatter and standalone contexts
+* [IMP] Unified thread naming with backend-generated names using record display_name
+* [IMP] Added unique ID suffix to standalone thread names (e.g., "New Chat #123")
+* [IMP] Unified isSmall detection across all components using llmChatView.isSmall
+* [IMP] Made layout state reactive with _onContextChanged() handler
+* [REMOVE] Removed hardcoded name generation from frontend components
+* [REMOVE] Removed duplicate isSmall getters from individual components
 
 16.0.1.3.0 (2025-01-04)
 ~~~~~~~~~~~~~~~~~~~~~~~

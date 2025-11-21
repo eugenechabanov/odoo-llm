@@ -29,26 +29,29 @@ registerPatch({
       // This should close event source
       this._closeEventSource();
     },
-    async postUserMessageForLLM() {
-      const thread = this.thread;
 
-      const messageBody = this.textInputContent.trim();
-      if (!messageBody || !thread) {
-        this.messaging.notify({
-          message: this.env._t("Please enter a message."),
-          type: "danger",
-        });
+    /**
+     * Start LLM generation with optional message
+     * @param {string|null} messageBody - Optional message body (null/empty for auto-generation with prepended messages)
+     */
+    async startGeneration(messageBody = null) {
+      // Use llmChat.activeThread as single source of truth
+      const llmChat = this.messaging.llmChat;
+      const thread = llmChat?.activeThread;
+
+      if (!thread || thread.model !== "llm.thread") {
+        console.warn("No active LLM thread for generation");
         return;
       }
 
-      this._reset();
+      // Build URL - only include message param if provided
+      let url = `/llm/thread/generate?thread_id=${thread.id}`;
+      if (messageBody) {
+        url += `&message=${encodeURIComponent(messageBody)}`;
+      }
 
       try {
-        const eventSource = new EventSource(
-          `/llm/thread/generate?thread_id=${
-            thread.id
-          }&message=${encodeURIComponent(messageBody)}`
-        );
+        const eventSource = new EventSource(url);
         this.update({ eventSource });
 
         eventSource.onmessage = async (event) => {
@@ -68,8 +71,9 @@ registerPatch({
               this.messaging.notify({ message: data.error, type: "danger" });
               break;
             case "done": {
-              const sameThread =
-                this.thread.id === this.thread.llmChat.activeThread.id;
+              // Check if this is the active thread (use messaging.llmChat, not this.thread.llmChat)
+              const llmChat = this.messaging.llmChat;
+              const sameThread = llmChat?.activeThread?.id === this.thread?.id;
               if (!sameThread) {
                 this.messaging.notify({
                   message:
@@ -102,6 +106,22 @@ registerPatch({
           composerView.update({ doFocus: true });
         }
       }
+    },
+
+    async postUserMessageForLLM() {
+      const thread = this.thread;
+
+      const messageBody = this.textInputContent.trim();
+      if (!messageBody || !thread) {
+        this.messaging.notify({
+          message: this.env._t("Please enter a message."),
+          type: "danger",
+        });
+        return;
+      }
+
+      this._reset();
+      await this.startGeneration(messageBody);
     },
 
     _closeEventSource() {

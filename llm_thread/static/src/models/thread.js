@@ -61,6 +61,52 @@ registerPatch({
   },
   recordMethods: {
     /**
+     * Opens this LLM thread in the appropriate view
+     * Follows the Odoo mail thread.open() pattern
+     *
+     * @param {Object} options - Opening options
+     * @param {boolean} options.focus - Whether to focus composer after opening (default: true)
+     * @returns {Promise<void>}
+     */
+    async openLLMThread({ focus = true } = {}) {
+      // Only for llm.thread model
+      if (this.model !== "llm.thread") {
+        return;
+      }
+
+      const messaging = this.messaging;
+      let llmChat = messaging.llmChat;
+
+      // Ensure llmChat exists
+      if (!llmChat) {
+        messaging.update({ llmChat: { isInitThreadHandled: false } });
+        llmChat = messaging.llmChat;
+      }
+
+      // Load data if not already loaded
+      await llmChat.ensureDataLoaded();
+
+      // Open view if not already open
+      if (!llmChat.llmChatView) {
+        // Wait for messaging to be fully initialized
+        await messaging.initializedPromise;
+        llmChat.open();
+      }
+
+      // Select this thread (model-driven update)
+      // This triggers activeThread update and view re-renders automatically
+      llmChat.update({ activeThread: this });
+
+      // Focus composer if requested
+      if (focus && llmChat.llmChatView?.composer) {
+        const composer = llmChat.llmChatView.composer;
+        for (const composerView of composer.composerViews) {
+          composerView.update({ doFocus: true });
+        }
+      }
+    },
+
+    /**
      * Update thread settings
      * @param {Object} settings - Settings object
      * @param {String} [settings.name] - Thread name

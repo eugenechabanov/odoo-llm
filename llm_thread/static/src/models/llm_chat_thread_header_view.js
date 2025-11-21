@@ -143,7 +143,14 @@ registerModel({
         {
           onClose: () => {
             // Reload thread data when form is closed
-            this.threadView.thread.llmChat.loadThreads();
+            const llmChat = this.threadView.thread.llmChat;
+            const domain = [];
+            // If in chatter mode, maintain the filtered view
+            if (llmChat.isChatterMode) {
+              domain.push(["model", "=", llmChat.relatedThreadModel]);
+              domain.push(["res_id", "=", llmChat.relatedThreadId]);
+            }
+            llmChat.loadThreads([], domain);
           },
         }
       );
@@ -153,7 +160,9 @@ registerModel({
      * Start editing thread name
      */
     onClickTopbarThreadName() {
-      if (this.isEditingName || this.messaging.device.isSmall) {
+      // Check llmChatView.isSmall which includes chatter aside detection
+      const isSmall = this.threadView.thread.llmChat?.llmChatView?.isSmall ?? this.messaging.device.isSmall;
+      if (this.isEditingName || isSmall) {
         return;
       }
       this.update({

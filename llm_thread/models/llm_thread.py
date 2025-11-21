@@ -162,10 +162,37 @@ class LLMThread(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         """Set default title if not provided"""
+        needs_unique_name = []
+
         for vals in vals_list:
             if not vals.get("name"):
-                vals["name"] = f"Chat with {self.model_id.name}"
-        return super().create(vals_list)
+                # If linked to a record, use its display name
+                if vals.get("model") and vals.get("res_id"):
+                    try:
+                        record = self.env[vals["model"]].browse(vals["res_id"])
+                        if record.exists():
+                            vals["name"] = f"AI Chat - {record.display_name}"
+                        else:
+                            # Record doesn't exist, use technical format
+                            vals["name"] = f"AI Chat - {vals['model']}#{vals['res_id']}"
+                    except Exception:
+                        # Model doesn't exist or access error, use technical format
+                        vals["name"] = f"AI Chat - {vals['model']}#{vals['res_id']}"
+                else:
+                    # Generic name - will add unique ID after creation
+                    vals["name"] = "New Chat"
+                    needs_unique_name.append(True)
+            else:
+                needs_unique_name.append(False)
+
+        records = super().create(vals_list)
+
+        # Update generic thread names to include unique ID
+        for record, needs_update in zip(records, needs_unique_name):
+            if needs_update:
+                record.name = f"New Chat #{record.id}"
+
+        return records
 
     @api.depends('message_ids.attachment_ids')
     def _compute_attachment_ids(self):

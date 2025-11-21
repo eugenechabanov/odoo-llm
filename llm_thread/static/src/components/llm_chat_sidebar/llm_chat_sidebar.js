@@ -21,9 +21,16 @@ export class LLMChatSidebar extends Component {
    * Handle backdrop click to close sidebar on mobile
    */
   _onBackdropClick() {
-    if (this.messaging.device.isSmall) {
+    if (this.llmChatView.isSmall) {
       this.llmChatView.update({ isThreadListVisible: false });
     }
+  }
+
+  /**
+   * Toggle sidebar collapsed state (desktop only)
+   */
+  _onClickToggleSidebar() {
+    this.llmChatView.toggleSidebar();
   }
 
   /**
@@ -31,8 +38,30 @@ export class LLMChatSidebar extends Component {
    */
   async _onClickNewChat() {
     const llmChat = this.llmChatView.llmChat;
-    await llmChat.createNewThread();
-    this.llmChatView.update({ isThreadListVisible: false });
+
+    // If in chatter mode, create thread for the record
+    if (llmChat.isChatterMode) {
+      // Don't pass name - let backend generate it from record display_name
+      const thread = await llmChat.createThread({
+        relatedThreadModel: llmChat.relatedThreadModel,
+        relatedThreadId: llmChat.relatedThreadId,
+      });
+
+      if (thread) {
+        llmChat.update({ activeThread: thread });
+
+        // Close sidebar on mobile/aside
+        if (this.llmChatView.isSmall) {
+          this.llmChatView.update({ isThreadListVisible: false });
+        }
+      }
+    } else {
+      // Standalone mode - existing behavior
+      await llmChat.createNewThread();
+      if (this.llmChatView.isSmall) {
+        this.llmChatView.update({ isThreadListVisible: false });
+      }
+    }
   }
 }
 

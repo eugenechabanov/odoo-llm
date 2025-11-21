@@ -1,3 +1,11 @@
+16.0.1.5.1 (2025-11-21)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] Added llm.assistant.action.mixin for reusable assistant action methods
+* [IMP] Enhanced action_open_llm_assistant with force_new_thread parameter
+* [IMP] Improved assistant-thread integration for better UX
+* [IMP] Extended llm.thread model integration in assistants
+
 16.0.1.0.1 (2025-04-04)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

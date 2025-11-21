@@ -82,13 +82,17 @@ registerModel({
     /**
      * Load threads from the server for the current user.
      * @param {Array} [additionalFields=[]] - Additional fields to fetch
+     * @param {Array} [domain=[]] - Additional domain criteria for filtering
      */
-    async loadThreads(additionalFields = []) {
+    async loadThreads(additionalFields = [], domain = []) {
+      const defaultDomain = [["create_uid", "=", this.env.services.user.userId]];
+      const finalDomain = [...defaultDomain, ...domain];
+
       const result = await this.messaging.rpc({
         model: "llm.thread",
         method: "search_read",
         kwargs: {
-          domain: [["create_uid", "=", this.env.services.user.userId]],
+          domain: finalDomain,
           fields: [...THREAD_SEARCH_FIELDS, ...additionalFields],
           order: "write_date desc",
         },
@@ -295,22 +299,53 @@ registerModel({
     },
 
     /**
+     * Ensure basic LLM data (models, tools) is loaded.
+     * This is a reusable helper to avoid duplicating data loading logic.
+     * @returns {Promise<void>}
+     */
+    async ensureDataLoaded() {
+      if (this.llmModels.length === 0) {
+        await this.loadLLMModels();
+      }
+      if (!this.tools || this.tools.length === 0) {
+        await this.loadTools();
+      }
+    },
+
+    /**
      * Ensures LLM models and threads are loaded, creating a thread if needed.
      * @param {Object} [options] - Optional parameters
      * @param {String} [options.relatedThreadModel] - Related thread model
      * @param {Number} [options.relatedThreadId] - Related thread ID
+     * @param {Boolean} [options.forceReload] - Force reload threads (for context switches)
      * @returns {Promise<Object|null>} The active or created thread
      */
-    async ensureThread({ relatedThreadModel, relatedThreadId } = {}) {
-      if (this.llmModels.length === 0) {
-        await this.loadLLMModels();
+    async ensureThread({ relatedThreadModel, relatedThreadId, forceReload = false } = {}) {
+      await this.ensureDataLoaded();
+
+      // Build domain for filtering (if in chatter mode)
+      const domain = [];
+      if (relatedThreadModel && relatedThreadId) {
+        domain.push(["model", "=", relatedThreadModel]);
+        domain.push(["res_id", "=", relatedThreadId]);
       }
-      if (this.threads.length === 0) {
-        await this.loadThreads();
+
+      // Check if context changed BEFORE updating
+      const contextChanged = relatedThreadModel &&
+        (this.relatedThreadModel !== relatedThreadModel ||
+         this.relatedThreadId !== relatedThreadId);
+
+      // Update context if provided
+      if (relatedThreadModel !== undefined || relatedThreadId !== undefined) {
+        this.update({
+          relatedThreadModel: relatedThreadModel || this.relatedThreadModel,
+          relatedThreadId: relatedThreadId !== undefined ? relatedThreadId : this.relatedThreadId,
+        });
       }
-      // Load tools if not already loaded
-      if (!this.tools || this.tools.length === 0) {
-        await this.loadTools();
+
+      // Load threads if needed
+      if (this.threads.length === 0 || forceReload || contextChanged) {
+        await this.loadThreads([], domain);
       }
 
       if (relatedThreadModel && relatedThreadId) {
@@ -324,9 +359,8 @@ registerModel({
         }
 
         try {
-          const name = `AI Chat for ${relatedThreadModel} ${relatedThreadId}`;
+          // Don't pass name - let backend generate it from record display_name
           return await this.createThread({
-            name,
             relatedThreadModel,
             relatedThreadId,
           });
@@ -341,8 +375,8 @@ registerModel({
       }
 
       try {
-        const name = `New Chat ${new Date().toLocaleString()}`;
-        return await this.createThread({ name });
+        // Don't pass name - let backend generate default "New Chat"
+        return await this.createThread({});
       } catch (error) {
         console.error("Failed to create default thread:", error);
         return null;
@@ -351,8 +385,8 @@ registerModel({
 
     async createNewThread() {
       try {
-        const name = `New Chat ${new Date().toLocaleString()}`;
-        const thread = await this.createThread({ name });
+        // Don't pass name - let backend generate default "New Chat"
+        const thread = await this.createThread({});
         if (thread) {
           this.selectThread(thread.id);
         }
@@ -373,7 +407,11 @@ registerModel({
       initActiveId,
       postInitializationPromises = []
     ) {
+      // Clear chatter context when opening standalone LLM chat
+      // This ensures we don't carry over chatter state from background forms
       this.update({
+        relatedThreadModel: clear(),
+        relatedThreadId: clear(),
         llmChatView: {
           actionId: action.id,
         },
@@ -488,5 +526,13 @@ registerModel({
       },
     }),
     tools: many("LLMTool"),
+    // Context tracking for chatter mode
+    relatedThreadModel: attr(),
+    relatedThreadId: attr(),
+    isChatterMode: attr({
+      compute() {
+        return Boolean(this.relatedThreadModel && this.relatedThreadId);
+      },
+    }),
   },
 });

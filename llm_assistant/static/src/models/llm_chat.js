@@ -92,17 +92,15 @@ registerPatch({
     },
 
     /**
-     * Override ensureThread to load assistants as well
+     * Override ensureDataLoaded to load assistants as well
      * @override
      */
-    async ensureThread(options) {
+    async ensureDataLoaded() {
+      await this._super(); // Load models and tools
       // Load assistants if not already loaded
       if (!this.llmAssistants || this.llmAssistants.length === 0) {
         await this.loadAssistants();
       }
-
-      // Call the original method
-      return this._super(options);
     },
 
     /**
@@ -125,9 +123,9 @@ registerPatch({
      * Override loadThreads to include assistant_id field
      * @override
      */
-    async loadThreads(additionalFields = []) {
-      // Call the super method with our additional fields
-      return this._super([...additionalFields, ...ASSISTANT_THREAD_FIELDS]);
+    async loadThreads(additionalFields = [], domain = []) {
+      // Call the super method with our additional fields and domain
+      return this._super([...additionalFields, ...ASSISTANT_THREAD_FIELDS], domain);
     },
 
     /**
