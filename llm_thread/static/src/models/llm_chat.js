@@ -408,7 +408,11 @@ registerModel({
       initActiveId,
       postInitializationPromises = []
     ) {
+      // Clear chatter context when opening standalone LLM chat
+      // This ensures we don't carry over chatter state from background forms
       this.update({
+        relatedThreadModel: clear(),
+        relatedThreadId: clear(),
         llmChatView: {
           actionId: action.id,
         },
