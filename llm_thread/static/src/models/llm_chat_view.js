@@ -11,8 +11,14 @@ registerModel({
       const isSmall = this._isSmall();
       const isChatterMode = Boolean(this.llmChat.isChatterMode);
 
+      console.log("[LLMChatView] _created - isSmall:", isSmall, "isChatterMode:", isChatterMode);
+
       this.update({
-        // Mobile: slide-in visibility (default hidden on mobile)
+        // Set isSmall as stored value (not computed)
+        isSmall: isSmall,
+        // Thread list visibility:
+        // - Desktop (!isSmall): always visible
+        // - Mobile/Aside (isSmall): hidden by default, toggled by hamburger
         isThreadListVisible: !isSmall,
         // Desktop: collapse state (default collapsed in chatter, expanded standalone)
         isSidebarCollapsed: isChatterMode,
@@ -40,11 +46,25 @@ registerModel({
      */
     _isSmall() {
       const isActuallySmall = this.messaging.device.isSmall;
+
       // Check if in chatter aside mode (chatter in side panel)
-      const isChatterAside = this.messaging.models.Chatter.all().some(
-        (chatter) => chatter.hasThreadView && chatter.threadView.chatterOwner?.isDoingAction
+      // When hasMessageListScrollAdjust is true, the chatter is on the form view's side
+      const chatters = this.messaging.models.Chatter.all();
+      const isChatterAside = chatters.some(
+        (chatter) => chatter.hasMessageListScrollAdjust
       );
-      return isActuallySmall || isChatterAside;
+
+      const result = isActuallySmall || isChatterAside;
+
+      console.log("[LLMChatView] _isSmall() check:", {
+        isActuallySmall,
+        isChatterAside,
+        chatterCount: chatters.length,
+        chattersWithScrollAdjust: chatters.filter(c => c.hasMessageListScrollAdjust).length,
+        result,
+      });
+
+      return result;
     },
 
     /**
@@ -63,9 +83,7 @@ registerModel({
       default: false,
     }),
     isSmall: attr({
-      compute() {
-        return this._isSmall();
-      },
+      default: false,
     }),
     llmChat: one("LLMChat", {
       inverse: "llmChatView",

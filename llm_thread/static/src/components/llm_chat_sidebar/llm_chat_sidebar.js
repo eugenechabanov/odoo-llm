@@ -8,13 +8,19 @@ export class LLMChatSidebar extends Component {
   setup() {
     useModels();
     super.setup();
+    console.log("[LLMChatSidebar] setup - llmChatView:", this.llmChatView);
+    console.log("[LLMChatSidebar] setup - llmChatView.isSmall:", this.llmChatView.isSmall);
+    console.log("[LLMChatSidebar] setup - llmChatView.isThreadListVisible:", this.llmChatView.isThreadListVisible);
+    console.log("[LLMChatSidebar] setup - llmChatView.isSidebarCollapsed:", this.llmChatView.isSidebarCollapsed);
   }
 
   /**
    * @returns {LLMChatView}
    */
   get llmChatView() {
-    return this.props.record;
+    const record = this.props.record;
+    console.log("[LLMChatSidebar] get llmChatView - isSmall:", record.isSmall, "isThreadListVisible:", record.isThreadListVisible);
+    return record;
   }
 
   /**
@@ -51,15 +57,15 @@ export class LLMChatSidebar extends Component {
       if (thread) {
         llmChat.update({ activeThread: thread });
 
-        // Close sidebar on mobile
-        if (this.messaging.device.isSmall) {
+        // Close sidebar on mobile/aside
+        if (this.llmChatView.isSmall) {
           this.llmChatView.update({ isThreadListVisible: false });
         }
       }
     } else {
       // Standalone mode - existing behavior
       await llmChat.createNewThread();
-      if (this.messaging.device.isSmall) {
+      if (this.llmChatView.isSmall) {
         this.llmChatView.update({ isThreadListVisible: false });
       }
     }
