@@ -359,9 +359,8 @@ registerModel({
         }
 
         try {
-          const name = `AI Chat for ${relatedThreadModel} ${relatedThreadId}`;
+          // Don't pass name - let backend generate it from record display_name
           return await this.createThread({
-            name,
             relatedThreadModel,
             relatedThreadId,
           });
@@ -376,8 +375,8 @@ registerModel({
       }
 
       try {
-        const name = `New Chat ${new Date().toLocaleString()}`;
-        return await this.createThread({ name });
+        // Don't pass name - let backend generate default "New Chat"
+        return await this.createThread({});
       } catch (error) {
         console.error("Failed to create default thread:", error);
         return null;
@@ -386,8 +385,8 @@ registerModel({
 
     async createNewThread() {
       try {
-        const name = `New Chat ${new Date().toLocaleString()}`;
-        const thread = await this.createThread({ name });
+        // Don't pass name - let backend generate default "New Chat"
+        const thread = await this.createThread({});
         if (thread) {
           this.selectThread(thread.id);
         }

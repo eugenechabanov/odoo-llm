@@ -41,9 +41,8 @@ export class LLMChatSidebar extends Component {
 
     // If in chatter mode, create thread for the record
     if (llmChat.isChatterMode) {
-      const name = `New Chat ${new Date().toLocaleString()}`;
+      // Don't pass name - let backend generate it from record display_name
       const thread = await llmChat.createThread({
-        name,
         relatedThreadModel: llmChat.relatedThreadModel,
         relatedThreadId: llmChat.relatedThreadId,
       });
