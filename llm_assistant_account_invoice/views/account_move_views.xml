@@ -12,6 +12,7 @@
           type="object"
           string="Process with AI"
           class="btn-primary"
+          attrs="{'invisible': [('state', '!=', 'draft')]}"
         />
             </xpath>
         </field>
