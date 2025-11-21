@@ -30,7 +30,9 @@ class LLMAssistantActionMixin(models.AbstractModel):
     _name = "llm.assistant.action.mixin"
     _description = "LLM Assistant Action Mixin"
 
-    def action_open_llm_assistant(self, assistant_code=None, force_new_thread=False, **kwargs):
+    def action_open_llm_assistant(
+        self, assistant_code=None, force_new_thread=False, **kwargs
+    ):
         """
         Generic method to open AI assistant for current record.
         Creates/finds thread, sets assistant, and sends bus notification to open chat.

@@ -6,9 +6,14 @@
         <field name="res_model">account.move</field>
         <field name="is_default" eval="True" />
         <field name="is_public" eval="True" />
-        <field name="prompt_id" ref="llm_assistant_account_invoice.llm_prompt_invoice_parser" />
+        <field
+      name="prompt_id"
+      ref="llm_assistant_account_invoice.llm_prompt_invoice_parser"
+    />
         <field name="has_dynamic_defaults" eval="True" />
-        <field name="default_values"><![CDATA[{
+        <field
+      name="default_values"
+    ><![CDATA[{
             "role": "Invoice Analysis Assistant",
             "goal": "help users analyze, validate, and process vendor bills and customer invoices accurately and efficiently",
             "background": "You are an intelligent accounting assistant specialized in Odoo invoice processing. You are currently working with: {{ related_record }}. You have access to the linked invoice through related_record and can parse documents with OCR, retrieve related data, and update invoice fields. You work with vendor bills (in_invoice) and customer invoices (out_invoice) in Odoo 18.0 ERP.",
@@ -16,12 +21,15 @@
             "footer": "CRITICAL: Partner identification is the #1 mistake - sender for vendor bills, recipient for customer invoices. Always validate before suggesting changes. Never auto-post invoices - keep in draft for review. Ask for confirmation before updates. When unsure about accounting rules, recommend consulting an accountant."
         }]]></field>
         <field name="active" eval="True" />
-        <field name="tool_ids" eval="[(6, 0, [
+        <field
+      name="tool_ids"
+      eval="[(6, 0, [
             ref('llm_tool_ocr_mistral.llm_tool_ocr_mistral'),
             ref('llm_tool.llm_tool_odoo_record_retriever'),
             ref('llm_tool.llm_tool_odoo_record_creator'),
             ref('llm_tool.llm_tool_odoo_record_updater'),
             ref('llm_tool.llm_tool_odoo_model_inspector')
-        ])]" />
+        ])]"
+    />
     </record>
 </odoo>
