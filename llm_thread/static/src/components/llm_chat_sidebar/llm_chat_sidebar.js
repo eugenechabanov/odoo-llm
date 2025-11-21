@@ -8,19 +8,13 @@ export class LLMChatSidebar extends Component {
   setup() {
     useModels();
     super.setup();
-    console.log("[LLMChatSidebar] setup - llmChatView:", this.llmChatView);
-    console.log("[LLMChatSidebar] setup - llmChatView.isSmall:", this.llmChatView.isSmall);
-    console.log("[LLMChatSidebar] setup - llmChatView.isThreadListVisible:", this.llmChatView.isThreadListVisible);
-    console.log("[LLMChatSidebar] setup - llmChatView.isSidebarCollapsed:", this.llmChatView.isSidebarCollapsed);
   }
 
   /**
    * @returns {LLMChatView}
    */
   get llmChatView() {
-    const record = this.props.record;
-    console.log("[LLMChatSidebar] get llmChatView - isSmall:", record.isSmall, "isThreadListVisible:", record.isThreadListVisible);
-    return record;
+    return this.props.record;
   }
 
   /**

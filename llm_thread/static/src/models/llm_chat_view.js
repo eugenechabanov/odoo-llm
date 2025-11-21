@@ -20,8 +20,6 @@ registerModel({
       const isSmall = this._isSmall();
       const isChatterMode = Boolean(this.llmChat.isChatterMode);
 
-      console.log("[LLMChatView] _updateLayoutState - isSmall:", isSmall, "isChatterMode:", isChatterMode);
-
       this.update({
         // Set isSmall as stored value (not computed)
         isSmall: isSmall,
@@ -74,16 +72,7 @@ registerModel({
         );
       }
 
-      const result = isActuallySmall || isChatterAside;
-
-      console.log("[LLMChatView] _isSmall() check:", {
-        isActuallySmall,
-        isChatterMode: this.llmChat.isChatterMode,
-        isChatterAside,
-        result,
-      });
-
-      return result;
+      return isActuallySmall || isChatterAside;
     },
 
     /**
