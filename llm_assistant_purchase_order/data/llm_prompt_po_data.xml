@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Purchase Order Parser Prompt Template with Auto-Trigger -->
+    <record id="llm_prompt_po_parser" model="llm.prompt">
+        <field name="name">Purchase Order Parser Multi-Message Prompt</field>
+        <field
+      name="description"
+    >Multi-message JSON prompt with system instructions and user message to auto-trigger vendor quotation parsing on chat open.</field>
+        <field name="format">json</field>
+        <field
+      name="template"
+    ><![CDATA[[
+  {
+    "type": "system",
+    "content": {{ ('You are a ' + role + '.\n\nYour goal is to ' + goal + '\n\nBackground: ' + background + '\n\nInstructions: ' + instructions + '\n\n' + footer) | tojson }}
+  },
+  {
+    "type": "user",
+    "content": "Parse the attached vendor quotation document and extract all data including:\n- Vendor name and contact details\n- Quotation reference number and date\n- Line items with products, quantities, and prices\n- Expected delivery dates\n- Payment terms\n- Total amount\n\nPresent your findings clearly and suggest the next steps for creating this purchase order."
+  }
+]]]></field>
+        <field
+      name="arguments_json"
+    ><![CDATA[{
+            "role": {
+                "type": "string",
+                "description": "The role of the assistant (e.g., 'Purchase Order Assistant')",
+                "required": true
+            },
+            "goal": {
+                "type": "string",
+                "description": "The primary goal or objective of this assistant",
+                "required": true
+            },
+            "background": {
+                "type": "string",
+                "description": "Background information for the assistant to understand its context",
+                "required": true
+            },
+            "instructions": {
+                "type": "string",
+                "description": "Specific instructions for the assistant to follow",
+                "required": true
+            },
+            "footer": {
+                "type": "string",
+                "description": "Optional footer text to add to the end of the prompt",
+                "required": false,
+                "default": ""
+            }
+        }]]></field>
+        <field name="active" eval="True" />
+    </record>
+</odoo>

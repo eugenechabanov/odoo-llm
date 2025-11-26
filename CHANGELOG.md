@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **New Module: llm_assistant_purchase_order**: AI-powered purchase order assistant (2025-11-26)
+  - Parse vendor quotation PDFs with OCR and automatically extract data
+  - Match products with vendor pricing from `product.supplierinfo`
+  - Historical price comparison and deviation alerts
+  - Duplicate PO detection based on vendor reference
+  - Seamless integration via `llm.assistant.action.mixin`
+
 - **Tool Event System**: Real-time tool execution tracking with streaming events (2025-01-12)
   - Added `tool_called` event when tool execution begins (`llm_tool/models/mail_message.py:120-128`)
   - Added `tool_succeeded` event when tool completes successfully (`llm_tool/models/mail_message.py:147-157`)
