@@ -7,7 +7,7 @@
         automated data extraction, product matching, and smart validation.
     """,
     "category": "Inventory/Purchase/AI",
-    "version": "16.0.1.0.0",
+    "version": "16.0.1.0.1",
     "depends": [
         "purchase",  # Purchase Order model (purchase.order)
         "llm_assistant",  # Includes llm, llm_thread, llm_tool
