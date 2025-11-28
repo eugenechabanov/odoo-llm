@@ -2,7 +2,7 @@
 LLM Invoice Assistant
 =======================
 
-AI-powered invoice analysis assistant with OCR document parsing for Odoo 18.
+AI-powered invoice analysis assistant with OCR document parsing for Odoo 16.
 
 Features
 ========
@@ -20,13 +20,13 @@ Installation
 
    - ``account`` (Odoo core)
    - ``llm_assistant``
-   - ``llm_knowledge_mistral``
+   - ``llm_tool_ocr_mistral``
 
 2. Install the module:
 
    .. code-block:: bash
 
-      odoo-bin -d your_database -u llm_invoice_assistant
+      odoo-bin -d your_database -i llm_assistant_account_invoice
 
 3. Configure Mistral provider in **Settings → LLM → Providers**
 
@@ -95,7 +95,7 @@ Context Awareness
 Available Tools
 ---------------
 
-1. **llm_mistral_attachment_parser**: Parse PDFs/images with OCR
+1. **llm_tool_ocr_mistral**: Parse PDFs/images with Mistral OCR
 2. **odoo_record_retriever**: Search and retrieve Odoo records
 3. **odoo_record_updater**: Update invoice fields (requires consent)
 4. **odoo_model_inspector**: Inspect model structure
@@ -119,13 +119,17 @@ Pure Configuration Module
 
 This module contains **no Python code** - just XML data files::
 
-   llm_invoice_assistant/
-   ├── __manifest__.py          # Dependencies and metadata
-   ├── __init__.py              # Empty (no code needed)
+   llm_assistant_account_invoice/
+   ├── __manifest__.py              # Dependencies and metadata
+   ├── __init__.py                  # Empty (no code needed)
    ├── data/
-   │   └── llm_assistant_data.xml  # Assistant configuration
-   └── security/
-       └── ir.model.access.csv  # Empty (inherits from parent)
+   │   ├── llm_prompt_invoice_data.xml  # Invoice-specific prompt template
+   │   └── llm_assistant_data.xml       # Assistant configuration
+   ├── views/
+   │   └── account_move_views.xml   # "Process with AI" button on invoice form
+   └── static/
+       └── description/
+           └── index.html           # App store description
 
 How It Works
 ------------
@@ -143,7 +147,7 @@ Required Modules
 
 - **account**: Core Odoo accounting (vendor bills)
 - **llm_assistant**: Base LLM assistant framework
-- **llm_knowledge_mistral**: Mistral OCR tool
+- **llm_tool_ocr_mistral**: Mistral OCR tool for parsing documents
 
 Transitive Dependencies
 -----------------------
@@ -193,7 +197,7 @@ Access Control
 Tool Consent
 ------------
 
-- **llm_mistral_attachment_parser**: Requires consent (accesses attachments)
+- **llm_tool_ocr_mistral**: Requires consent (accesses attachments)
 - **odoo_record_retriever**: No consent (read-only)
 - **odoo_record_updater**: Requires consent (modifies data)
 
@@ -223,7 +227,7 @@ Reference additional tools in the ``tool_ids`` field:
 .. code-block:: xml
 
    <field name="tool_ids" eval="[(6, 0, [
-       ref('llm_knowledge_mistral.llm_tool_llm_mistral_attachment_parser'),
+       ref('llm_tool_ocr_mistral.llm_tool_ocr_mistral'),
        ref('llm_tool.llm_tool_odoo_record_retriever'),
        ref('your_module.your_custom_tool'),  <!-- Add this -->
    ])]" />
@@ -267,7 +271,7 @@ Troubleshooting
 "Mistral provider not found"
 -----------------------------
 
-**Solution**: Install and configure ``llm_mistral`` module
+**Solution**: Install and configure ``llm_mistral`` module with your API key
 
 "Tool requires consent"
 -----------------------
@@ -282,9 +286,9 @@ Thread not linked to invoice
 Future Enhancements
 ===================
 
-Potential additions (not implemented):
+Potential additions (not yet implemented):
 
-1. **"Ask AI" button** on invoice form for quick access
+1. **Auto-process on attachment** - Automatically trigger AI processing when an invoice receives an attachment (PDF/image), filling in vendor, date, amounts, and line items without manual intervention
 2. **Automated invoice matching** with purchase orders (3-way matching)
 3. **Approval workflow tools** (approve/reject invoices)
 4. **Multi-invoice analysis** (batch processing)
