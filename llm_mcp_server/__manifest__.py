@@ -1,6 +1,6 @@
 {
     "name": "LLM MCP Server",
-    "version": "16.0.1.0.0",
+    "version": "16.0.1.1.0",
     "category": "Technical",
     "summary": "MCP server exposing Odoo LLM tools to Claude Desktop and other MCP hosts",
     "description": """

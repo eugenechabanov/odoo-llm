@@ -1,6 +1,14 @@
 Changelog
 =========
 
+16.0.1.1.0 (2025-11-29)
+-----------------------
+
+* [ADD] Added "Client Configuration" tab to MCP Server Config form with copy-paste setup instructions
+* [ADD] Included configuration snippets for Claude Desktop, Claude Code, and Codex CLI
+* [ADD] Added prerequisites section with mcp-remote installation command
+* [IMP] Better onboarding experience with inline API key guidance
+
 16.0.1.0.0 (2025-01-29)
 -----------------------
 

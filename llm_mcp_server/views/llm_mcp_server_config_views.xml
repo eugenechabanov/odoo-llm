@@ -38,6 +38,56 @@
                         </group>
                     </group>
                     <notebook>
+                        <page string="Client Configuration" name="client_config">
+                            <div class="alert alert-info mb-3" role="alert">
+                                <strong>How to connect:</strong> Copy the configuration below for your MCP client. Replace <code>YOUR_API_KEY</code> with your Odoo API key.
+                                <br/><small>Get API key: User Avatar → Preferences → Account Security → API Keys → New</small>
+                            </div>
+
+                            <h4 class="mt-3">Prerequisites</h4>
+                            <p class="text-muted small">Install the mcp-remote package (requires Node.js)</p>
+                            <pre class="bg-dark text-light p-3 rounded" style="font-size: 12px;">npm install -g mcp-remote</pre>
+
+                            <h4 class="mt-4">Claude Desktop</h4>
+                            <p class="text-muted small">Add to <code>~/.config/claude_desktop/claude_desktop_config.json</code> (Linux) or <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> (macOS)</p>
+                            <pre class="bg-dark text-light p-3 rounded" style="font-size: 12px; overflow-x: auto;">{
+  "mcpServers": {
+    "odoo-llm-mcp-server": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:8069/mcp",
+        "--header",
+        "Authorization: Bearer YOUR_API_KEY"
+      ],
+      "env": { "MCP_TRANSPORT": "streamable-http" }
+    }
+  }
+}</pre>
+
+                            <h4 class="mt-4">Claude Code</h4>
+                            <p class="text-muted small">Run this command in your terminal</p>
+                            <pre class="bg-dark text-light p-3 rounded" style="font-size: 12px; overflow-x: auto;">claude mcp add-json odoo-llm-mcp-server '{
+  "type": "stdio",
+  "command": "npx",
+  "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
+           "--header", "Authorization: Bearer YOUR_API_KEY"],
+  "env": {"MCP_TRANSPORT": "streamable-http"}
+}'</pre>
+
+                            <h4 class="mt-4">Codex CLI</h4>
+                            <p class="text-muted small">Add to <code>~/.codex/config.toml</code></p>
+                            <pre class="bg-dark text-light p-3 rounded" style="font-size: 12px; overflow-x: auto;">experimental_use_rmcp_client = true
+
+[mcp_servers.odoo-llm-mcp-server]
+url = "http://localhost:8069/mcp"
+http_headers.Authorization = "Bearer YOUR_API_KEY"</pre>
+
+                            <h4 class="mt-4">Other Clients</h4>
+                            <p class="text-muted">Connect to <code>http://localhost:8069/mcp</code> with Bearer authentication header.</p>
+                        </page>
                         <page string="Information" name="info">
                             <group>
                                 <field name="create_date" readonly="1" />
