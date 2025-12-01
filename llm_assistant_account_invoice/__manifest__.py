@@ -23,4 +23,7 @@
     "installable": True,
     "application": False,
     "auto_install": False,
+    "images": [
+        "static/description/banner.jpeg",
+    ],
 }
