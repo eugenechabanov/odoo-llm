@@ -22,7 +22,14 @@ odoo-bin -d your_db -i llm_mcp_server
 
 ### 2. Get API Key
 
-Odoo → User Avatar → Preferences → Account Security → API Keys → New
+**Option A (Recommended):** Use the "New MCP Key" button:
+- User Preferences → Account Security → **New MCP Key**, or
+- LLM → Configuration → MCP Server → **New MCP Key**
+
+This generates an API key with ready-to-copy client configurations.
+
+**Option B:** Create a standard API key:
+- User Preferences → Account Security → API Keys → New
 
 ### 3. Configure Client
 
@@ -34,8 +41,13 @@ Odoo → User Avatar → Preferences → Account Security → API Keys → New
     "odoo-llm-mcp-server": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
-               "--header", "Authorization: Bearer YOUR_API_KEY"],
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:8069/mcp",
+        "--header",
+        "Authorization: Bearer YOUR_API_KEY"
+      ],
       "env": { "MCP_TRANSPORT": "streamable-http" }
     }
   }
@@ -146,6 +158,7 @@ Tools are auto-discovered from the `llm.tool` model. See [llm_tool module](https
 **MCP Inspector**: [https://modelcontextprotocol.io/docs/tools/inspector](https://modelcontextprotocol.io/docs/tools/inspector)
 
 Test your server:
+
 - Verify connectivity
 - Browse available tools
 - Test tool execution
@@ -161,21 +174,25 @@ odoo-bin --log-level=debug
 ## Troubleshooting
 
 **No tools showing up?**
+
 - Check that tools are active in Odoo (LLM → Tools)
 - Verify API key has access to tools
 - Check user permissions
 
 **Authentication failed?**
+
 - Verify API key is correct
 - Check key hasn't expired
 - Ensure Bearer token format: `Authorization: Bearer YOUR_KEY`
 
 **Connection refused?**
+
 - Verify Odoo is running on specified port
 - Check firewall settings
 - For remote access, ensure Odoo is accessible from client
 
 **Tools failing to execute?**
+
 - Check Odoo logs for errors
 - Verify user has required permissions
 - Test tool manually in Odoo UI first

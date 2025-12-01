@@ -28,7 +28,16 @@ Quick Start
 2. Get API Key
 ~~~~~~~~~~~~~~
 
-Odoo → User Avatar → Preferences → Account Security → API Keys → New
+**Option A (Recommended):** Use the "New MCP Key" button:
+
+- User Preferences → Account Security → **New MCP Key**, or
+- LLM → Configuration → MCP Server → **New MCP Key**
+
+This generates an API key with ready-to-copy client configurations.
+
+**Option B:** Create a standard API key:
+
+- User Preferences → Account Security → API Keys → New
 
 3. Configure Client
 ~~~~~~~~~~~~~~~~~~~

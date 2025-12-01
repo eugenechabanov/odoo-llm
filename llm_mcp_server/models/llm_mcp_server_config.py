@@ -1,3 +1,4 @@
+from jinja2 import Template
 from mcp.types import (
     Implementation,
     InitializeResult,
@@ -7,6 +8,40 @@ from mcp.types import (
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+
+API_KEY_PLACEHOLDER = "YOUR_API_KEY"
+
+# Claude mcp-remote server config (shared by Claude Desktop and Claude Code)
+CLAUDE_SERVER_CONFIG_TEMPLATE = Template("""{
+  "type": "stdio",
+  "command": "npx",
+  "args": [
+    "-y",
+    "mcp-remote",
+    "{{ mcp_url }}",
+    "--header",
+    "Authorization: Bearer {{ api_key }}"
+  ],
+  "env": { "MCP_TRANSPORT": "streamable-http" }
+}""")
+
+# Configuration Templates by client type
+CLIENT_CONFIG_TEMPLATES = {
+    "claude_desktop": Template("""{
+  "mcpServers": {
+    "odoo-llm-mcp-server": {{ server_config }}
+  }
+}"""),
+    "claude_code": Template(
+        "claude mcp add-json odoo-llm-mcp-server '{{ server_config }}'"
+    ),
+    "codex": Template("""experimental_use_rmcp_client = true
+
+[mcp_servers.odoo-llm-mcp-server]
+url = "{{ mcp_url }}"
+http_headers.Authorization = "Bearer {{ api_key }}"
+"""),
+}
 
 
 class LLMMCPServerConfig(models.Model):
@@ -147,4 +182,73 @@ class LLMMCPServerConfig(models.Model):
             "status": "healthy",
             "server": self.name,
             "version": self.version,
+        }
+
+    def action_new_mcp_key(self):
+        """Open the MCP key creation wizard."""
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "res.users.apikeys.description",
+            "name": "New MCP Key",
+            "views": [(False, "form")],
+            "target": "new",
+            "context": {
+                "is_mcp_key": True,
+                "default_name": "MCP Key",
+            },
+        }
+
+    # Client Configuration Fields (computed with placeholder)
+    config_claude_desktop = fields.Text(
+        string="Claude Desktop Config",
+        compute="_compute_client_configs",
+        help="Ready-to-use configuration for Claude Desktop",
+    )
+    config_claude_code = fields.Text(
+        string="Claude Code Config",
+        compute="_compute_client_configs",
+        help="Ready-to-use command for Claude Code",
+    )
+    config_codex = fields.Text(
+        string="Codex Config",
+        compute="_compute_client_configs",
+        help="Ready-to-use configuration for Codex CLI",
+    )
+
+    @api.depends("external_url")
+    def _compute_client_configs(self):
+        """Compute client configuration snippets with placeholder API key."""
+        for record in self:
+            configs = record.generate_client_configs()
+            record.config_claude_desktop = configs["claude_desktop"]
+            record.config_claude_code = configs["claude_code"]
+            record.config_codex = configs["codex"]
+
+    def generate_client_configs(self, api_key=None):
+        """Generate configuration snippets for each MCP client.
+
+        Args:
+            api_key: The API key to use. If None, uses API_KEY_PLACEHOLDER.
+
+        Returns:
+            dict with config strings for each client type
+        """
+        self.ensure_one()
+        key = api_key or API_KEY_PLACEHOLDER
+        mcp_url = self.get_mcp_server_url()
+
+        # Render Claude server config (shared by Claude Desktop and Claude Code)
+        server_config = CLAUDE_SERVER_CONFIG_TEMPLATE.render(
+            mcp_url=mcp_url, api_key=key
+        )
+
+        template_vars = {
+            "mcp_url": mcp_url,
+            "api_key": key,
+            "server_config": server_config,
+        }
+
+        return {
+            client: template.render(**template_vars)
+            for client, template in CLIENT_CONFIG_TEMPLATES.items()
         }
