@@ -26,7 +26,7 @@ Key Changes:
 - Maintains backward compatibility with existing generate() method
 """,
     "author": "Apexive",
-    "website": "https://apexive.com",
+    "website": "https://github.com/apexive/odoo-llm",
     "depends": [
         "llm_thread",
         "llm_tool",

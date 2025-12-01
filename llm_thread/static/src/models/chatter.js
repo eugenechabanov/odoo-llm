@@ -122,7 +122,7 @@ registerPatch({
             messaging.update({ llmChat: { isInitThreadHandled: false } });
           }
 
-          // ensureThread handles context update, change detection, and loading threads
+          // EnsureThread handles context update, change detection, and loading threads
           const thread = await messaging.llmChat.ensureThread({
             relatedThreadModel: this.thread.model,
             relatedThreadId: this.thread.id,

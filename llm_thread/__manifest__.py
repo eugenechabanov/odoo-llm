@@ -32,7 +32,7 @@ Use cases include customer support automation, data analysis, training assistanc
 Contact: support@apexive.com
     """,
     "category": "Productivity, Discuss",
-    "version": "16.0.1.3.1",
+    "version": "16.0.1.3.2",
     "depends": ["base", "mail", "web", "llm", "llm_tool"],
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
@@ -45,6 +45,8 @@ Contact: support@apexive.com
     ],
     "assets": {
         "web.assets_backend": [
+            # Client Actions (must be loaded before models that depend on them)
+            "llm_thread/static/src/client_actions/open_chatter_action.js",
             # Models
             "llm_thread/static/src/models/main.js",
             "llm_thread/static/src/models/messaging.js",
@@ -91,6 +93,7 @@ Contact: support@apexive.com
             "llm_thread/static/src/components/llm_chat_thread_header/llm_chat_thread_header.scss",
             "llm_thread/static/src/components/llm_chatter_topbar/llm_chatter_topbar.xml",
             "llm_thread/static/src/components/llm_chatter_topbar/llm_chat_topbar.scss",
+            "llm_thread/static/src/components/llm_chatter/llm_chatter.js",
             "llm_thread/static/src/components/llm_chatter/llm_chatter.xml",
             "llm_thread/static/src/components/message/message.xml",
             "llm_thread/static/src/components/message/message.scss",
