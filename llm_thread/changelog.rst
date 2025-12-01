@@ -1,3 +1,11 @@
+16.0.1.3.2 (2025-12-02)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] Added client action (llm_open_chatter) to open AI chat in record's chatter
+* [IMP] Replaced unreliable bus notification with client action pattern for cloud deployments
+* [ADD] Added sessionStorage-based pending state for cross-navigation communication
+* [ADD] Added checkPendingAIChatOpen method to Chatter model for auto-opening AI chat
+
 16.0.1.3.1 (2025-11-21)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -1,3 +1,9 @@
+16.0.1.5.2 (2025-12-02)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [IMP] Changed action_open_llm_assistant to return client action instead of bus notification
+* [IMP] Improved reliability of AI chat opening on cloud deployments
+
 16.0.1.5.1 (2025-11-21)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
