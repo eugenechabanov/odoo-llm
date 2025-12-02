@@ -6,7 +6,7 @@ import logging
 from typing import Optional
 
 import werkzeug.exceptions
-from mcp.types import (
+from .mcp_types import (
     INTERNAL_ERROR,
     INVALID_PARAMS,
     INVALID_REQUEST,

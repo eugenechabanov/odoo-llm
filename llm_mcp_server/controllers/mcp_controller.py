@@ -11,7 +11,7 @@ from http import HTTPStatus
 from typing import Optional
 
 import werkzeug.exceptions
-from mcp.types import InitializeResult
+from ..mcp_types import InitializeResult
 from pydantic import BaseModel
 
 from odoo import http

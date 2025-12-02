@@ -1,6 +1,6 @@
 import logging
 
-from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
+from ..mcp_types import CallToolResult, ListToolsResult, TextContent, Tool
 
 from odoo import _, api, models
 from odoo.exceptions import UserError

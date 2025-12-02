@@ -28,9 +28,7 @@
     "website": "https://github.com/apexive/odoo-llm",
     "license": "LGPL-3",
     "depends": ["base", "llm", "llm_tool", "web_json_editor"],
-    "external_dependencies": {
-        "python": ["mcp"],
-    },
+    "external_dependencies": {},
     "data": [
         "security/ir.model.access.csv",
         "data/llm_mcp_server_config.xml",

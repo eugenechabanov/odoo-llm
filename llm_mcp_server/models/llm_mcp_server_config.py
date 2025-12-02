@@ -1,5 +1,5 @@
 from jinja2 import Template
-from mcp.types import (
+from ..mcp_types import (
     Implementation,
     InitializeResult,
     ServerCapabilities,
