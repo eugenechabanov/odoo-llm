@@ -7,6 +7,7 @@ allowing the llm_mcp_server to work without the mcp package dependency
 
 All types are compliant with the MCP specification.
 """
+
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
