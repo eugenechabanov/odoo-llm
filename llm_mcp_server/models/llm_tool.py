@@ -1,9 +1,9 @@
 import logging
 
-from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
-
 from odoo import _, api, models
 from odoo.exceptions import UserError
+
+from ..mcp_types import CallToolResult, ListToolsResult, TextContent, Tool
 
 _logger = logging.getLogger(__name__)
 

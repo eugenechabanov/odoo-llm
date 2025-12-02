@@ -11,13 +11,13 @@ from http import HTTPStatus
 from typing import Optional
 
 import werkzeug.exceptions
-from mcp.types import InitializeResult
 from pydantic import BaseModel
 
 from odoo import http
 from odoo.http import request
 
 from ..mcp_json_dispatcher import MCPMethodNotFoundError
+from ..mcp_types import InitializeResult
 
 _logger = logging.getLogger(__name__)
 

@@ -1,13 +1,14 @@
 from jinja2 import Template
-from mcp.types import (
+
+from odoo import api, fields, models
+from odoo.exceptions import ValidationError
+
+from ..mcp_types import (
     Implementation,
     InitializeResult,
     ServerCapabilities,
     ToolsCapability,
 )
-
-from odoo import api, fields, models
-from odoo.exceptions import ValidationError
 
 API_KEY_PLACEHOLDER = "YOUR_API_KEY"
 

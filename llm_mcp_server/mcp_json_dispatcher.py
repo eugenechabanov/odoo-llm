@@ -6,15 +6,16 @@ import logging
 from typing import Optional
 
 import werkzeug.exceptions
-from mcp.types import (
+
+from odoo.http import JsonRPCDispatcher, request
+
+from .mcp_types import (
     INTERNAL_ERROR,
     INVALID_PARAMS,
     INVALID_REQUEST,
     METHOD_NOT_FOUND,
     PARSE_ERROR,
 )
-
-from odoo.http import JsonRPCDispatcher, request
 
 _logger = logging.getLogger(__name__)
 

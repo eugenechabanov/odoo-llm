@@ -1,3 +1,10 @@
+16.0.1.3.0 (2025-12-02)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [IMP] Removed mcp package dependency for Python 3.9 compatibility
+* [ADD] Custom mcp_types.py module with MCP protocol type definitions
+* [IMP] Module now works with Odoo's official Docker images (Python 3.9)
+
 16.0.1.2.0 (2025-12-02)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
