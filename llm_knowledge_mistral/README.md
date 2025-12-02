@@ -287,7 +287,7 @@ This module extends `llm.resource` with:
 ## Requirements
 
 - **Odoo**: 16.0+
-- **Python**: 3.10+
+- **Python**: 3.9+
 - **Dependencies**:
   - `llm_knowledge` module
   - `llm_mistral` module

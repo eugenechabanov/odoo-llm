@@ -11,7 +11,7 @@ What is MCP?
 Requirements
 ------------
 
-- **Python**: 3.10+
+- **Python**: 3.9+
 - **Odoo**: 16.0
 - **Dependencies**: See `requirements.txt <https://github.com/apexive/odoo-llm/blob/16.0/requirements.txt>`_
 

@@ -8,7 +8,7 @@ HTTP-based MCP server that exposes Odoo tools to any MCP-compatible AI client.
 
 ## Requirements
 
-- **Python**: 3.10+
+- **Python**: 3.9+
 - **Odoo**: 16.0
 - **Dependencies**: See [requirements.txt](https://github.com/apexive/odoo-llm/blob/16.0/requirements.txt)
 

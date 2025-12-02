@@ -295,7 +295,7 @@ Requirements
 ============
 
 - **Odoo**: 16.0+
-- **Python**: 3.10+
+- **Python**: 3.9+
 - **Dependencies**:
 
   - ``llm_knowledge`` module (semantic search, vector storage)
