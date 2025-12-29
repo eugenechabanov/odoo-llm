@@ -28,10 +28,10 @@ class LLMToolInvoiceExecutor(models.Model):
     def _get_available_implementations(self):
         implementations = super()._get_available_implementations()
         return implementations + [
-            ("invoice_executor", "Invoice Executor (Apply Analysis)")
+            ("account_move_invoice_updater", "Account Move Invoice Updater")
         ]
 
-    def invoice_executor_execute(
+    def account_move_invoice_updater_execute(
         self, invoice_id: int, approved_analysis: dict[str, Any]
     ) -> dict[str, Any]:
         """

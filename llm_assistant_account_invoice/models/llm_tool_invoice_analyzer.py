@@ -34,10 +34,10 @@ class LLMToolInvoiceAnalyzer(models.Model):
     def _get_available_implementations(self):
         implementations = super()._get_available_implementations()
         return implementations + [
-            ("invoice_analyzer", "Invoice Analyzer (Smart OCR + Matching)")
+            ("account_move_invoice_analyzer", "Account Move Invoice Analyzer")
         ]
 
-    def invoice_analyzer_execute(
+    def account_move_invoice_analyzer_execute(
         self,
         invoice_id: int,
         extracted_data: dict[str, Any],
