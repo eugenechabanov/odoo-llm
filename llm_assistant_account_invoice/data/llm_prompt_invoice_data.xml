@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <!-- Invoice Parser Prompt Template with Auto-Trigger -->
+    <!-- Invoice Processor Prompt Template with Auto-Trigger -->
     <record id="llm_prompt_invoice_parser" model="llm.prompt">
-        <field name="name">Invoice Parser Multi-Message Prompt</field>
+        <field name="name">Invoice Processor Multi-Message Prompt</field>
         <field
       name="description"
-    >Multi-message YAML prompt with system instructions and user message to auto-trigger invoice parsing on chat open.</field>
+    >Multi-message prompt with system instructions and auto-trigger to process invoices: OCR parsing, partner/product matching, and invoice line creation.</field>
         <field name="format">json</field>
         <field
       name="template"
@@ -16,7 +16,7 @@
   },
   {
     "type": "user",
-    "content": "Parse the attached invoice document and extract all data including:\n- Vendor/customer name\n- Invoice number and date\n- Line items with quantities and prices\n- Total amount\n- Payment terms\n\nPresent your findings clearly and suggest the next steps for processing this invoice."
+    "content": "Process this invoice by analyzing the attached document, matching the vendor/customer and products from our database, and preparing the invoice lines for entry. Walk me through each step and ask for confirmation before making any changes."
   }
 ]]]></field>
         <field

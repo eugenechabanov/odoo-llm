@@ -15,6 +15,7 @@
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "data": [
+        "data/llm_tool_data.xml",
         "data/llm_prompt_invoice_data.xml",
         "data/llm_assistant_data.xml",
         "views/account_move_views.xml",

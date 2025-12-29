@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <!-- Invoice Analyzer Tool -->
+    <record id="llm_tool_invoice_analyzer" model="llm.tool">
+        <field name="name">invoice_analyzer</field>
+        <field name="implementation">invoice_analyzer</field>
+        <field name="description">Analyzes invoice using structured data extracted by LLM from OCR. Consolidates: partner matching (VAT/name), duplicate check, product matching (supplier codes), and historical patterns. The LLM must first parse the OCR text and extract structured fields, then pass them to this tool.</field>
+        <field name="requires_user_consent" eval="False" />
+        <!-- Schema auto-generated from Python method signature -->
+    </record>
+
+    <!-- Invoice Executor Tool -->
+    <record id="llm_tool_invoice_executor" model="llm.tool">
+        <field name="name">invoice_executor</field>
+        <field name="implementation">invoice_executor</field>
+        <field name="description">Executes approved invoice analysis by creating lines and updating header. Consolidates: batch line creation, header updates (partner, ref, date), and validation. Only call after user approves the analysis.</field>
+        <field name="requires_user_consent" eval="True" />
+        <!-- Schema auto-generated from Python method signature -->
+    </record>
+</odoo>
