@@ -109,16 +109,20 @@ class LLMToolInvoiceAnalyzer(models.Model):
 
             # Validate extracted_data has required fields
             if not extracted_data.get("vendor_name"):
-                return self._error_response(
-                    "extracted_data must contain 'vendor_name'. "
-                    "Please parse the OCR text and extract vendor information first."
-                )
+                return {
+                    "status": "error",
+                    "error": "extracted_data must contain 'vendor_name'. "
+                            "Please parse the OCR text and extract vendor information first.",
+                    "suggestion": "Use llm_tool_ocr_mistral to get the invoice text, then extract vendor_name from it.",
+                }
 
             if not extracted_data.get("lines"):
-                return self._error_response(
-                    "extracted_data must contain 'lines' array. "
-                    "Please extract line items from the OCR text."
-                )
+                return {
+                    "status": "error",
+                    "error": "extracted_data must contain 'lines' array. "
+                            "Please extract line items from the OCR text.",
+                    "suggestion": "Parse the OCR text and extract line items with description, quantity, and unit_price.",
+                }
 
             # Use the LLM-extracted data directly
             ocr_data = extracted_data
@@ -189,7 +193,11 @@ class LLMToolInvoiceAnalyzer(models.Model):
 
         except Exception as e:
             _logger.error(f"Invoice analyzer error: {e}", exc_info=True)
-            return self._error_response(str(e))
+            return {
+                "status": "error",
+                "error": str(e),
+                "suggestion": "Check the invoice data and try again. Ensure all required fields are provided.",
+            }
 
     # ═══════════════════════════════════════════════════════════════
     # PARTNER MATCHING (OCA-inspired strategies)
@@ -470,9 +478,17 @@ class LLMToolInvoiceAnalyzer(models.Model):
         if not recent_invoices:
             return {}
 
-        # Analyze patterns
+        # Analyze patterns - find most common payment term
         payment_terms = recent_invoices.mapped("invoice_payment_term_id")
-        most_common_term = max(set(payment_terms), key=payment_terms.count) if payment_terms else None
+
+        if payment_terms:
+            # Count occurrences of each payment term
+            from collections import Counter
+            term_ids = [term.id for term in payment_terms]
+            most_common_id = Counter(term_ids).most_common(1)[0][0]
+            most_common_term = self.env["account.payment.term"].browse(most_common_id)
+        else:
+            most_common_term = None
 
         return {
             "common_payment_term": most_common_term.name if most_common_term else None,
@@ -569,10 +585,3 @@ class LLMToolInvoiceAnalyzer(models.Model):
             "ocr_summary": self._format_ocr_summary(ocr_data),
         }
 
-    def _error_response(self, error_message: str) -> dict:
-        """Format error response with helpful suggestion"""
-        return {
-            "status": "error",
-            "error": error_message,
-            "suggestion": "Check the invoice attachment and try again",
-        }

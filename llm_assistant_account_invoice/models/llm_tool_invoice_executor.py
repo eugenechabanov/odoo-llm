@@ -196,7 +196,6 @@ class LLMToolInvoiceExecutor(models.Model):
             "name": line_data.get("description", ""),
             "quantity": float(line_data.get("quantity", 1.0)),
             "price_unit": float(line_data.get("unit_price", 0.0)),
-            "display_type": False,
         }
 
         # Product (optional)
