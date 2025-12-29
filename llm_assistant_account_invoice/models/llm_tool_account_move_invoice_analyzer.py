@@ -11,7 +11,7 @@ from odoo.exceptions import UserError
 _logger = logging.getLogger(__name__)
 
 
-class LLMToolInvoiceAnalyzer(models.Model):
+class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
     """
     Consolidated invoice analysis tool following Anthropic's best practices.
 

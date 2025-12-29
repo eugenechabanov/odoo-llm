@@ -10,9 +10,9 @@ from odoo.exceptions import UserError
 _logger = logging.getLogger(__name__)
 
 
-class LLMToolInvoiceExecutor(models.Model):
+class LLMToolAccountMoveInvoiceUpdater(models.Model):
     """
-    Invoice executor tool - applies approved analysis to invoice.
+    Invoice updater tool - applies approved analysis to invoice.
 
     This tool consolidates write operations following Anthropic's principles:
     - Creates invoice lines (batch operation)
@@ -313,7 +313,7 @@ class LLMToolInvoiceExecutor(models.Model):
 
         # Check all lines have accounts
         lines_without_account = invoice.invoice_line_ids.filtered(
-            lambda l: not l.account_id and not l.display_type
+            lambda line: not line.account_id and not line.display_type
         )
         if lines_without_account:
             errors.append(f"{len(lines_without_account)} line(s) missing account")
