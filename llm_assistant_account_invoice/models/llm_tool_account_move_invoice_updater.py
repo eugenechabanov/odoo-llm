@@ -61,15 +61,15 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
 
     def _prepare_line_vals(self, invoice, line_data: dict) -> dict:
         """
-        Convert business-friendly line data → Odoo format.
+        Prepare line values for Odoo (direct mapping - no translation).
 
-        Handles all the Odoo-specific formatting that LLM doesn't need to know.
+        InvoiceLine already uses Odoo field names, so no conversion needed.
         """
         vals = {
             "move_id": invoice.id,
-            "name": line_data.get("description", ""),
+            "name": line_data.get("name", ""),  # Already Odoo field name
             "quantity": float(line_data.get("quantity", 1.0)),
-            "price_unit": float(line_data.get("unit_price", 0.0)),
+            "price_unit": float(line_data.get("price_unit", 0.0)),  # Already Odoo field name
         }
 
         # Product (optional)
@@ -77,8 +77,8 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             product = self.env["product.product"].browse(line_data["product_id"])
             if product.exists():
                 vals["product_id"] = product.id
-                # Product auto-fills: name, account_id, tax_ids
-                # But we can override them below
+                # Odoo auto-computes: name, account_id, tax_ids (with fiscal position!)
+                # We can override account_id below if needed
 
         # Account (required if no product)
         if line_data.get("account_id"):
@@ -90,11 +90,11 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
                 vals["account_id"] = account.id
             # If no account found, let Odoo's own validation handle it
 
-        # Taxes (convert to Odoo format)
-        if "tax_ids" in line_data and line_data["tax_ids"]:
-            # Analysis provides: [5, 12]
-            # Odoo needs: [(6, 0, [5, 12])]
-            vals["tax_ids"] = [(6, 0, line_data["tax_ids"])]
+        # Don't set tax_ids - let Odoo auto-compute based on:
+        # 1. Product taxes (supplier_taxes_id) OR
+        # 2. Account taxes OR
+        # 3. Company default purchase tax
+        # 4. THEN apply fiscal position mapping (critical for intra-EU, etc.)
 
         # Validate quantity
         if vals["quantity"] <= 0:
@@ -171,8 +171,8 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
         else:
             return (
                 "Check the error message for details. Ensure approved_analysis "
-                "has the required fields: partner_id, lines (with description, "
-                "quantity, unit_price, and either product_id or account_id)."
+                "has the required fields: partner_id, lines (with name, "
+                "quantity, price_unit, and either product_id or account_id)."
             )
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -200,11 +200,11 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
         Parameters:
             invoice_id: ID of the account.move record
             approved_analysis: Approved analysis from analyzer's "ready" response
-                REQUIRED fields:
+                REQUIRED fields (Odoo field names):
                 - partner_id: int
                 - lines: list[InvoiceLine]
                 - ref: str
-                - date: str
+                - invoice_date: str
 
         Returns:
             UpdaterResponse with status:
@@ -215,15 +215,15 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             # 1. Get ready response from analyzer
             analyzer_result = analyzer(invoice_id, extracted_data, constraints)
 
-            # 2. Pass data.partner_id and data.lines to updater
+            # 2. Pass data using Odoo field names (direct mapping)
             updater_result = updater(
                 invoice_id=invoice_id,
                 approved_analysis={
                     "partner_id": analyzer_result["data"]["partner_id"],
                     "lines": analyzer_result["data"]["lines"],
                     "ref": analyzer_result["data"]["suggested_values"]["ref"],
-                    "date": analyzer_result["data"]["suggested_values"]["date"],
-                    "payment_term_id": analyzer_result["data"]["suggested_values"].get("payment_term_id"),
+                    "invoice_date": analyzer_result["data"]["suggested_values"]["invoice_date"],
+                    "invoice_payment_term_id": analyzer_result["data"]["suggested_values"].get("invoice_payment_term_id"),
                 }
             )
         """
@@ -269,15 +269,15 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
                     "failed_at": "validation",
                 }
 
-            # Validate REQUIRED date
-            if not approved_analysis.get("date"):
+            # Validate REQUIRED invoice_date
+            if not approved_analysis.get("invoice_date"):
                 return {
                     "status": "error",
                     "invoice_id": invoice.id,
                     "invoice_number": invoice.name,
-                    "error": "date (invoice date) is REQUIRED",
-                    "suggestion": "Use the date from analyzer's 'suggested_values': "
-                    "analyzer_result['data']['suggested_values']['date']",
+                    "error": "invoice_date is REQUIRED",
+                    "suggestion": "Use the invoice_date from analyzer's 'suggested_values': "
+                    "analyzer_result['data']['suggested_values']['invoice_date']",
                     "failed_at": "validation",
                 }
 
@@ -294,7 +294,7 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
                         "status": "error",
                         "invoice_id": invoice.id,
                         "invoice_number": invoice.name,
-                        "error": f"Error preparing line '{line_data.get('description', '')}': {str(e)}",
+                        "error": f"Error preparing line '{line_data.get('name', '')}': {str(e)}",
                         "suggestion": self._get_error_suggestion(str(e)),
                         "failed_at": "line_preparation",
                     }
@@ -302,18 +302,19 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             # ─────────────────────────────────────────────────────────────
             # STEP 2: Update Invoice Header
             # ─────────────────────────────────────────────────────────────
+            # Direct mapping - ApprovedAnalysis uses Odoo field names
             header_vals = {
                 "partner_id": approved_analysis["partner_id"],
                 "ref": approved_analysis["ref"],
-                "invoice_date": approved_analysis["date"],
+                "invoice_date": approved_analysis["invoice_date"],
             }
 
             # Optional fields
-            if approved_analysis.get("due_date"):
-                header_vals["invoice_date_due"] = approved_analysis["due_date"]
-            if approved_analysis.get("payment_term_id"):
+            if approved_analysis.get("invoice_date_due"):
+                header_vals["invoice_date_due"] = approved_analysis["invoice_date_due"]
+            if approved_analysis.get("invoice_payment_term_id"):
                 header_vals["invoice_payment_term_id"] = approved_analysis[
-                    "payment_term_id"
+                    "invoice_payment_term_id"
                 ]
 
             try:

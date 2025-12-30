@@ -5,17 +5,14 @@
 Type definitions for invoice analyzer and updater tools.
 
 These types ensure type-safety and clear contracts between tools and LLM.
+Uses Pydantic for runtime validation and type safety.
 """
 
-import sys
-from typing import Any, Literal
+from __future__ import annotations
 
-# For Python < 3.12, use typing_extensions for TypedDict and NotRequired
-# to support proper handling of required/optional fields
-if sys.version_info < (3, 12):
-    from typing_extensions import NotRequired, TypedDict
-else:
-    from typing import NotRequired, TypedDict
+from typing import Any, Literal, Optional, Union
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # =============================================================================
@@ -23,24 +20,24 @@ else:
 # =============================================================================
 
 
-class ExtractedLine(TypedDict):
-    """Single line item extracted from invoice by LLM"""
+class ExtractedLine(BaseModel):
+    """Single line item extracted from invoice by LLM - uses Odoo field names"""
 
-    description: str
+    name: str = Field(..., description="Line description (Odoo field name)")
     quantity: float
-    unit_price: float
+    price_unit: float = Field(..., description="Unit price (Odoo field name)")
 
 
-class ExtractedInvoiceData(TypedDict):
-    """Invoice data extracted by LLM from OCR text"""
+class ExtractedInvoiceData(BaseModel):
+    """Invoice data extracted by LLM from OCR text - uses Odoo field names where applicable"""
 
-    vendor_name: str
+    vendor_name: str = Field(..., description="Intermediate field (maps to partner_id)")
     lines: list[ExtractedLine]
-    ref: NotRequired[str]  # Invoice reference/number
-    vat: NotRequired[str]  # Vendor VAT number
-    date: NotRequired[str]  # Invoice date
-    due_date: NotRequired[str]  # Payment due date
-    total: NotRequired[float]  # Total amount
+    ref: Optional[str] = Field(None, description="Invoice reference/number (Odoo field name)")
+    vat: Optional[str] = Field(None, description="Vendor VAT number (intermediate, maps to partner_id.vat)")
+    invoice_date: Optional[str] = Field(None, description="Invoice date (Odoo field name)")
+    invoice_date_due: Optional[str] = Field(None, description="Payment due date (Odoo field name)")
+    total: Optional[float] = Field(None, description="Total amount (intermediate, maps to amount_total)")
 
 
 # =============================================================================
@@ -48,29 +45,72 @@ class ExtractedInvoiceData(TypedDict):
 # =============================================================================
 
 
-class ProductChoice(TypedDict):
+class ProductChoice(BaseModel):
     """Type-safe product choice for a line item"""
 
-    line_index: int  # 0-based index
-    choice: int | Literal["manual"] | Literal["skip"]
-    # int = product_id to use
-    # "manual" = create line without product (manual entry)
-    # "skip" = don't create this line
+    line_index: int = Field(..., description="0-based index")
+    choice: Union[int, Literal["manual"], Literal["skip"]] = Field(
+        ...,
+        description="int = product_id to use, 'manual' = create line without product, 'skip' = don't create this line"
+    )
 
 
-class PartnerChoice(TypedDict):
+class PartnerChoice(BaseModel):
     """Type-safe partner choice"""
 
-    choice: int | Literal["create_new"]
-    # int = partner_id to use
-    # "create_new" = create new partner with extracted data
+    choice: Union[int, Literal["create_new"]] = Field(
+        ...,
+        description="int = partner_id to use, 'create_new' = create new partner with extracted data"
+    )
 
 
-class AnalyzerConstraints(TypedDict, total=False):
+class AnalyzerConstraints(BaseModel):
     """Constraints for analyzer (user decisions)"""
 
-    partner_choice: PartnerChoice
-    product_choices: list[ProductChoice]
+    partner_choice: Optional[PartnerChoice] = None
+    product_choices: Optional[list[ProductChoice]] = None
+
+
+# =============================================================================
+# INTERNAL MATCHING RESULTS
+# =============================================================================
+
+
+class HistoricalPatterns(BaseModel):
+    """Historical patterns from partner's invoice history"""
+
+    common_payment_term: Optional[str] = None
+    common_payment_term_id: Optional[int] = None
+    recent_invoice_count: int = 0
+
+
+class PartnerMatchResult(BaseModel):
+    """Result of partner matching operation"""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)  # Allow Odoo recordset
+
+    partner: Optional[Any] = None  # Odoo recordset
+    needs_decision: bool = False
+    needs_search: bool = False
+    method: Optional[str] = None
+    confidence: Optional[str] = None
+    alternatives: Optional[list[PartnerOption]] = None
+    search_hints: Optional[dict[str, Any]] = None
+
+
+class ProductMatchResult(BaseModel):
+    """Result of product matching operation"""
+
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+    needs_decision: bool = False
+    needs_search: bool = False
+    skip: bool = False
+    method: Optional[str] = None
+    confidence: Optional[str] = None
+    ocr_description: str = ""
+    alternatives: Optional[list[ProductOption]] = None
+    search_hints: Optional[dict[str, Any]] = None
 
 
 # =============================================================================
@@ -78,15 +118,25 @@ class AnalyzerConstraints(TypedDict, total=False):
 # =============================================================================
 
 
-class AnalyzerContext(TypedDict):
+class OCRSummary(BaseModel):
+    """Compact OCR summary for analyzer context"""
+
+    vendor: str
+    ref: str
+    date: str
+    total: float
+    line_count: int
+
+
+class AnalyzerContext(BaseModel):
     """Common context present in all analyzer responses"""
 
     invoice_id: int
     invoice_number: str
-    extracted_data_summary: dict[str, Any]  # Compact OCR summary
+    extracted_data_summary: dict[str, Any] = Field(..., description="Compact OCR summary")
 
 
-class PartnerInfo(TypedDict):
+class PartnerInfo(BaseModel):
     """Partner information"""
 
     id: int
@@ -94,77 +144,69 @@ class PartnerInfo(TypedDict):
     vat: str
 
 
-class PartnerOption(TypedDict):
+class PartnerOption(BaseModel):
     """Partner option for user selection"""
 
-    id: int | None  # None for "create new"
+    id: Optional[int] = Field(None, description="None for 'create new'")
     name: str
-    vat: NotRequired[str]
-    city: NotRequired[str]
-    country: NotRequired[str]
-    suggested_name: NotRequired[str]  # For create new option
+    vat: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    suggested_name: Optional[str] = Field(None, description="For create new option")
 
 
-class ProductInfo(TypedDict):
-    """Product information"""
-
-    id: int
-    name: str
-    code: str
-
-
-class ProductOption(TypedDict):
+class ProductOption(BaseModel):
     """Product option for user selection"""
 
-    id: int | None  # None for "manual entry"
+    id: Optional[int] = Field(None, description="None for 'manual entry'")
     name: str
-    description: NotRequired[str]
-    code: NotRequired[str]
-    price: NotRequired[float]
+    description: Optional[str] = None
+    code: Optional[str] = None
+    list_price: Optional[float] = Field(None, description="Sales price (Odoo field name)")
 
 
-class InvoiceLine(TypedDict):
-    """Complete invoice line ready for creation"""
+class InvoiceLine(BaseModel):
+    """Complete invoice line ready for creation - uses Odoo field names"""
 
-    description: str
+    name: str = Field(..., description="Line description (Odoo field name)")
     quantity: float
-    unit_price: float
-    product_id: int | None
-    product_name: NotRequired[str]
-    account_id: int | None
-    tax_ids: list[int]
+    price_unit: float = Field(..., description="Unit price (Odoo field name)")
+    product_id: Optional[int] = Field(None, description="Optional - can be omitted or None")
+    product_name: Optional[str] = Field(None, description="Metadata only")
+    account_id: Optional[int] = Field(None, description="Optional - can be omitted or None")
+    tax_ids: Optional[list[int]] = Field(None, description="Optional - Odoo auto-computes based on product/account + fiscal position")
 
 
-class SuggestedValues(TypedDict, total=False):
-    """Suggested values from analyzer"""
+class SuggestedValues(BaseModel):
+    """Suggested values from analyzer - uses Odoo field names"""
 
-    ref: str
-    date: str
-    due_date: str
-    payment_term_id: int
+    ref: Optional[str] = None
+    invoice_date: Optional[str] = Field(None, description="Odoo field name")
+    invoice_date_due: Optional[str] = Field(None, description="Odoo field name")
+    invoice_payment_term_id: Optional[int] = Field(None, description="Odoo field name")
 
 
 # Response data for each status
-class ReadyData(TypedDict):
+class ReadyData(BaseModel):
     """Data when status is 'ready'"""
 
-    partner_id: int  # CRITICAL: Include for updater
+    partner_id: int = Field(..., description="CRITICAL: Include for updater")
     partner: PartnerInfo
     lines: list[InvoiceLine]
     suggested_values: SuggestedValues
 
 
-class SearchHints(TypedDict):
+class SearchHints(BaseModel):
     """Search hints for LLM intelligent searching"""
 
-    model: str  # e.g., "res.partner", "product.product"
-    fields_to_search: list[str]  # e.g., ["name", "vat", "city"]
-    suggested_strategies: list[str]  # Human-readable strategies
-    example_queries: list[dict[str, Any]]  # Example domain queries
-    instructions: str  # Detailed instructions for LLM
+    model: str = Field(..., description="e.g., 'res.partner', 'product.product'")
+    fields_to_search: list[str] = Field(..., description="e.g., ['name', 'vat', 'city']")
+    suggested_strategies: list[str] = Field(..., description="Human-readable strategies")
+    example_queries: list[dict[str, Any]] = Field(..., description="Example domain queries")
+    instructions: str = Field(..., description="Detailed instructions for LLM")
 
 
-class NeedsInputPartnerData(TypedDict):
+class NeedsInputPartnerData(BaseModel):
     """Data when status is 'needs_input' for partner selection"""
 
     question_type: Literal["partner_selection"]
@@ -172,15 +214,15 @@ class NeedsInputPartnerData(TypedDict):
     partner_options: list[PartnerOption]
 
 
-class NeedsInputPartnerSearchData(TypedDict):
+class NeedsInputPartnerSearchData(BaseModel):
     """Data when status is 'needs_input' for partner intelligent search"""
 
     question_type: Literal["partner_search"]
     question: str
-    search_hints: dict[str, Any]  # SearchHints + specific fields
+    search_hints: dict[str, Any] = Field(..., description="SearchHints + specific fields")
 
 
-class NeedsInputProductData(TypedDict):
+class NeedsInputProductData(BaseModel):
     """Data when status is 'needs_input' for product selection"""
 
     question_type: Literal["product_selection"]
@@ -188,21 +230,21 @@ class NeedsInputProductData(TypedDict):
     line_number: int
     line_description: str
     product_options: list[ProductOption]
-    completed: dict[str, Any]  # Already completed decisions (e.g., partner)
+    completed: dict[str, Any] = Field(..., description="Already completed decisions (e.g., partner)")
 
 
-class NeedsInputProductSearchData(TypedDict):
+class NeedsInputProductSearchData(BaseModel):
     """Data when status is 'needs_input' for product intelligent search"""
 
     question_type: Literal["product_search"]
     question: str
     line_number: int
     line_description: str
-    search_hints: dict[str, Any]  # SearchHints + specific fields
-    completed: dict[str, Any]  # Already completed decisions (e.g., partner)
+    search_hints: dict[str, Any] = Field(..., description="SearchHints + specific fields")
+    completed: dict[str, Any] = Field(..., description="Already completed decisions (e.g., partner)")
 
 
-class DuplicateFoundData(TypedDict):
+class DuplicateFoundData(BaseModel):
     """Data when status is 'duplicate_found'"""
 
     duplicate_id: int
@@ -210,7 +252,7 @@ class DuplicateFoundData(TypedDict):
     message: str
 
 
-class ErrorData(TypedDict):
+class ErrorData(BaseModel):
     """Data when status is 'error'"""
 
     error: str
@@ -218,16 +260,16 @@ class ErrorData(TypedDict):
 
 
 # Union of all possible data types
-NeedsInputData = (
-    NeedsInputPartnerData
-    | NeedsInputPartnerSearchData
-    | NeedsInputProductData
-    | NeedsInputProductSearchData
-)
+NeedsInputData = Union[
+    NeedsInputPartnerData,
+    NeedsInputPartnerSearchData,
+    NeedsInputProductData,
+    NeedsInputProductSearchData,
+]
 
 
 # Complete analyzer responses
-class AnalyzerResponseReady(TypedDict):
+class AnalyzerResponseReady(BaseModel):
     """Analyzer response when ready to create invoice"""
 
     status: Literal["ready"]
@@ -235,7 +277,7 @@ class AnalyzerResponseReady(TypedDict):
     data: ReadyData
 
 
-class AnalyzerResponseNeedsInput(TypedDict):
+class AnalyzerResponseNeedsInput(BaseModel):
     """Analyzer response when user input needed"""
 
     status: Literal["needs_input"]
@@ -243,7 +285,7 @@ class AnalyzerResponseNeedsInput(TypedDict):
     data: NeedsInputData
 
 
-class AnalyzerResponseDuplicate(TypedDict):
+class AnalyzerResponseDuplicate(BaseModel):
     """Analyzer response when duplicate found"""
 
     status: Literal["duplicate_found"]
@@ -251,7 +293,7 @@ class AnalyzerResponseDuplicate(TypedDict):
     data: DuplicateFoundData
 
 
-class AnalyzerResponseError(TypedDict):
+class AnalyzerResponseError(BaseModel):
     """Analyzer response when error occurred"""
 
     status: Literal["error"]
@@ -260,12 +302,12 @@ class AnalyzerResponseError(TypedDict):
 
 
 # Union type for all analyzer responses
-AnalyzerResponse = (
-    AnalyzerResponseReady
-    | AnalyzerResponseNeedsInput
-    | AnalyzerResponseDuplicate
-    | AnalyzerResponseError
-)
+AnalyzerResponse = Union[
+    AnalyzerResponseReady,
+    AnalyzerResponseNeedsInput,
+    AnalyzerResponseDuplicate,
+    AnalyzerResponseError,
+]
 
 
 # =============================================================================
@@ -273,18 +315,18 @@ AnalyzerResponse = (
 # =============================================================================
 
 
-class ApprovedAnalysis(TypedDict):
-    """Approved analysis from analyzer to pass to updater"""
+class ApprovedAnalysis(BaseModel):
+    """Approved analysis from analyzer to pass to updater - uses Odoo field names"""
 
-    partner_id: int  # REQUIRED
-    lines: list[InvoiceLine]  # REQUIRED
-    ref: str  # REQUIRED
-    date: str  # REQUIRED
-    due_date: NotRequired[str]
-    payment_term_id: NotRequired[int]
+    partner_id: int = Field(..., description="REQUIRED")
+    lines: list[InvoiceLine] = Field(..., description="REQUIRED")
+    ref: str = Field(..., description="REQUIRED")
+    invoice_date: str = Field(..., description="REQUIRED (Odoo field name)")
+    invoice_date_due: Optional[str] = Field(None, description="Odoo field name")
+    invoice_payment_term_id: Optional[int] = Field(None, description="Odoo field name")
 
 
-class UpdaterTotals(TypedDict):
+class UpdaterTotals(BaseModel):
     """Invoice totals"""
 
     subtotal: float
@@ -292,15 +334,15 @@ class UpdaterTotals(TypedDict):
     total: float
 
 
-class UpdaterValidation(TypedDict, total=False):
+class UpdaterValidation(BaseModel):
     """Validation results"""
 
-    expected_total: float
-    actual_total: float
-    totals_match: bool
+    expected_total: Optional[float] = None
+    actual_total: Optional[float] = None
+    totals_match: Optional[bool] = None
 
 
-class UpdaterResponseSuccess(TypedDict):
+class UpdaterResponseSuccess(BaseModel):
     """Updater response when successful"""
 
     status: Literal["success"]
@@ -313,7 +355,7 @@ class UpdaterResponseSuccess(TypedDict):
     message: str
 
 
-class UpdaterResponseError(TypedDict):
+class UpdaterResponseError(BaseModel):
     """Updater response when error occurred"""
 
     status: Literal["error"]
@@ -321,8 +363,8 @@ class UpdaterResponseError(TypedDict):
     invoice_number: str
     error: str
     suggestion: str
-    failed_at: str  # Which step failed
+    failed_at: str = Field(..., description="Which step failed")
 
 
 # Union type for all updater responses
-UpdaterResponse = UpdaterResponseSuccess | UpdaterResponseError
+UpdaterResponse = Union[UpdaterResponseSuccess, UpdaterResponseError]
