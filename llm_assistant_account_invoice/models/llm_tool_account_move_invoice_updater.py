@@ -29,7 +29,7 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
     def _get_available_implementations(self):
         implementations = super()._get_available_implementations()
         return implementations + [
-            ("account_move_invoice_updater", "Account Move Invoice Updater (Type-Safe)"),
+            ("account_move_invoice_updater", "Account Move Invoice Updater"),
         ]
 
     def _validate_invoice_editable(self, invoice_id: int):

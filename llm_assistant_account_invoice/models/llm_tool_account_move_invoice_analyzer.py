@@ -42,7 +42,7 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
     def _get_available_implementations(self):
         implementations = super()._get_available_implementations()
         return implementations + [
-            ("account_move_invoice_analyzer", "Account Move Invoice Analyzer (Type-Safe)"),
+            ("account_move_invoice_analyzer", "Account Move Invoice Analyzer"),
         ]
 
     def _normalize_vat(self, vat: str) -> str:
