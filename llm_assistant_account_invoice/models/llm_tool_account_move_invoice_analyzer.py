@@ -3,10 +3,18 @@
 
 import logging
 import re
-from typing import Any, Optional
+from typing import Optional
 
 from odoo import _, api, models
 from odoo.exceptions import UserError
+
+from .invoice_tool_types import (
+    AnalyzerConstraints,
+    AnalyzerResponse,
+    ExtractedInvoiceData,
+    PartnerChoice,
+    ProductChoice,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -34,278 +42,8 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
     def _get_available_implementations(self):
         implementations = super()._get_available_implementations()
         return implementations + [
-            ("account_move_invoice_analyzer", "Account Move Invoice Analyzer")
+            ("account_move_invoice_analyzer", "Account Move Invoice Analyzer (Type-Safe)"),
         ]
-
-    def account_move_invoice_analyzer_execute(
-        self,
-        invoice_id: int,
-        extracted_data: dict[str, Any],
-        constraints: Optional[dict[str, Any]] = None,
-    ) -> dict[str, Any]:
-        """
-        Analyze invoice using LLM-extracted structured data.
-
-        This tool handles the PROGRAMMATIC parts: matching, validation, duplicate checking.
-        The LLM handles the UNSTRUCTURED part: parsing OCR text into structured fields.
-
-        This follows Anthropic's principle: tools do "programmatic operations",
-        LLMs do "understanding unstructured data".
-
-        Parameters:
-            invoice_id: ID of the account.move record to analyze
-            extracted_data: Structured data extracted by LLM from OCR, containing:
-                {
-                    "vendor_name": str,
-                    "vat": str (optional),
-                    "ref": str (invoice reference/number),
-                    "date": str (invoice date),
-                    "due_date": str (optional),
-                    "lines": [
-                        {
-                            "description": str,
-                            "quantity": float,
-                            "unit_price": float
-                        }
-                    ],
-                    "total": float
-                }
-            constraints: Optional user-provided constraints (e.g., confirmed partner_id)
-
-        Returns:
-            Focused analysis with one of these statuses:
-            - 'ready': All matches found, ready to execute
-            - 'needs_input': User decision required
-            - 'duplicate_found': Invoice already exists (blocker)
-            - 'error': Analysis failed
-
-        Example LLM usage:
-            # Step 1: LLM parses OCR text
-            ocr_text = llm_tool_ocr_mistral(attachment_ids)
-            # LLM extracts structured data from OCR text
-
-            # Step 2: LLM calls analyzer with structured data
-            result = invoice_analyzer(
-                invoice_id=123,
-                extracted_data={
-                    "vendor_name": "Acme Corp",
-                    "vat": "BE0123456789",
-                    "ref": "INV-2025-001",
-                    "lines": [...]
-                }
-            )
-
-            if result['status'] == 'needs_input':
-                # Ask user to choose from result['options']
-
-            elif result['status'] == 'ready':
-                # Present result['suggested_invoice'] for approval
-        """
-        constraints = constraints or {}
-
-        try:
-            # Get invoice and validate
-            invoice = self._get_invoice(invoice_id)
-
-            # Validate extracted_data has required fields
-            if not extracted_data.get("vendor_name"):
-                return {
-                    "status": "error",
-                    "error": "extracted_data must contain 'vendor_name'. "
-                            "Please parse the OCR text and extract vendor information first.",
-                    "suggestion": "Use llm_tool_ocr_mistral to get the invoice text, then extract vendor_name from it.",
-                }
-
-            if not extracted_data.get("lines"):
-                return {
-                    "status": "error",
-                    "error": "extracted_data must contain 'lines' array. "
-                            "Please extract line items from the OCR text.",
-                    "suggestion": "Parse the OCR text and extract line items with description, quantity, and unit_price.",
-                }
-
-            # Use the LLM-extracted data directly
-            ocr_data = extracted_data
-
-            # STEP 2: Match Partner
-            partner_result = self._match_partner(
-                ocr_data, constraints.get("partner_id")
-            )
-
-            if partner_result["needs_decision"]:
-                return self._needs_input_response(
-                    question="partner_selection",
-                    message=f"Found {len(partner_result['alternatives'])} possible partners",
-                    options=partner_result["alternatives"],
-                    ocr_data=ocr_data,
-                )
-
-            partner = partner_result["partner"]
-
-            # STEP 3: Check Duplicates (EARLY EXIT if found)
-            duplicate = self._check_duplicate(partner, ocr_data)
-            if duplicate:
-                return self._duplicate_response(duplicate, ocr_data)
-
-            # STEP 4: Match Products
-            product_results = self._match_products(
-                ocr_data["lines"], partner, constraints.get("product_choices", {})
-            )
-
-            # Check if any product needs user input
-            for idx, prod in enumerate(product_results):
-                if prod["needs_decision"]:
-                    return self._needs_input_response(
-                        question="product_selection",
-                        message=f"Line {idx + 1}: '{prod['ocr_description']}' has multiple matches",
-                        line_number=idx + 1,
-                        ocr_description=prod["ocr_description"],
-                        options=prod["alternatives"],
-                        ocr_data=ocr_data,
-                        partner={
-                            "id": partner.id,
-                            "name": partner.name,
-                            "vat": partner.vat or "",
-                        },
-                        partial_products=product_results,
-                    )
-
-            # STEP 5: Get Historical Patterns (optional context)
-            patterns = self._get_historical_patterns(partner)
-
-            # STEP 6: Build Suggested Invoice Structure
-            suggested_invoice = self._build_suggested_invoice(
-                invoice, ocr_data, partner, product_results, patterns
-            )
-
-            # SUCCESS: Everything matched!
-            return {
-                "status": "ready",
-                "invoice_id": invoice.id,
-                "ocr_data": self._format_ocr_summary(ocr_data),
-                "partner": {
-                    "id": partner.id,
-                    "name": partner.name,
-                    "vat": partner.vat or "",
-                },
-                "duplicate_check": {"is_duplicate": False},
-                "lines_matched": len(product_results),
-                "suggested_invoice": suggested_invoice,
-                "historical_patterns": patterns,
-                "message": f"Analysis complete! Found partner '{partner.name}', matched {len(product_results)} lines",
-            }
-
-        except Exception as e:
-            _logger.error(f"Invoice analyzer error: {e}", exc_info=True)
-            return {
-                "status": "error",
-                "error": str(e),
-                "suggestion": "Check the invoice data and try again. Ensure all required fields are provided.",
-            }
-
-    # ═══════════════════════════════════════════════════════════════
-    # PARTNER MATCHING (OCA-inspired strategies)
-    # ═══════════════════════════════════════════════════════════════
-
-    def _match_partner(self, ocr_data: dict, forced_partner_id: Optional[int] = None) -> dict:
-        """
-        Match partner using OCA-style hierarchy:
-        1. VAT (highest confidence)
-        2. Partner ref
-        3. Name (exact then fuzzy)
-
-        Returns max 2 alternatives if ambiguous.
-        """
-        if forced_partner_id:
-            partner = self.env["res.partner"].browse(forced_partner_id)
-            if partner.exists():
-                return {"partner": partner, "needs_decision": False}
-
-        Partner = self.env["res.partner"]
-        company_domain = self._get_company_domain()
-
-        # Priority 1: VAT exact match
-        if ocr_data.get("vat"):
-            vat_clean = self._normalize_vat(ocr_data["vat"])
-            partner = Partner.search(
-                [("vat", "=ilike", vat_clean)] + company_domain, limit=1
-            )
-            if partner:
-                return {
-                    "partner": partner,
-                    "needs_decision": False,
-                    "method": "vat",
-                    "confidence": "high",
-                }
-
-        # Priority 2: Name search
-        if ocr_data.get("vendor_name"):
-            name = ocr_data["vendor_name"]
-
-            # Exact match first
-            partners = Partner.search(
-                [("name", "=ilike", name)] + company_domain, limit=3
-            )
-
-            if len(partners) == 1:
-                return {
-                    "partner": partners[0],
-                    "needs_decision": False,
-                    "method": "name_exact",
-                    "confidence": "high",
-                }
-            elif len(partners) > 1:
-                # Multiple matches - need user input
-                return {
-                    "partner": None,
-                    "needs_decision": True,
-                    "alternatives": self._format_partner_alternatives(partners[:2]),
-                    "method": "name_multiple",
-                }
-
-            # Fuzzy match: split into tokens and search with OR
-            # Handles cases like "strato gmbh" vs "strato.nl"
-            tokens = name.split()
-            if tokens:
-                # Build OR domain for all tokens: token1 OR token2 OR token3
-                token_domain = []
-                for token in tokens:
-                    if token_domain:
-                        token_domain = ["|"] + token_domain
-                    token_domain.append(("name", "ilike", f"%{token}%"))
-
-                # Combine with company domain
-                fuzzy_domain = token_domain + company_domain
-                partners = Partner.search(fuzzy_domain, limit=3)
-
-                if len(partners) == 1:
-                    return {
-                        "partner": partners[0],
-                        "needs_decision": False,
-                        "method": "name_fuzzy",
-                        "confidence": "medium",
-                    }
-                elif len(partners) > 1:
-                    return {
-                        "partner": None,
-                        "needs_decision": True,
-                        "alternatives": self._format_partner_alternatives(partners[:2]),
-                        "method": "name_fuzzy_multiple",
-                    }
-
-        # No match - suggest creation
-        return {
-            "partner": None,
-            "needs_decision": True,
-            "alternatives": [
-                {
-                    "id": None,
-                    "name": "Create new partner",
-                    "vat": ocr_data.get("vat", ""),
-                    "suggested_name": ocr_data.get("vendor_name", ""),
-                }
-            ],
-        }
 
     def _normalize_vat(self, vat: str) -> str:
         """Normalize VAT number (remove spaces, uppercase)"""
@@ -346,117 +84,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
 
         return duplicate if duplicate else None
 
-    # ═══════════════════════════════════════════════════════════════
-    # STEP 4: PRODUCT MATCHING (with supplier code support!)
-    # ═══════════════════════════════════════════════════════════════
-
-    def _match_products(
-        self, lines: list[dict], partner, product_choices: dict
-    ) -> list[dict]:
-        """
-        Match products using OCA-style priority:
-        1. Supplier code (via product.supplierinfo) - CRITICAL!
-        2. Barcode
-        3. Internal code
-        4. Name fuzzy match
-        """
-        results = []
-
-        for idx, line in enumerate(lines):
-            forced_product_id = product_choices.get(str(idx))
-
-            if forced_product_id:
-                product = self.env["product.product"].browse(forced_product_id)
-                if product.exists():
-                    results.append(
-                        {
-                            "product_id": product.id,
-                            "product_name": product.name,
-                            "needs_decision": False,
-                            "ocr_description": line["description"],
-                        }
-                    )
-                    continue
-
-            result = self._match_single_product(line, partner)
-            results.append(result)
-
-        return results
-
-    def _match_single_product(self, line: dict, partner) -> dict:
-        """Match a single product line"""
-        Product = self.env["product.product"]
-        company_domain = self._get_company_domain()
-
-        description = line.get("description", "")
-
-        # Priority 1: Supplier code (if we can extract it)
-        # In real implementation, you'd extract supplier codes from OCR
-        # For now, we'll skip to name matching
-
-        # Priority 2: Name search
-        if description:
-            # Exact match
-            products = Product.search(
-                [("name", "=ilike", description)] + company_domain, limit=3
-            )
-
-            if len(products) == 1:
-                return {
-                    "product_id": products[0].id,
-                    "product_name": products[0].name,
-                    "needs_decision": False,
-                    "confidence": "high",
-                    "method": "name_exact",
-                    "ocr_description": description,
-                }
-            elif len(products) > 1:
-                return {
-                    "product_id": None,
-                    "product_name": None,
-                    "needs_decision": True,
-                    "alternatives": self._format_product_alternatives(products[:2]),
-                    "ocr_description": description,
-                }
-
-            # Fuzzy match
-            products = Product.search(
-                [("name", "ilike", description)] + company_domain, limit=3
-            )
-
-            if len(products) == 1:
-                return {
-                    "product_id": products[0].id,
-                    "product_name": products[0].name,
-                    "needs_decision": False,
-                    "confidence": "medium",
-                    "method": "name_fuzzy",
-                    "ocr_description": description,
-                }
-            elif len(products) > 1:
-                return {
-                    "product_id": None,
-                    "product_name": None,
-                    "needs_decision": True,
-                    "alternatives": self._format_product_alternatives(products[:2]),
-                    "ocr_description": description,
-                }
-
-        # No match - will need manual entry
-        return {
-            "product_id": None,
-            "product_name": None,
-            "needs_decision": True,
-            "alternatives": [
-                {
-                    "id": None,
-                    "name": "Enter manually (no product)",
-                    "description": "Create line without product",
-                }
-            ],
-            "ocr_description": description,
-        }
-
     def _format_product_alternatives(self, products) -> list[dict]:
         """Format product alternatives for LLM"""
         return [
@@ -468,10 +95,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
             }
             for p in products
         ]
-
-    # ═══════════════════════════════════════════════════════════════
-    # STEP 5: HISTORICAL PATTERNS
-    # ═══════════════════════════════════════════════════════════════
 
     def _get_historical_patterns(self, partner) -> dict:
         """Get common patterns from partner's invoice history"""
@@ -510,53 +133,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
             "recent_invoice_count": len(recent_invoices),
         }
 
-    # ═══════════════════════════════════════════════════════════════
-    # STEP 6: BUILD SUGGESTED INVOICE
-    # ═══════════════════════════════════════════════════════════════
-
-    def _build_suggested_invoice(
-        self, invoice, ocr_data: dict, partner, product_results: list[dict], patterns: dict
-    ) -> dict:
-        """Build complete suggested invoice structure"""
-        lines = []
-
-        for line_ocr, prod_result in zip(ocr_data["lines"], product_results):
-            line = {
-                "description": line_ocr["description"],
-                "quantity": line_ocr.get("quantity", 1.0),
-                "unit_price": line_ocr.get("unit_price", 0.0),
-            }
-
-            if prod_result.get("product_id"):
-                product = self.env["product.product"].browse(prod_result["product_id"])
-                line["product_id"] = product.id
-                line["product_name"] = product.name
-                # Auto-fill from product
-                line["account_id"] = product.property_account_expense_id.id or product.categ_id.property_account_expense_categ_id.id
-                line["tax_ids"] = product.supplier_taxes_id.ids
-            else:
-                # Manual line - need account
-                line["product_id"] = None
-                line["account_id"] = None  # Will need to be determined
-                line["tax_ids"] = []
-
-            lines.append(line)
-
-        return {
-            "partner_id": partner.id,
-            "ref": ocr_data.get("ref", ""),
-            "invoice_date": ocr_data.get("date"),
-            "invoice_payment_term_id": patterns.get("common_payment_term_id"),
-            "lines": lines,
-            "totals": {
-                "expected_total": ocr_data.get("total", 0.0),
-            },
-        }
-
-    # ═══════════════════════════════════════════════════════════════
-    # HELPER METHODS
-    # ═══════════════════════════════════════════════════════════════
-
     def _get_invoice(self, invoice_id: int):
         """Get and validate invoice"""
         invoice = self.env["account.move"].browse(invoice_id)
@@ -579,23 +155,526 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
             "line_count": len(ocr_data.get("lines", [])),
         }
 
-    # Response formatters
-    def _needs_input_response(self, question: str, message: str, **kwargs) -> dict:
-        """Format 'needs_input' response"""
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Type-Safe Invoice Analyzer with Intelligent Search
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def account_move_invoice_analyzer_execute(
+        self,
+        invoice_id: int,
+        extracted_data: ExtractedInvoiceData,
+        constraints: Optional[AnalyzerConstraints] = None,
+    ) -> AnalyzerResponse:
+        """
+        Type-safe invoice analyzer with intelligent search and consistent responses.
+
+        Philosophy: "Tools do programmatic operations, LLMs do understanding unstructured data"
+        - Simple exact matching in tool (VAT, name)
+        - LLM handles intelligent fuzzy matching via odoo_record_retriever
+
+        Key features:
+        - Consistent response structure for all statuses
+        - Type-safe constraints (explicit "manual" | "skip" | int)
+        - Always includes partner_id when ready
+        - Returns search hints for LLM when no exact match found
+
+        Parameters:
+            invoice_id: ID of the account.move record
+            extracted_data: Type-safe extracted invoice data from LLM
+            constraints: Optional user decisions from previous call
+
+        Returns:
+            AnalyzerResponse with consistent structure:
+            {
+                "status": "ready" | "needs_input" | "duplicate_found" | "error",
+                "context": {...},  # Always present
+                "data": {...}      # Shape depends on status
+            }
+
+        Workflow:
+            1. First call (no constraints):
+               analyzer(invoice_id, extracted_data)
+               → May return "needs_input" with search hints or options
+
+            2. Second call (with constraints):
+               analyzer(invoice_id, extracted_data, constraints)
+               → MUST return "ready" or "error"
+
+            3. Use ready response with updater:
+               updater(invoice_id, approved_analysis)
+        """
+        constraints = constraints or {}
+
+        try:
+            invoice = self._get_invoice(invoice_id)
+
+            # Build consistent context (present in all responses)
+            context = {
+                "invoice_id": invoice.id,
+                "invoice_number": invoice.name,
+                "extracted_data_summary": self._format_ocr_summary(extracted_data),
+            }
+
+            # Validate extracted_data
+            if not extracted_data.get("vendor_name"):
+                return {
+                    "status": "error",
+                    "context": context,
+                    "data": {
+                        "error": "extracted_data must contain 'vendor_name'",
+                        "suggestion": "Use llm_tool_ocr_mistral to get invoice text, "
+                        "then extract vendor_name from it.",
+                    },
+                }
+
+            if not extracted_data.get("lines"):
+                return {
+                    "status": "error",
+                    "context": context,
+                    "data": {
+                        "error": "extracted_data must contain 'lines' array",
+                        "suggestion": "Parse OCR text and extract line items with "
+                        "description, quantity, and unit_price.",
+                    },
+                }
+
+            # ─────────────────────────────────────────────────────────────
+            # STEP 1: Match Partner
+            # ─────────────────────────────────────────────────────────────
+            partner_choice = constraints.get("partner_choice")
+            if partner_choice:
+                # Apply constraint
+                partner = self._apply_partner_choice(partner_choice, extracted_data)
+            else:
+                # Perform matching (simple + search hints)
+                partner_result = self._match_partner(extracted_data, None)
+
+                # Check if LLM needs to search
+                if partner_result.get("needs_search"):
+                    return {
+                        "status": "needs_input",
+                        "context": context,
+                        "data": {
+                            "question_type": "partner_search",
+                            "question": (
+                                f"No exact match found for '{partner_result['search_hints']['vendor_name']}'. "
+                                "Please search intelligently using odoo_record_retriever."
+                            ),
+                            "search_hints": partner_result["search_hints"],
+                        },
+                    }
+
+                # Check if user needs to choose between alternatives
+                if partner_result["needs_decision"]:
+                    return {
+                        "status": "needs_input",
+                        "context": context,
+                        "data": {
+                            "question_type": "partner_selection",
+                            "question": f"Found {len(partner_result['alternatives'])} possible partners. Which one matches?",
+                            "partner_options": partner_result["alternatives"],
+                        },
+                    }
+
+                partner = partner_result["partner"]
+
+            # ─────────────────────────────────────────────────────────────
+            # STEP 2: Check Duplicates (early exit)
+            # ─────────────────────────────────────────────────────────────
+            duplicate = self._check_duplicate(partner, extracted_data)
+            if duplicate:
+                return {
+                    "status": "duplicate_found",
+                    "context": context,
+                    "data": {
+                        "duplicate_id": duplicate.id,
+                        "duplicate_number": duplicate.name,
+                        "message": f"⚠️ This invoice already exists as {duplicate.name}",
+                    },
+                }
+
+            # ─────────────────────────────────────────────────────────────
+            # STEP 3: Match Products
+            # ─────────────────────────────────────────────────────────────
+            product_results = []
+            product_choices_list = constraints.get("product_choices", [])
+
+            for idx, line in enumerate(extracted_data["lines"]):
+                # Find constraint for this line
+                line_constraint = next(
+                    (c for c in product_choices_list if c["line_index"] == idx),
+                    None,
+                )
+
+                result = self._match_single_product(line, partner, line_constraint)
+
+                # Check if LLM needs to search
+                if result.get("needs_search"):
+                    return {
+                        "status": "needs_input",
+                        "context": context,
+                        "data": {
+                            "question_type": "product_search",
+                            "question": (
+                                f"Line {idx + 1}: No exact match found for '{result['ocr_description']}'. "
+                                "Please search intelligently using odoo_record_retriever."
+                            ),
+                            "line_number": idx + 1,
+                            "line_description": result["ocr_description"],
+                            "search_hints": result["search_hints"],
+                            "completed": {
+                                "partner": {
+                                    "id": partner.id,
+                                    "name": partner.name,
+                                    "vat": partner.vat or "",
+                                }
+                            },
+                        },
+                    }
+
+                # Check if needs user decision
+                if result.get("needs_decision"):
+                    return {
+                        "status": "needs_input",
+                        "context": context,
+                        "data": {
+                            "question_type": "product_selection",
+                            "question": f"Which product matches line {idx + 1}?",
+                            "line_number": idx + 1,
+                            "line_description": line["description"],
+                            "product_options": result["alternatives"],
+                            "completed": {
+                                "partner": {
+                                    "id": partner.id,
+                                    "name": partner.name,
+                                    "vat": partner.vat or "",
+                                }
+                            },
+                        },
+                    }
+
+                # Skip lines marked as "skip"
+                if not result.get("skip"):
+                    product_results.append(result)
+
+            # ─────────────────────────────────────────────────────────────
+            # STEP 4: Build Complete Response (READY!)
+            # ─────────────────────────────────────────────────────────────
+            patterns = self._get_historical_patterns(partner)
+
+            return {
+                "status": "ready",
+                "context": context,
+                "data": {
+                    "partner_id": partner.id,  # CRITICAL: For updater!
+                    "partner": {
+                        "id": partner.id,
+                        "name": partner.name,
+                        "vat": partner.vat or "",
+                    },
+                    "lines": self._build_invoice_lines(
+                        extracted_data["lines"], product_results
+                    ),
+                    "suggested_values": {
+                        "ref": extracted_data.get("ref", ""),
+                        "date": extracted_data.get("date", ""),
+                        "due_date": extracted_data.get("due_date", ""),
+                        "payment_term_id": patterns.get("common_payment_term_id"),
+                    },
+                },
+            }
+
+        except Exception as e:
+            _logger.error(f"Invoice analyzer error: {e}", exc_info=True)
+            return {
+                "status": "error",
+                "context": {
+                    "invoice_id": invoice_id,
+                    "invoice_number": invoice.name if invoice else "Unknown",
+                    "extracted_data_summary": {},
+                },
+                "data": {
+                    "error": str(e),
+                    "suggestion": "Check the invoice data and try again. "
+                    "Ensure all required fields are provided.",
+                },
+            }
+
+    # ─────────────────────────────────────────────────────────────────────
+    # Helper Methods
+    # ─────────────────────────────────────────────────────────────────────
+
+    def _match_partner(
+        self, extracted_data: ExtractedInvoiceData, forced_partner_id: Optional[int] = None
+    ) -> dict:
+        """
+        Simple exact matching, let LLM do intelligent searching!
+
+        Philosophy: Keep tool simple, leverage LLM's intelligence for fuzzy matching.
+
+        Matching hierarchy:
+        1. VAT exact match (highest confidence)
+        2. Name exact match (case-insensitive)
+        3. No match → Return search hints for LLM
+
+        The LLM will use odoo_record_retriever for intelligent fuzzy matching.
+        """
+        if forced_partner_id:
+            partner = self.env["res.partner"].browse(forced_partner_id)
+            if partner.exists():
+                return {"partner": partner, "needs_decision": False}
+
+        Partner = self.env["res.partner"]
+        company_domain = self._get_company_domain()
+
+        # Priority 1: VAT exact match
+        if extracted_data.get("vat"):
+            vat_clean = self._normalize_vat(extracted_data["vat"])
+            partner = Partner.search(
+                [("vat", "=ilike", vat_clean)] + company_domain, limit=1
+            )
+            if partner:
+                return {
+                    "partner": partner,
+                    "needs_decision": False,
+                    "method": "vat",
+                    "confidence": "high",
+                }
+
+        # Priority 2: Name exact match (case-insensitive)
+        if extracted_data.get("vendor_name"):
+            name = extracted_data["vendor_name"]
+
+            partners = Partner.search(
+                [("name", "=ilike", name)] + company_domain, limit=3
+            )
+
+            if len(partners) == 1:
+                return {
+                    "partner": partners[0],
+                    "needs_decision": False,
+                    "method": "name_exact",
+                    "confidence": "high",
+                }
+            elif len(partners) > 1:
+                # Multiple exact matches - need user input
+                return {
+                    "partner": None,
+                    "needs_decision": True,
+                    "alternatives": self._format_partner_alternatives(partners[:2]),
+                    "method": "name_multiple",
+                }
+
+        # No exact match → Let LLM search intelligently!
+        vendor_name = extracted_data.get("vendor_name", "")
+        vat = extracted_data.get("vat", "")
+
+        # Extract first word for example query
+        first_word = vendor_name.split()[0] if vendor_name else ""
+        vat_prefix = vat[:4] if vat and len(vat) >= 4 else ""
+
         return {
-            "status": "needs_input",
-            "question": question,
-            "message": message,
-            **kwargs,
+            "partner": None,
+            "needs_decision": False,  # Not a user decision
+            "needs_search": True,      # LLM should search
+            "search_hints": {
+                "vendor_name": vendor_name,
+                "vat": vat,
+                "model": "res.partner",
+                "fields_to_search": ["name", "vat", "city", "country_id"],
+                "suggested_strategies": [
+                    "Try removing legal entities (GmbH, BV, Ltd, N.V., S.A., AG, etc.)",
+                    "Search by company name without domain extension (.nl, .com, .de)",
+                    "Try partial VAT number matching",
+                    "Search by first word of company name",
+                    "Look for common abbreviations or variations"
+                ],
+                "example_queries": [
+                    {
+                        "description": f"Search by first word: '{first_word}'",
+                        "domain": [["name", "ilike", f"%{first_word}%"]] if first_word else [],
+                    },
+                    {
+                        "description": f"Search by VAT prefix: '{vat_prefix}'",
+                        "domain": [["vat", "ilike", f"{vat_prefix}%"]] if vat_prefix else [],
+                    }
+                ],
+                "instructions": (
+                    "Use odoo_record_retriever to search res.partner model. "
+                    "Try different search strategies and present top 2-3 matches to user. "
+                    "Include: name, vat, city, country for context."
+                )
+            },
         }
 
-    def _duplicate_response(self, duplicate, ocr_data: dict) -> dict:
-        """Format 'duplicate_found' response"""
+    def _apply_partner_choice(
+        self, choice: PartnerChoice, extracted_data: ExtractedInvoiceData
+    ):
+        """Apply user's partner choice"""
+        if choice["choice"] == "create_new":
+            # Create new partner
+            Partner = self.env["res.partner"]
+            partner = Partner.create(
+                {
+                    "name": extracted_data["vendor_name"],
+                    "vat": extracted_data.get("vat", ""),
+                    "supplier_rank": 1,
+                }
+            )
+            return partner
+        else:
+            # Use existing partner
+            partner = self.env["res.partner"].browse(choice["choice"])
+            if not partner.exists():
+                raise UserError(_("Selected partner (ID %d) not found") % choice["choice"])
+            return partner
+
+    def _match_single_product(
+        self,
+        line: dict,
+        partner,
+        constraint: Optional[ProductChoice],
+    ) -> dict:
+        """
+        Simple exact matching + intelligent search hints for products.
+
+        Key features:
+        - Handles "manual"/"skip" explicitly!
+        - Simple exact matching only
+        - Returns search hints for LLM if no exact match
+        """
+        if constraint is not None:
+            # EXPLICIT constraint handling
+            if constraint["choice"] == "manual":
+                return {
+                    "product_id": None,
+                    "needs_decision": False,
+                    "method": "manual_entry",
+                    "ocr_description": line["description"],
+                }
+            elif constraint["choice"] == "skip":
+                return {"skip": True, "needs_decision": False}
+            elif isinstance(constraint["choice"], int):
+                # User selected a product
+                product = self.env["product.product"].browse(constraint["choice"])
+                if product.exists():
+                    return {
+                        "product_id": product.id,
+                        "product_name": product.name,
+                        "needs_decision": False,
+                        "method": "user_selected",
+                        "ocr_description": line["description"],
+                    }
+
+        # No constraint - perform simple exact matching
+        Product = self.env["product.product"]
+        company_domain = self._get_company_domain()
+        description = line.get("description", "")
+
+        if not description:
+            return {
+                "product_id": None,
+                "needs_decision": True,
+                "alternatives": [
+                    {
+                        "id": None,
+                        "name": "Enter manually (no product)",
+                        "description": "Create line without product",
+                    }
+                ],
+                "ocr_description": description,
+            }
+
+        # Try exact name match
+        products = Product.search(
+            [("name", "=ilike", description)] + company_domain, limit=3
+        )
+
+        if len(products) == 1:
+            return {
+                "product_id": products[0].id,
+                "product_name": products[0].name,
+                "needs_decision": False,
+                "confidence": "high",
+                "method": "name_exact",
+                "ocr_description": description,
+            }
+        elif len(products) > 1:
+            return {
+                "product_id": None,
+                "needs_decision": True,
+                "alternatives": self._format_product_alternatives(products[:2]),
+                "ocr_description": description,
+            }
+
+        # No exact match → Let LLM search intelligently!
+        first_word = description.split()[0] if description else ""
+
         return {
-            "status": "duplicate_found",
-            "duplicate_invoice": duplicate.name,
-            "duplicate_id": duplicate.id,
-            "message": f"⚠️ This invoice already exists as {duplicate.name}",
-            "ocr_summary": self._format_ocr_summary(ocr_data),
+            "product_id": None,
+            "needs_decision": False,  # Not a user decision
+            "needs_search": True,      # LLM should search
+            "ocr_description": description,
+            "search_hints": {
+                "description": description,
+                "model": "product.product",
+                "fields_to_search": ["name", "default_code", "barcode"],
+                "suggested_strategies": [
+                    "Try searching by first significant word",
+                    "Search by partial code if present",
+                    "Look for product variants or similar names",
+                    "Try removing units or measurements",
+                    "Consider common abbreviations"
+                ],
+                "example_queries": [
+                    {
+                        "description": f"Search by first word: '{first_word}'",
+                        "domain": [["name", "ilike", f"%{first_word}%"]] if first_word else [],
+                    },
+                    {
+                        "description": f"Search by full description",
+                        "domain": [["name", "ilike", f"%{description}%"]],
+                    }
+                ],
+                "instructions": (
+                    "Use odoo_record_retriever to search product.product model. "
+                    "Try different search strategies and present top 2-3 matches to user. "
+                    "Include: name, code, price for context. "
+                    "Always include 'Enter manually (no product)' as an option."
+                )
+            },
         }
+
+    def _build_invoice_lines(
+        self, ocr_lines: list[dict], product_results: list[dict]
+    ) -> list[dict]:
+        """Build complete invoice lines for updater"""
+        lines = []
+
+        for line_ocr, prod_result in zip(ocr_lines, product_results):
+            line = {
+                "description": line_ocr["description"],
+                "quantity": line_ocr.get("quantity", 1.0),
+                "unit_price": line_ocr.get("unit_price", 0.0),
+                "product_id": prod_result.get("product_id"),
+            }
+
+            if prod_result.get("product_id"):
+                product = self.env["product.product"].browse(prod_result["product_id"])
+                line["product_name"] = product.name
+                # Auto-fill account and taxes from product
+                line["account_id"] = (
+                    product.property_account_expense_id.id
+                    or product.categ_id.property_account_expense_categ_id.id
+                )
+                line["tax_ids"] = product.supplier_taxes_id.ids
+            else:
+                # Manual entry - needs account
+                line["product_name"] = None
+                line["account_id"] = None
+                line["tax_ids"] = []
+
+            lines.append(line)
+
+        return lines
 
