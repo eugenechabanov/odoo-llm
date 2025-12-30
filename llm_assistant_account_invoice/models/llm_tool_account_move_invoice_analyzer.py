@@ -162,7 +162,11 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
                         ocr_description=prod["ocr_description"],
                         options=prod["alternatives"],
                         ocr_data=ocr_data,
-                        partner=partner,
+                        partner={
+                            "id": partner.id,
+                            "name": partner.name,
+                            "vat": partner.vat or "",
+                        },
                         partial_products=product_results,
                     )
 
@@ -259,25 +263,35 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
                     "method": "name_multiple",
                 }
 
-            # Fuzzy match
-            partners = Partner.search(
-                [("name", "ilike", name)] + company_domain, limit=3
-            )
+            # Fuzzy match: split into tokens and search with OR
+            # Handles cases like "strato gmbh" vs "strato.nl"
+            tokens = name.split()
+            if tokens:
+                # Build OR domain for all tokens: token1 OR token2 OR token3
+                token_domain = []
+                for token in tokens:
+                    if token_domain:
+                        token_domain = ["|"] + token_domain
+                    token_domain.append(("name", "ilike", f"%{token}%"))
 
-            if len(partners) == 1:
-                return {
-                    "partner": partners[0],
-                    "needs_decision": False,
-                    "method": "name_fuzzy",
-                    "confidence": "medium",
-                }
-            elif len(partners) > 1:
-                return {
-                    "partner": None,
-                    "needs_decision": True,
-                    "alternatives": self._format_partner_alternatives(partners[:2]),
-                    "method": "name_fuzzy_multiple",
-                }
+                # Combine with company domain
+                fuzzy_domain = token_domain + company_domain
+                partners = Partner.search(fuzzy_domain, limit=3)
+
+                if len(partners) == 1:
+                    return {
+                        "partner": partners[0],
+                        "needs_decision": False,
+                        "method": "name_fuzzy",
+                        "confidence": "medium",
+                    }
+                elif len(partners) > 1:
+                    return {
+                        "partner": None,
+                        "needs_decision": True,
+                        "alternatives": self._format_partner_alternatives(partners[:2]),
+                        "method": "name_fuzzy_multiple",
+                    }
 
         # No match - suggest creation
         return {
