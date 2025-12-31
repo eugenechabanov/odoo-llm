@@ -78,23 +78,18 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             if product.exists():
                 vals["product_id"] = product.id
                 # Odoo auto-computes: name, account_id, tax_ids (with fiscal position!)
-                # We can override account_id below if needed
 
-        # Account (required if no product)
+        # Account (optional - Odoo auto-computes if not provided)
+        # Only set if explicitly provided in line_data
         if line_data.get("account_id"):
             vals["account_id"] = line_data["account_id"]
-        elif not line_data.get("product_id"):
-            # No product, no account - try to get default from journal
-            account = self._get_default_account(invoice)
-            if account:
-                vals["account_id"] = account.id
-            # If no account found, let Odoo's own validation handle it
+        # Otherwise, Odoo's _compute_account_id() will handle it:
+        # 1. Product's expense/income account
+        # 2. Most frequent account for partner (if no product)
+        # 3. Previous lines' account (if consistent)
+        # 4. Journal's default_account_id (final fallback)
 
-        # Don't set tax_ids - let Odoo auto-compute based on:
-        # 1. Product taxes (supplier_taxes_id) OR
-        # 2. Account taxes OR
-        # 3. Company default purchase tax
-        # 4. THEN apply fiscal position mapping (critical for intra-EU, etc.)
+        # Don't set tax_ids - Odoo auto-computes based on product/account + fiscal position
 
         # Validate quantity
         if vals["quantity"] <= 0:
@@ -104,42 +99,47 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
 
         return vals
 
-    def _get_default_account(self, invoice):
-        """
-        Get default account from journal (Odoo standard behavior).
+    # ═══════════════════════════════════════════════════════════════
+    # RESPONSE BUILDERS (using Pydantic models for consistency)
+    # ═══════════════════════════════════════════════════════════════
 
-        This follows Odoo's approach: use journal's default_account_id
-        which is set per journal based on its type (purchase, sale, etc.)
-        """
-        # Use the journal's default account (Odoo standard)
-        if invoice.journal_id and invoice.journal_id.default_account_id:
-            return invoice.journal_id.default_account_id
+    def _error_response(
+        self, invoice_id: int, invoice_number: str, error: str, suggestion: str, failed_at: str
+    ) -> dict:
+        """Build standardized error response using Pydantic model"""
+        from .invoice_tool_types import UpdaterResponseError
 
-        # Fallback: shouldn't happen with properly configured journals
-        return None
+        response = UpdaterResponseError(
+            status="error",
+            invoice_id=invoice_id,
+            invoice_number=invoice_number,
+            error=error,
+            suggestion=suggestion,
+            failed_at=failed_at,
+        )
+        return response.model_dump()
 
-    def _error_response(self, invoice, error_message: str, failed_at: str = None) -> dict:
-        """
-        Format errors in helpful, actionable way (Anthropic principle).
+    def _success_response(
+        self, invoice, lines_created: int, totals: dict, validation: dict
+    ) -> dict:
+        """Build standardized success response using Pydantic model"""
+        from .invoice_tool_types import (
+            UpdaterResponseSuccess,
+            UpdaterTotals,
+            UpdaterValidation,
+        )
 
-        Provides specific suggestions rather than cryptic error codes.
-        """
-        suggestion = self._get_error_suggestion(error_message)
-
-        response = {
-            "status": "error",
-            "error": error_message,
-            "suggestion": suggestion,
-        }
-
-        if failed_at:
-            response["failed_at"] = failed_at
-
-        if invoice:
-            response["invoice_number"] = invoice.name
-            response["invoice_id"] = invoice.id
-
-        return response
+        response = UpdaterResponseSuccess(
+            status="success",
+            invoice_id=invoice.id,
+            invoice_number=invoice.name,
+            partner=invoice.partner_id.name,
+            lines_created=lines_created,
+            totals=UpdaterTotals(**totals),
+            validation=UpdaterValidation(**validation) if validation else UpdaterValidation(),
+            message=f"✓ Invoice {invoice.name} created successfully with {lines_created} lines",
+        )
+        return response.model_dump()
 
     def _get_error_suggestion(self, error_message: str) -> str:
         """Get helpful suggestion based on error type"""
@@ -229,57 +229,9 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
         """
         try:
             # ─────────────────────────────────────────────────────────────
-            # STRICT VALIDATION (Fail Fast!)
+            # VALIDATION (Pydantic validates approved_analysis automatically)
             # ─────────────────────────────────────────────────────────────
             invoice = self._validate_invoice_editable(invoice_id)
-
-            # Validate REQUIRED partner_id
-            if not approved_analysis.get("partner_id"):
-                return {
-                    "status": "error",
-                    "invoice_id": invoice.id,
-                    "invoice_number": invoice.name,
-                    "error": "partner_id is REQUIRED in approved_analysis",
-                    "suggestion": "Use the partner_id from analyzer's 'ready' response: "
-                    "analyzer_result['data']['partner_id']",
-                    "failed_at": "validation",
-                }
-
-            # Validate REQUIRED lines
-            if not approved_analysis.get("lines"):
-                return {
-                    "status": "error",
-                    "invoice_id": invoice.id,
-                    "invoice_number": invoice.name,
-                    "error": "lines array is REQUIRED in approved_analysis",
-                    "suggestion": "Use the lines from analyzer's 'ready' response: "
-                    "analyzer_result['data']['lines']",
-                    "failed_at": "validation",
-                }
-
-            # Validate REQUIRED ref
-            if not approved_analysis.get("ref"):
-                return {
-                    "status": "error",
-                    "invoice_id": invoice.id,
-                    "invoice_number": invoice.name,
-                    "error": "ref (invoice reference) is REQUIRED",
-                    "suggestion": "Use the ref from analyzer's 'suggested_values': "
-                    "analyzer_result['data']['suggested_values']['ref']",
-                    "failed_at": "validation",
-                }
-
-            # Validate REQUIRED invoice_date
-            if not approved_analysis.get("invoice_date"):
-                return {
-                    "status": "error",
-                    "invoice_id": invoice.id,
-                    "invoice_number": invoice.name,
-                    "error": "invoice_date is REQUIRED",
-                    "suggestion": "Use the invoice_date from analyzer's 'suggested_values': "
-                    "analyzer_result['data']['suggested_values']['invoice_date']",
-                    "failed_at": "validation",
-                }
 
             # ─────────────────────────────────────────────────────────────
             # STEP 1: Prepare Lines
@@ -290,14 +242,13 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
                     line_vals = self._prepare_line_vals(invoice, line_data)
                     line_vals_list.append(line_vals)
                 except Exception as e:
-                    return {
-                        "status": "error",
-                        "invoice_id": invoice.id,
-                        "invoice_number": invoice.name,
-                        "error": f"Error preparing line '{line_data.get('name', '')}': {str(e)}",
-                        "suggestion": self._get_error_suggestion(str(e)),
-                        "failed_at": "line_preparation",
-                    }
+                    return self._error_response(
+                        invoice_id=invoice.id,
+                        invoice_number=invoice.name,
+                        error=f"Error preparing line '{line_data.get('name', '')}': {str(e)}",
+                        suggestion=self._get_error_suggestion(str(e)),
+                        failed_at="line_preparation",
+                    )
 
             # ─────────────────────────────────────────────────────────────
             # STEP 2: Update Invoice Header
@@ -320,14 +271,13 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             try:
                 invoice.write(header_vals)
             except Exception as e:
-                return {
-                    "status": "error",
-                    "invoice_id": invoice.id,
-                    "invoice_number": invoice.name,
-                    "error": f"Error updating invoice header: {str(e)}",
-                    "suggestion": self._get_error_suggestion(str(e)),
-                    "failed_at": "header_update",
-                }
+                return self._error_response(
+                    invoice_id=invoice.id,
+                    invoice_number=invoice.name,
+                    error=f"Error updating invoice header: {str(e)}",
+                    suggestion=self._get_error_suggestion(str(e)),
+                    failed_at="header_update",
+                )
 
             # ─────────────────────────────────────────────────────────────
             # STEP 3: Create Lines (Batch)
@@ -335,14 +285,13 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             try:
                 self.env["account.move.line"].create(line_vals_list)
             except Exception as e:
-                return {
-                    "status": "error",
-                    "invoice_id": invoice.id,
-                    "invoice_number": invoice.name,
-                    "error": f"Error creating invoice lines: {str(e)}",
-                    "suggestion": self._get_error_suggestion(str(e)),
-                    "failed_at": "line_creation",
-                }
+                return self._error_response(
+                    invoice_id=invoice.id,
+                    invoice_number=invoice.name,
+                    error=f"Error creating invoice lines: {str(e)}",
+                    suggestion=self._get_error_suggestion(str(e)),
+                    failed_at="line_creation",
+                )
 
             # ─────────────────────────────────────────────────────────────
             # STEP 4: Get Totals and Validate
@@ -368,25 +317,20 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             # ─────────────────────────────────────────────────────────────
             # SUCCESS!
             # ─────────────────────────────────────────────────────────────
-            return {
-                "status": "success",
-                "invoice_id": invoice.id,
-                "invoice_number": invoice.name,
-                "partner": invoice.partner_id.name,
-                "lines_created": len(line_vals_list),
-                "totals": totals,
-                "validation": validation,
-                "message": f"✓ Invoice {invoice.name} created successfully with {len(line_vals_list)} lines",
-            }
+            return self._success_response(
+                invoice=invoice,
+                lines_created=len(line_vals_list),
+                totals=totals,
+                validation=validation,
+            )
 
         except Exception as e:
             _logger.error(f"Invoice updater error: {e}", exc_info=True)
-            return {
-                "status": "error",
-                "invoice_id": invoice_id,
-                "invoice_number": invoice.name if invoice else "Unknown",
-                "error": str(e),
-                "suggestion": "Check the error message for details. "
+            return self._error_response(
+                invoice_id=invoice_id,
+                invoice_number=invoice.name if invoice else "Unknown",
+                error=str(e),
+                suggestion="Check the error message for details. "
                 "Ensure approved_analysis has all required fields.",
-                "failed_at": "unknown",
-            }
+                failed_at="unknown",
+            )

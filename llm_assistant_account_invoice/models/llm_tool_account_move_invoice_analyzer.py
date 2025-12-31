@@ -228,11 +228,9 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
             # Consolidate all imports at the top
             from .invoice_tool_types import (
                 AnalyzerContext,
-                AnalyzerResponseError,
                 AnalyzerResponseNeedsInput,
                 AnalyzerResponseDuplicate,
                 AnalyzerResponseReady,
-                ErrorData,
                 NeedsInputPartnerSearchData,
                 NeedsInputPartnerData,
                 NeedsInputProductSearchData,
@@ -254,28 +252,20 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
 
             # Validate extracted_data
             if not extracted_data.get("vendor_name"):
-                response = AnalyzerResponseError(
-                    status="error",
-                    context=context,
-                    data=ErrorData(
-                        error="extracted_data must contain 'vendor_name'",
-                        suggestion="Use llm_tool_ocr_mistral to get invoice text, "
-                        "then extract vendor_name from it.",
-                    ),
+                return self._error_response(
+                    context,
+                    error="extracted_data must contain 'vendor_name'",
+                    suggestion="Use llm_tool_ocr_mistral to get invoice text, "
+                    "then extract vendor_name from it.",
                 )
-                return response.model_dump()
 
             if not extracted_data.get("lines"):
-                response = AnalyzerResponseError(
-                    status="error",
-                    context=context,
-                    data=ErrorData(
-                        error="extracted_data must contain 'lines' array",
-                        suggestion="Parse OCR text and extract line items with "
-                        "name, quantity, and price_unit (Odoo field names).",
-                    ),
+                return self._error_response(
+                    context,
+                    error="extracted_data must contain 'lines' array",
+                    suggestion="Parse OCR text and extract line items with "
+                    "name, quantity, and price_unit (Odoo field names).",
                 )
-                return response.model_dump()
 
             # ─────────────────────────────────────────────────────────────
             # STEP 1: Match Partner
@@ -348,7 +338,7 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
                     None,
                 )
 
-                result = self._match_single_product(line, partner, line_constraint)
+                result = self._match_single_product(line, line_constraint)
 
                 # Check if LLM needs to search
                 if result.get("needs_search"):
@@ -436,20 +426,27 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
                 invoice_number=invoice.name if invoice else "Unknown",
                 extracted_data_summary={},
             )
-            response = AnalyzerResponseError(
-                status="error",
-                context=error_context,
-                data=ErrorData(
-                    error=str(e),
-                    suggestion="Check the invoice data and try again. "
-                    "Ensure all required fields are provided.",
-                ),
+            return self._error_response(
+                error_context,
+                error=str(e),
+                suggestion="Check the invoice data and try again. "
+                "Ensure all required fields are provided.",
             )
-            return response.model_dump()
 
     # ─────────────────────────────────────────────────────────────────────
     # Helper Methods
     # ─────────────────────────────────────────────────────────────────────
+
+    def _error_response(self, context, error: str, suggestion: str) -> dict:
+        """Build standardized error response"""
+        from .invoice_tool_types import AnalyzerResponseError, ErrorData
+
+        response = AnalyzerResponseError(
+            status="error",
+            context=context,
+            data=ErrorData(error=error, suggestion=suggestion),
+        )
+        return response.model_dump()
 
     def _match_partner(
         self, extracted_data: ExtractedInvoiceData, forced_partner_id: Optional[int] = None
@@ -590,7 +587,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
     def _match_single_product(
         self,
         line: dict,
-        partner,
         constraint: Optional[ProductChoice],
     ) -> dict:
         """
@@ -728,17 +724,13 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
             if prod_result.get("product_id"):
                 product = self.env["product.product"].browse(prod_result["product_id"])
                 line_data["product_name"] = product.name
-                # Auto-fill account from product
-                line_data["account_id"] = (
-                    product.property_account_expense_id.id
-                    or product.categ_id.property_account_expense_categ_id.id
-                )
-                # Don't set tax_ids - let Odoo compute with fiscal position mapping
+                # Odoo auto-computes account_id via _compute_account_id() with fiscal position
             else:
-                # Manual entry - needs account
+                # Manual entry - no product
                 line_data["product_name"] = None
-                line_data["account_id"] = None
-                # Don't set tax_ids - let Odoo compute with fiscal position mapping
+                # Odoo will auto-compute account_id using partner's most frequent account
+
+            # Don't set account_id or tax_ids - Odoo computes both with fiscal position mapping
 
             line = InvoiceLine(**line_data)
             lines.append(line.model_dump())

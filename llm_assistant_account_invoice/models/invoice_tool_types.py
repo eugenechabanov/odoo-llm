@@ -173,8 +173,15 @@ class InvoiceLine(BaseModel):
     price_unit: float = Field(..., description="Unit price (Odoo field name)")
     product_id: Optional[int] = Field(None, description="Optional - can be omitted or None")
     product_name: Optional[str] = Field(None, description="Metadata only")
-    account_id: Optional[int] = Field(None, description="Optional - can be omitted or None")
-    tax_ids: Optional[list[int]] = Field(None, description="Optional - Odoo auto-computes based on product/account + fiscal position")
+    account_id: Optional[int] = Field(
+        None,
+        description="Optional - Odoo auto-computes via _compute_account_id(): "
+        "product account → partner's frequent account → previous lines → journal default"
+    )
+    tax_ids: Optional[list[int]] = Field(
+        None,
+        description="Optional - Odoo auto-computes via _compute_tax_ids() with fiscal position mapping"
+    )
 
 
 class SuggestedValues(BaseModel):
