@@ -6,7 +6,7 @@ import logging
 from odoo import _, api, models
 from odoo.exceptions import UserError
 
-from .invoice_tool_types import ApprovedAnalysis, UpdaterResponse
+from .invoice_tool_types import ApprovedAnalysis
 
 _logger = logging.getLogger(__name__)
 
@@ -100,29 +100,13 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
         return vals
 
     # ═══════════════════════════════════════════════════════════════
-    # RESPONSE BUILDERS (using Pydantic models for consistency)
+    # RESPONSE BUILDER (using Pydantic model for consistency)
     # ═══════════════════════════════════════════════════════════════
-
-    def _error_response(
-        self, invoice_id: int, invoice_number: str, error: str, suggestion: str, failed_at: str
-    ) -> dict:
-        """Build standardized error response using Pydantic model"""
-        from .invoice_tool_types import UpdaterResponseError
-
-        response = UpdaterResponseError(
-            status="error",
-            invoice_id=invoice_id,
-            invoice_number=invoice_number,
-            error=error,
-            suggestion=suggestion,
-            failed_at=failed_at,
-        )
-        return response.model_dump()
 
     def _success_response(
         self, invoice, lines_created: int, totals: dict, validation: dict
     ) -> dict:
-        """Build standardized success response using Pydantic model"""
+        """Build standardized success response using Pydantic model, return as dict"""
         from .invoice_tool_types import (
             UpdaterResponseSuccess,
             UpdaterTotals,
@@ -141,47 +125,13 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
         )
         return response.model_dump()
 
-    def _get_error_suggestion(self, error_message: str) -> str:
-        """Get helpful suggestion based on error type"""
-        error_lower = error_message.lower()
-
-        if "account" in error_lower and "missing" in error_lower:
-            return (
-                "Lines without products need an account. "
-                "Either specify account_id in the line data or ensure the "
-                "product has a proper expense/income account configured."
-            )
-        elif "partner" in error_lower:
-            return (
-                "Partner is required. Ensure approved_analysis contains "
-                "a valid partner_id."
-            )
-        elif "tax" in error_lower:
-            return (
-                "Tax configuration issue. Check that tax_ids are valid "
-                "and match the invoice type (purchase vs sale)."
-            )
-        elif "state" in error_lower or "draft" in error_lower:
-            return (
-                "Invoice must be in draft state to modify. "
-                "You cannot change posted or cancelled invoices."
-            )
-        elif "quantity" in error_lower:
-            return "All line quantities must be positive numbers."
-        else:
-            return (
-                "Check the error message for details. Ensure approved_analysis "
-                "has the required fields: partner_id, lines (with name, "
-                "quantity, price_unit, and either product_id or account_id)."
-            )
-
     # ═══════════════════════════════════════════════════════════════════════════
     # Type-Safe Invoice Updater with Strict Validation
     # ═══════════════════════════════════════════════════════════════════════════
 
     def account_move_invoice_updater_execute(
         self, invoice_id: int, approved_analysis: ApprovedAnalysis
-    ) -> UpdaterResponse:
+    ) -> dict:
         """
         Type-safe invoice updater with strict validation.
 
@@ -207,9 +157,12 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
                 - invoice_date: str
 
         Returns:
-            UpdaterResponse with status:
-            - "success": Invoice updated successfully
-            - "error": Update failed with clear message
+            dict: UpdaterResponseSuccess as dict (validated by Pydantic).
+                Contains status, invoice details, totals, and validation results.
+
+            Raises:
+                UserError: On validation failures or business rule violations.
+                    The MCP server catches these and returns them as error responses.
 
         Example LLM usage:
             # 1. Get ready response from analyzer
@@ -227,110 +180,71 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
                 }
             )
         """
-        try:
-            # ─────────────────────────────────────────────────────────────
-            # VALIDATION (Pydantic validates approved_analysis automatically)
-            # ─────────────────────────────────────────────────────────────
-            invoice = self._validate_invoice_editable(invoice_id)
+        # ─────────────────────────────────────────────────────────────
+        # VALIDATION (Pydantic validates approved_analysis automatically)
+        # ─────────────────────────────────────────────────────────────
+        invoice = self._validate_invoice_editable(invoice_id)
 
-            # ─────────────────────────────────────────────────────────────
-            # STEP 1: Prepare Lines
-            # ─────────────────────────────────────────────────────────────
-            line_vals_list = []
-            for line_data in approved_analysis["lines"]:
-                try:
-                    line_vals = self._prepare_line_vals(invoice, line_data)
-                    line_vals_list.append(line_vals)
-                except Exception as e:
-                    return self._error_response(
-                        invoice_id=invoice.id,
-                        invoice_number=invoice.name,
-                        error=f"Error preparing line '{line_data.get('name', '')}': {str(e)}",
-                        suggestion=self._get_error_suggestion(str(e)),
-                        failed_at="line_preparation",
-                    )
+        # ─────────────────────────────────────────────────────────────
+        # STEP 1: Prepare Lines
+        # ─────────────────────────────────────────────────────────────
+        line_vals_list = []
+        for line_data in approved_analysis["lines"]:
+            line_vals = self._prepare_line_vals(invoice, line_data)
+            line_vals_list.append(line_vals)
 
-            # ─────────────────────────────────────────────────────────────
-            # STEP 2: Update Invoice Header
-            # ─────────────────────────────────────────────────────────────
-            # Direct mapping - ApprovedAnalysis uses Odoo field names
-            header_vals = {
-                "partner_id": approved_analysis["partner_id"],
-                "ref": approved_analysis["ref"],
-                "invoice_date": approved_analysis["invoice_date"],
+        # ─────────────────────────────────────────────────────────────
+        # STEP 2: Update Invoice Header
+        # ─────────────────────────────────────────────────────────────
+        # Direct mapping - ApprovedAnalysis uses Odoo field names
+        header_vals = {
+            "partner_id": approved_analysis["partner_id"],
+            "ref": approved_analysis["ref"],
+            "invoice_date": approved_analysis["invoice_date"],
+        }
+
+        # Optional fields
+        if approved_analysis.get("invoice_date_due"):
+            header_vals["invoice_date_due"] = approved_analysis["invoice_date_due"]
+        if approved_analysis.get("invoice_payment_term_id"):
+            header_vals["invoice_payment_term_id"] = approved_analysis[
+                "invoice_payment_term_id"
+            ]
+
+        invoice.write(header_vals)
+
+        # ─────────────────────────────────────────────────────────────
+        # STEP 3: Create Lines (Batch)
+        # ─────────────────────────────────────────────────────────────
+        self.env["account.move.line"].create(line_vals_list)
+
+        # ─────────────────────────────────────────────────────────────
+        # STEP 4: Get Totals and Validate
+        # ─────────────────────────────────────────────────────────────
+        # Totals are auto-computed by Odoo when lines are created
+        totals = {
+            "subtotal": invoice.amount_untaxed,
+            "tax": invoice.amount_tax,
+            "total": invoice.amount_total,
+        }
+
+        # Validation (if expected total provided)
+        validation = {}
+        if approved_analysis.get("total"):
+            expected = approved_analysis["total"]
+            actual = invoice.amount_total
+            validation = {
+                "expected_total": expected,
+                "actual_total": actual,
+                "totals_match": abs(expected - actual) < 0.01,  # Allow 1 cent diff
             }
 
-            # Optional fields
-            if approved_analysis.get("invoice_date_due"):
-                header_vals["invoice_date_due"] = approved_analysis["invoice_date_due"]
-            if approved_analysis.get("invoice_payment_term_id"):
-                header_vals["invoice_payment_term_id"] = approved_analysis[
-                    "invoice_payment_term_id"
-                ]
-
-            try:
-                invoice.write(header_vals)
-            except Exception as e:
-                return self._error_response(
-                    invoice_id=invoice.id,
-                    invoice_number=invoice.name,
-                    error=f"Error updating invoice header: {str(e)}",
-                    suggestion=self._get_error_suggestion(str(e)),
-                    failed_at="header_update",
-                )
-
-            # ─────────────────────────────────────────────────────────────
-            # STEP 3: Create Lines (Batch)
-            # ─────────────────────────────────────────────────────────────
-            try:
-                self.env["account.move.line"].create(line_vals_list)
-            except Exception as e:
-                return self._error_response(
-                    invoice_id=invoice.id,
-                    invoice_number=invoice.name,
-                    error=f"Error creating invoice lines: {str(e)}",
-                    suggestion=self._get_error_suggestion(str(e)),
-                    failed_at="line_creation",
-                )
-
-            # ─────────────────────────────────────────────────────────────
-            # STEP 4: Get Totals and Validate
-            # ─────────────────────────────────────────────────────────────
-            # Totals are auto-computed by Odoo when lines are created
-            totals = {
-                "subtotal": invoice.amount_untaxed,
-                "tax": invoice.amount_tax,
-                "total": invoice.amount_total,
-            }
-
-            # Validation (if expected total provided)
-            validation = {}
-            if approved_analysis.get("total"):
-                expected = approved_analysis["total"]
-                actual = invoice.amount_total
-                validation = {
-                    "expected_total": expected,
-                    "actual_total": actual,
-                    "totals_match": abs(expected - actual) < 0.01,  # Allow 1 cent diff
-                }
-
-            # ─────────────────────────────────────────────────────────────
-            # SUCCESS!
-            # ─────────────────────────────────────────────────────────────
-            return self._success_response(
-                invoice=invoice,
-                lines_created=len(line_vals_list),
-                totals=totals,
-                validation=validation,
-            )
-
-        except Exception as e:
-            _logger.error(f"Invoice updater error: {e}", exc_info=True)
-            return self._error_response(
-                invoice_id=invoice_id,
-                invoice_number=invoice.name if invoice else "Unknown",
-                error=str(e),
-                suggestion="Check the error message for details. "
-                "Ensure approved_analysis has all required fields.",
-                failed_at="unknown",
-            )
+        # ─────────────────────────────────────────────────────────────
+        # SUCCESS!
+        # ─────────────────────────────────────────────────────────────
+        return self._success_response(
+            invoice=invoice,
+            lines_created=len(line_vals_list),
+            totals=totals,
+            validation=validation,
+        )
