@@ -198,13 +198,39 @@ class ReadyData(BaseModel):
 
 
 class SearchHints(BaseModel):
-    """Search hints for LLM intelligent searching"""
+    """
+    Base search hints for LLM intelligent searching.
 
-    model: str = Field(..., description="e.g., 'res.partner', 'product.product'")
-    fields_to_search: list[str] = Field(..., description="e.g., ['name', 'vat', 'city']")
-    suggested_strategies: list[str] = Field(..., description="Human-readable strategies")
-    example_queries: list[dict[str, Any]] = Field(..., description="Example domain queries")
-    instructions: str = Field(..., description="Detailed instructions for LLM")
+    Contains only essential context - search strategies are in system prompt.
+    Note: suggested_strategies, example_queries, and instructions are in system prompt
+    to avoid duplication and reduce token usage.
+    """
+
+    model: str = Field(..., description="Odoo model to search")
+    fields_to_search: list[str] = Field(..., description="Fields to search on")
+
+
+class PartnerSearchHints(SearchHints):
+    """Search hints for partner search"""
+
+    model: Literal["res.partner"] = "res.partner"
+    vendor_name: str = Field(..., description="Vendor/company name to search for")
+    vat: str = Field(default="", description="VAT number if available")
+    fields_to_search: list[str] = Field(
+        default=["name", "vat", "city", "country_id"],
+        description="Fields to search on",
+    )
+
+
+class ProductSearchHints(SearchHints):
+    """Search hints for product search"""
+
+    model: Literal["product.product"] = "product.product"
+    description: str = Field(..., description="Product description from invoice line")
+    fields_to_search: list[str] = Field(
+        default=["name", "default_code", "barcode"],
+        description="Fields to search on",
+    )
 
 
 class NeedsInputPartnerData(BaseModel):
@@ -220,7 +246,9 @@ class NeedsInputPartnerSearchData(BaseModel):
 
     question_type: Literal["partner_search"]
     question: str
-    search_hints: dict[str, Any] = Field(..., description="SearchHints + specific fields")
+    search_hints: dict[str, Any] = Field(
+        ..., description="Contains: model, vendor_name, vat, fields_to_search"
+    )
 
 
 class NeedsInputProductData(BaseModel):
@@ -241,7 +269,9 @@ class NeedsInputProductSearchData(BaseModel):
     question: str
     line_number: int
     line_description: str
-    search_hints: dict[str, Any] = Field(..., description="SearchHints + specific fields")
+    search_hints: dict[str, Any] = Field(
+        ..., description="Contains: model, description, fields_to_search"
+    )
     completed: dict[str, Any] = Field(..., description="Already completed decisions (e.g., partner)")
 
 

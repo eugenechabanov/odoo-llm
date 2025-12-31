@@ -30,9 +30,11 @@ from .invoice_tool_types import (
     PartnerInfo,
     PartnerMatchResult,
     PartnerOption,
+    PartnerSearchHints,
     ProductChoice,
     ProductMatchResult,
     ProductOption,
+    ProductSearchHints,
     ReadyData,
     SuggestedValues,
 )
@@ -487,45 +489,15 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
                 return result.model_dump()
 
         # No exact match → Let LLM search intelligently!
-        vendor_name = extracted_data.get("vendor_name", "")
-        vat = extracted_data.get("vat", "")
-
-        # Extract first word for example query
-        first_word = vendor_name.split()[0] if vendor_name else ""
-        vat_prefix = vat[:4] if vat and len(vat) >= 4 else ""
-
+        # Search strategies are in system prompt (Intelligent Partner Search section)
         result = PartnerMatchResult(
             partner=None,
             needs_decision=False,  # Not a user decision
             needs_search=True,      # LLM should search
-            search_hints={
-                "vendor_name": vendor_name,
-                "vat": vat,
-                "model": "res.partner",
-                "fields_to_search": ["name", "vat", "city", "country_id"],
-                "suggested_strategies": [
-                    "Try removing legal entities (GmbH, BV, Ltd, N.V., S.A., AG, etc.)",
-                    "Search by company name without domain extension (.nl, .com, .de)",
-                    "Try partial VAT number matching",
-                    "Search by first word of company name",
-                    "Look for common abbreviations or variations"
-                ],
-                "example_queries": [
-                    {
-                        "description": f"Search by first word: '{first_word}'",
-                        "domain": [["name", "ilike", f"%{first_word}%"]] if first_word else [],
-                    },
-                    {
-                        "description": f"Search by VAT prefix: '{vat_prefix}'",
-                        "domain": [["vat", "ilike", f"{vat_prefix}%"]] if vat_prefix else [],
-                    }
-                ],
-                "instructions": (
-                    "Use odoo_record_retriever to search res.partner model. "
-                    "Try different search strategies and present top 2-3 matches to user. "
-                    "Include: name, vat, city, country for context."
-                )
-            },
+            search_hints=PartnerSearchHints(
+                vendor_name=extracted_data.get("vendor_name", ""),
+                vat=extracted_data.get("vat", ""),
+            ).model_dump(),
         )
         return result.model_dump()
 
@@ -638,34 +610,15 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
             return result.model_dump()
 
         # No exact match → Let LLM search intelligently!
+        # Search strategies are in system prompt (Intelligent Product Search section)
         result = ProductMatchResult(
             product_id=None,
             needs_decision=False,  # Not a user decision
             needs_search=True,      # LLM should search
             ocr_description=name,
-            search_hints={
-                "description": name,
-                "model": "product.product",
-                "fields_to_search": ["name", "default_code", "barcode"],
-                "suggested_strategies": [
-                    "Extract core product/service description",
-                    "Remove vendor names, quantities, and billing periods",
-                    "Search by product type or category",
-                    "Look for technical specifications or model numbers",
-                    "Try partial matches with distinctive features"
-                ],
-                "instructions": (
-                    "IMPORTANT: Extract the CORE PRODUCT description by intelligently removing:\n"
-                    "- Vendor/company names\n"
-                    "- Billing periods and quantities\n"
-                    "- Payment terms\n"
-                    "- Parenthetical technical details\n"
-                    "Focus on the actual product/service being purchased.\n\n"
-                    "Use odoo_record_retriever to search product.product model.\n"
-                    "Present top 2-3 matches with name, code, price.\n"
-                    "Always include 'Enter manually (no product)' as an option."
-                )
-            },
+            search_hints=ProductSearchHints(
+                description=name,
+            ).model_dump(),
         )
         return result.model_dump()
 
