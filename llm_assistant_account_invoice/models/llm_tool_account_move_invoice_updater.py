@@ -133,38 +133,19 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
         self, invoice_id: int, approved_analysis: ApprovedAnalysis
     ) -> dict:
         """
-        Type-safe invoice updater with strict validation.
+        Apply approved invoice analysis to create invoice lines and update header.
 
-        Philosophy: "Fail fast with clear guidance"
-        - All required fields validated upfront
-        - Clear error messages pointing to exact solutions
-        - No warnings, only errors (strict mode)
-
-        Key features:
-        - Strict validation: partner_id is REQUIRED (not optional)
-        - Type-safe input/output
-        - Clear error messages pointing to solutions
-        - Consistent response structure
-        - No partial updates (atomic operations)
-
-        Parameters:
-            invoice_id: ID of the account.move record
-            approved_analysis: Approved analysis from analyzer's "ready" response
-                REQUIRED fields (Odoo field names):
-                - partner_id: int
-                - lines: list[InvoiceLine]
-                - ref: str
-                - invoice_date: str
+        Args:
+            invoice_id: ID of the account.move record (must be in draft state)
+            approved_analysis: Approved analysis containing partner_id, lines, ref, invoice_date
 
         Returns:
-            dict: UpdaterResponseSuccess as dict (validated by Pydantic).
-                Contains status, invoice details, totals, and validation results.
+            dict: Success response with invoice_id, partner, lines_created, totals, validation
 
-            Raises:
-                UserError: On validation failures or business rule violations.
-                    The MCP server catches these and returns them as error responses.
+        Raises:
+            UserError: If invoice not found, not in draft state, or validation fails
 
-        Example LLM usage:
+        Example:
             # 1. Get ready response from analyzer
             analyzer_result = analyzer(invoice_id, extracted_data, constraints)
 
