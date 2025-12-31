@@ -189,51 +189,42 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
         constraints: Optional[AnalyzerConstraints] = None,
     ) -> AnalyzerResponse:
         """
-        Type-safe invoice analyzer with intelligent search and consistent responses.
+        Analyze invoice data and match partners/products with intelligent search hints.
 
-        Philosophy: "Tools do programmatic operations, LLMs do understanding unstructured data"
-        - Simple exact matching in tool (VAT, name)
-        - LLM handles intelligent fuzzy matching via odoo_record_retriever
+        Performs programmatic exact matching (VAT, name) and returns search hints
+        for LLM when no exact match found. Returns consistent response structure
+        for all statuses.
 
-        Key features:
-        - Consistent response structure for all statuses
-        - Type-safe constraints (explicit "manual" | "skip" | int)
-        - Always includes partner_id when ready
-        - Returns search hints for LLM when no exact match found
-
-        Parameters:
+        Args:
             invoice_id: ID of the account.move record
-            extracted_data: Type-safe extracted invoice data from LLM
+            extracted_data: Invoice data from LLM OCR parsing
             constraints: Optional user decisions from previous call
-                Format: {
-                    "partner_choice": {"choice": 9},  # int or "create_new"
-                    "product_choices": [
-                        {"line_index": 0, "choice": 123},  # int, "manual", or "skip"
-                        {"line_index": 1, "choice": "manual"}
-                    ]
-                }
+                - partner_choice: {"choice": partner_id or "create_new"}
+                - product_choices: [{"line_index": 0, "choice": product_id or "manual" or "skip"}]
 
         Returns:
-            AnalyzerResponse with consistent structure:
-            {
-                "status": "ready" | "needs_input" | "duplicate_found" | "error",
-                "context": {...},  # Always present
-                "data": {...}      # Shape depends on status
-            }
+            dict: Response with status ("ready", "needs_input", "duplicate_found", "error")
+                - status="ready": Contains partner_id and complete lines for updater
+                - status="needs_input": Contains question and options/search_hints for LLM
+                - status="duplicate_found": Contains duplicate invoice information
+                - status="error": Contains error message and suggestion
 
-        Workflow:
-            1. First call (no constraints):
-               analyzer(invoice_id, extracted_data)
-               → May return "needs_input" with search hints or options
+        Raises:
+            UserError: If invoice not found or data validation fails
 
-            2. Second call (with constraints):
-               analyzer(invoice_id, extracted_data, constraints={
-                   "partner_choice": {"choice": partner_id}
-               })
-               → MUST return "ready" or "error"
+        Example:
+            # First call - may need user input
+            result = analyzer(invoice_id, extracted_data)
 
-            3. Use ready response with updater:
-               updater(invoice_id, approved_analysis)
+            # If needs input, call again with constraints
+            if result["status"] == "needs_input":
+                result = analyzer(invoice_id, extracted_data, constraints={
+                    "partner_choice": {"choice": partner_id}
+                })
+
+            # When ready, pass to updater
+            if result["status"] == "ready":
+                updater(invoice_id, invoice_data=result["data"])
         """
         constraints = constraints or {}
 
