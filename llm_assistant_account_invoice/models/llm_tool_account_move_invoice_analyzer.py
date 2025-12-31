@@ -238,23 +238,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
                 extracted_data_summary=self._format_ocr_summary(extracted_data),
             )
 
-            # Validate extracted_data
-            if not extracted_data.get("vendor_name"):
-                return self._error_response(
-                    context,
-                    error="extracted_data must contain 'vendor_name'",
-                    suggestion="Use llm_tool_ocr_mistral to get invoice text, "
-                    "then extract vendor_name from it.",
-                )
-
-            if not extracted_data.get("lines"):
-                return self._error_response(
-                    context,
-                    error="extracted_data must contain 'lines' array",
-                    suggestion="Parse OCR text and extract line items with "
-                    "name, quantity, and price_unit (Odoo field names).",
-                )
-
             # ─────────────────────────────────────────────────────────────
             # STEP 1: Match Partner
             # ─────────────────────────────────────────────────────────────
