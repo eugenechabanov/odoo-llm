@@ -10,10 +10,31 @@ from odoo.exceptions import UserError
 
 from .invoice_tool_types import (
     AnalyzerConstraints,
+    AnalyzerContext,
     AnalyzerResponse,
+    AnalyzerResponseDuplicate,
+    AnalyzerResponseError,
+    AnalyzerResponseNeedsInput,
+    AnalyzerResponseReady,
+    DuplicateFoundData,
+    ErrorData,
     ExtractedInvoiceData,
+    HistoricalPatterns,
+    InvoiceLine,
+    NeedsInputPartnerData,
+    NeedsInputPartnerSearchData,
+    NeedsInputProductData,
+    NeedsInputProductSearchData,
+    OCRSummary,
     PartnerChoice,
+    PartnerInfo,
+    PartnerMatchResult,
+    PartnerOption,
     ProductChoice,
+    ProductMatchResult,
+    ProductOption,
+    ReadyData,
+    SuggestedValues,
 )
 
 _logger = logging.getLogger(__name__)
@@ -51,8 +72,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
 
     def _format_partner_alternatives(self, partners) -> list[dict]:
         """Format partner alternatives for LLM (semantic, not UUIDs)"""
-        from .invoice_tool_types import PartnerOption
-
         return [
             PartnerOption(
                 id=p.id,
@@ -88,8 +107,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
 
     def _format_product_alternatives(self, products) -> list[dict]:
         """Format product alternatives for LLM"""
-        from .invoice_tool_types import ProductOption
-
         return [
             ProductOption(
                 id=p.id,
@@ -102,8 +119,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
 
     def _get_historical_patterns(self, partner) -> dict:
         """Get common patterns from partner's invoice history"""
-        from .invoice_tool_types import HistoricalPatterns
-
         if not partner:
             return HistoricalPatterns().model_dump()
 
@@ -154,8 +169,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
 
     def _format_ocr_summary(self, ocr_data: dict) -> dict:
         """Format OCR data for compact LLM response"""
-        from .invoice_tool_types import OCRSummary
-
         summary = OCRSummary(
             vendor=ocr_data.get("vendor_name", ""),
             ref=ocr_data.get("ref", ""),
@@ -225,22 +238,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
         constraints = constraints or {}
 
         try:
-            # Consolidate all imports at the top
-            from .invoice_tool_types import (
-                AnalyzerContext,
-                AnalyzerResponseNeedsInput,
-                AnalyzerResponseDuplicate,
-                AnalyzerResponseReady,
-                NeedsInputPartnerSearchData,
-                NeedsInputPartnerData,
-                NeedsInputProductSearchData,
-                NeedsInputProductData,
-                DuplicateFoundData,
-                ReadyData,
-                PartnerInfo,
-                SuggestedValues,
-            )
-
             invoice = self._get_invoice(invoice_id)
 
             # Build consistent context (present in all responses)
@@ -439,8 +436,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
 
     def _error_response(self, context, error: str, suggestion: str) -> dict:
         """Build standardized error response"""
-        from .invoice_tool_types import AnalyzerResponseError, ErrorData
-
         response = AnalyzerResponseError(
             status="error",
             context=context,
@@ -464,8 +459,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
 
         The LLM will use odoo_record_retriever for intelligent fuzzy matching.
         """
-        from .invoice_tool_types import PartnerMatchResult
-
         if forced_partner_id:
             partner = self.env["res.partner"].browse(forced_partner_id)
             if partner.exists():
@@ -597,8 +590,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
         - Simple exact matching only
         - Returns search hints for LLM if no exact match
         """
-        from .invoice_tool_types import ProductMatchResult
-
         if constraint is not None:
             # EXPLICIT constraint handling
             if constraint["choice"] == "manual":
@@ -708,8 +699,6 @@ class LLMToolAccountMoveInvoiceAnalyzer(models.Model):
         self, ocr_lines: list[dict], product_results: list[dict]
     ) -> list[dict]:
         """Build complete invoice lines for updater"""
-        from .invoice_tool_types import InvoiceLine
-
         lines = []
 
         for line_ocr, prod_result in zip(ocr_lines, product_results):
