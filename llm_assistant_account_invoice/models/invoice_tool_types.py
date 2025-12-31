@@ -18,21 +18,15 @@ from pydantic import BaseModel, ConfigDict, Field
 # =============================================================================
 # EXTRACTED DATA (Input from LLM)
 # =============================================================================
-
-
-class ExtractedLine(BaseModel):
-    """Single line item extracted from invoice by LLM - uses Odoo field names"""
-
-    name: str = Field(..., description="Line description (Odoo field name)")
-    quantity: float
-    price_unit: float = Field(..., description="Unit price (Odoo field name)")
+# Note: ExtractedLine removed - using InvoiceLine for both extraction and processing
+# since all additional fields (product_id, product_name, etc.) are optional
 
 
 class ExtractedInvoiceData(BaseModel):
     """Invoice data extracted by LLM from OCR text - uses Odoo field names where applicable"""
 
     vendor_name: str = Field(..., description="Intermediate field (maps to partner_id)")
-    lines: list[ExtractedLine]
+    lines: list["InvoiceLine"] = Field(..., description="Invoice lines (product_id optional at this stage)")
     ref: Optional[str] = Field(None, description="Invoice reference/number (Odoo field name)")
     vat: Optional[str] = Field(None, description="Vendor VAT number (intermediate, maps to partner_id.vat)")
     invoice_date: Optional[str] = Field(None, description="Invoice date (Odoo field name)")
