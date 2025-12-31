@@ -322,8 +322,8 @@ AnalyzerResponse = Union[
 # =============================================================================
 
 
-class ApprovedAnalysis(BaseModel):
-    """Approved analysis from analyzer to pass to updater - uses Odoo field names"""
+class InvoiceUpdateData(BaseModel):
+    """Invoice data for updater (header + lines) - uses Odoo field names"""
 
     partner_id: int = Field(..., description="REQUIRED")
     lines: list[InvoiceLine] = Field(..., description="REQUIRED")
@@ -341,14 +341,6 @@ class UpdaterTotals(BaseModel):
     total: float
 
 
-class UpdaterValidation(BaseModel):
-    """Validation results"""
-
-    expected_total: Optional[float] = None
-    actual_total: Optional[float] = None
-    totals_match: Optional[bool] = None
-
-
 class UpdaterResponseSuccess(BaseModel):
     """Updater response when successful"""
 
@@ -358,7 +350,6 @@ class UpdaterResponseSuccess(BaseModel):
     partner: str
     lines_created: int
     totals: UpdaterTotals
-    validation: UpdaterValidation
     message: str
 
 

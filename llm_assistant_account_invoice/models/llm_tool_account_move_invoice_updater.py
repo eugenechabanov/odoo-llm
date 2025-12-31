@@ -6,7 +6,11 @@ import logging
 from odoo import _, api, models
 from odoo.exceptions import UserError
 
-from .invoice_tool_types import ApprovedAnalysis
+from .invoice_tool_types import (
+    InvoiceUpdateData,
+    UpdaterResponseSuccess,
+    UpdaterTotals,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -104,15 +108,9 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
     # ═══════════════════════════════════════════════════════════════
 
     def _success_response(
-        self, invoice, lines_created: int, totals: dict, validation: dict
+        self, invoice, lines_created: int, totals: dict
     ) -> dict:
         """Build standardized success response using Pydantic model, return as dict"""
-        from .invoice_tool_types import (
-            UpdaterResponseSuccess,
-            UpdaterTotals,
-            UpdaterValidation,
-        )
-
         response = UpdaterResponseSuccess(
             status="success",
             invoice_id=invoice.id,
@@ -120,7 +118,6 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             partner=invoice.partner_id.name,
             lines_created=lines_created,
             totals=UpdaterTotals(**totals),
-            validation=UpdaterValidation(**validation) if validation else UpdaterValidation(),
             message=f"✓ Invoice {invoice.name} created successfully with {lines_created} lines",
         )
         return response.model_dump()
@@ -130,20 +127,20 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
     # ═══════════════════════════════════════════════════════════════════════════
 
     def account_move_invoice_updater_execute(
-        self, invoice_id: int, approved_analysis: ApprovedAnalysis
+        self, invoice_id: int, invoice_data: InvoiceUpdateData
     ) -> dict:
         """
-        Apply approved invoice analysis to create invoice lines and update header.
+        Apply invoice data to create invoice lines and update header.
 
         Args:
             invoice_id: ID of the account.move record (must be in draft state)
-            approved_analysis: Approved analysis containing partner_id, lines, ref, invoice_date
+            invoice_data: Invoice data containing partner_id, lines, ref, invoice_date
 
         Returns:
-            dict: Success response with invoice_id, partner, lines_created, totals, validation
+            dict: Success response with invoice_id, partner, lines_created, totals
 
         Raises:
-            UserError: If invoice not found, not in draft state, or validation fails
+            UserError: If invoice not found, not in draft state, or input validation fails
 
         Example:
             # 1. Get ready response from analyzer
@@ -152,7 +149,7 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             # 2. Pass data using Odoo field names (direct mapping)
             updater_result = updater(
                 invoice_id=invoice_id,
-                approved_analysis={
+                invoice_data={
                     "partner_id": analyzer_result["data"]["partner_id"],
                     "lines": analyzer_result["data"]["lines"],
                     "ref": analyzer_result["data"]["suggested_values"]["ref"],
@@ -162,7 +159,7 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             )
         """
         # ─────────────────────────────────────────────────────────────
-        # VALIDATION (Pydantic validates approved_analysis automatically)
+        # VALIDATION (Pydantic validates invoice_data automatically)
         # ─────────────────────────────────────────────────────────────
         invoice = self._validate_invoice_editable(invoice_id)
 
@@ -170,25 +167,25 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
         # STEP 1: Prepare Lines
         # ─────────────────────────────────────────────────────────────
         line_vals_list = []
-        for line_data in approved_analysis["lines"]:
+        for line_data in invoice_data["lines"]:
             line_vals = self._prepare_line_vals(invoice, line_data)
             line_vals_list.append(line_vals)
 
         # ─────────────────────────────────────────────────────────────
         # STEP 2: Update Invoice Header
         # ─────────────────────────────────────────────────────────────
-        # Direct mapping - ApprovedAnalysis uses Odoo field names
+        # Direct mapping - InvoiceUpdateData uses Odoo field names
         header_vals = {
-            "partner_id": approved_analysis["partner_id"],
-            "ref": approved_analysis["ref"],
-            "invoice_date": approved_analysis["invoice_date"],
+            "partner_id": invoice_data["partner_id"],
+            "ref": invoice_data["ref"],
+            "invoice_date": invoice_data["invoice_date"],
         }
 
         # Optional fields
-        if approved_analysis.get("invoice_date_due"):
-            header_vals["invoice_date_due"] = approved_analysis["invoice_date_due"]
-        if approved_analysis.get("invoice_payment_term_id"):
-            header_vals["invoice_payment_term_id"] = approved_analysis[
+        if invoice_data.get("invoice_date_due"):
+            header_vals["invoice_date_due"] = invoice_data["invoice_date_due"]
+        if invoice_data.get("invoice_payment_term_id"):
+            header_vals["invoice_payment_term_id"] = invoice_data[
                 "invoice_payment_term_id"
             ]
 
@@ -200,7 +197,7 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
         self.env["account.move.line"].create(line_vals_list)
 
         # ─────────────────────────────────────────────────────────────
-        # STEP 4: Get Totals and Validate
+        # STEP 4: Get Totals
         # ─────────────────────────────────────────────────────────────
         # Totals are auto-computed by Odoo when lines are created
         totals = {
@@ -209,17 +206,6 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             "total": invoice.amount_total,
         }
 
-        # Validation (if expected total provided)
-        validation = {}
-        if approved_analysis.get("total"):
-            expected = approved_analysis["total"]
-            actual = invoice.amount_total
-            validation = {
-                "expected_total": expected,
-                "actual_total": actual,
-                "totals_match": abs(expected - actual) < 0.01,  # Allow 1 cent diff
-            }
-
         # ─────────────────────────────────────────────────────────────
         # SUCCESS!
         # ─────────────────────────────────────────────────────────────
@@ -227,5 +213,4 @@ class LLMToolAccountMoveInvoiceUpdater(models.Model):
             invoice=invoice,
             lines_created=len(line_vals_list),
             totals=totals,
-            validation=validation,
         )
