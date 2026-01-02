@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <!-- Invoice Processor Prompt Template with Auto-Trigger -->
-    <record id="llm_prompt_invoice_parser" model="llm.prompt">
-        <field name="name">Invoice Processor Multi-Message Prompt</field>
+    <!-- Invoice Data Extraction Prompt (One-Shot for Automatic Decoder) -->
+    <record id="llm_prompt_invoice_extraction" model="llm.prompt">
+        <field name="name">Invoice Data Extraction (One-Shot)</field>
         <field
       name="description"
-    >Multi-message prompt with system instructions and auto-trigger to process invoices: OCR parsing, partner/product matching, and invoice line creation.</field>
+    >One-shot prompt for extracting structured invoice data from OCR text. Returns JSON with vendor info, invoice details, and line items. Used by automatic decoder.</field>
         <field name="format">json</field>
         <field
       name="template"
     ><![CDATA[[
   {
     "type": "system",
-    "content": {{ ('You are a ' + role + '.\n\nYour goal is to ' + goal + '\n\nBackground: ' + background + '\n\nInstructions: ' + instructions + '\n\n' + footer) | tojson }}
+    "content": {{ ('You are a ' + role + '.\n\nYour goal is to ' + goal + '\n\nBackground: ' + background + '\n\nInstructions:\n' + instructions + '\n\n' + footer) | tojson }}
   },
   {
     "type": "user",
-    "content": "Process this invoice by analyzing the attached document, matching the vendor/customer and products from our database, and preparing the invoice lines for entry. Walk me through each step and ask for confirmation before making any changes."
+    "content": {{ ('Extract invoice data from the following OCR text and return ONLY the JSON object, no explanations or markdown:\n\n' + ocr_text) | tojson }}
   }
 ]]]></field>
         <field
@@ -24,29 +24,34 @@
     ><![CDATA[{
             "role": {
                 "type": "string",
-                "description": "The role of the assistant (e.g., 'Invoice Analysis Assistant')",
+                "description": "The role of the assistant",
                 "required": true
             },
             "goal": {
                 "type": "string",
-                "description": "The primary goal or objective of this assistant",
+                "description": "The primary goal",
                 "required": true
             },
             "background": {
                 "type": "string",
-                "description": "Background information for the assistant to understand its context",
+                "description": "Background information",
                 "required": true
             },
             "instructions": {
                 "type": "string",
-                "description": "Specific instructions for the assistant to follow",
+                "description": "Specific extraction instructions",
                 "required": true
             },
             "footer": {
                 "type": "string",
-                "description": "Optional footer text to add to the end of the prompt",
+                "description": "Optional footer",
                 "required": false,
                 "default": ""
+            },
+            "ocr_text": {
+                "type": "string",
+                "description": "OCR extracted text from invoice (injected via dynamic defaults)",
+                "required": true
             }
         }]]></field>
         <field name="active" eval="True" />
