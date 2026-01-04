@@ -19,6 +19,7 @@
     "data": [
         "data/llm_prompt_invoice_data.xml",
         "data/llm_assistant_data.xml",
+        "views/account_move_views.xml",
     ],
     "license": "LGPL-3",
     "installable": True,

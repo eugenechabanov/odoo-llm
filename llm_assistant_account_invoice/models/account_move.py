@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import re
@@ -5,12 +6,92 @@ from lxml import etree
 
 from odoo import api, models
 from odoo.exceptions import UserError
+from odoo.tools import html2plaintext
 
 _logger = logging.getLogger(__name__)
 
 
 class AccountMove(models.Model):
     _inherit = "account.move"
+
+    # ============================================================================
+    # MANUAL TRIGGER ACTION
+    # ============================================================================
+
+    def action_process_with_llm(self):
+        """Manually trigger LLM-OCR processing for this invoice
+
+        This method allows users to manually process an invoice that has an attachment.
+        Useful for:
+        - Invoices created before the module was installed
+        - Invoices where automatic processing was skipped
+        - Re-processing invoices after attachment changes
+
+        Returns:
+            dict: Action result with notification
+        """
+        self.ensure_one()
+
+        # Check if invoice is in valid state
+        if self.state != "draft":
+            raise UserError(
+                "Can only process draft invoices. "
+                "This invoice is already posted or cancelled."
+            )
+
+        # Find PDF or image attachment
+        attachment = self.env["ir.attachment"].search(
+            [
+                ("res_model", "=", "account.move"),
+                ("res_id", "=", self.id),
+                (
+                    "mimetype",
+                    "in",
+                    ["application/pdf", "image/png", "image/jpeg", "image/jpg"],
+                ),
+            ],
+            limit=1,
+        )
+
+        if not attachment:
+            raise UserError(
+                "No PDF or image attachment found on this invoice. "
+                "Please attach an invoice document first."
+            )
+
+        _logger.info(
+            f"Manual LLM processing triggered for invoice {self.id} "
+            f"with attachment {attachment.name}"
+        )
+
+        # Extract data from attachment
+        invoice_data = self._extract_invoice_data_from_attachment(attachment)
+
+        if not invoice_data:
+            raise UserError(
+                f"Failed to extract data from {attachment.name}. "
+                "The document may be unreadable or in an unsupported format."
+            )
+
+        # Populate invoice with extracted data
+        success = self._populate_invoice_from_data(invoice_data)
+
+        if success:
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": "Success!",
+                    "message": f"Invoice populated successfully from {attachment.name}",
+                    "type": "success",
+                    "sticky": False,
+                },
+            }
+        else:
+            raise UserError(
+                f"Failed to populate invoice from extracted data. "
+                "Please check the logs for details."
+            )
 
     # ============================================================================
     # DECODER REGISTRATION (EDI Integration)
@@ -38,7 +119,7 @@ class AccountMove(models.Model):
 
     @api.model
     def _llm_ocr_decoder_oneshot(self, attachment):
-        """One-shot LLM-OCR decoder for invoice attachments
+        """One-shot LLM-OCR decoder for invoice attachments (automatic)
 
         This decoder is called automatically by Odoo when:
         1. User uploads attachment via journal "Upload" button
@@ -46,13 +127,10 @@ class AccountMove(models.Model):
 
         Flow:
         1. Check if suitable for OCR (PDF, image)
-        2. Create draft invoice record for the thread
-        3. Attach file to invoice (makes it findable by thread.get_context())
-        4. Create thread with assistant (computes OCR in context)
-        5. Call thread.generate(None) - auto-triggers with OCR text
-        6. Extract JSON from assistant response
-        7. Convert JSON to UBL XML
-        8. Delegate to EDI for invoice population
+        2. Create draft invoice record
+        3. Attach file to invoice
+        4. Extract data from attachment
+        5. Populate invoice with extracted data
 
         Args:
             attachment (ir.attachment): Invoice attachment to process
@@ -74,66 +152,59 @@ class AccountMove(models.Model):
             )
 
             # 2. Create draft invoice for the thread to attach to
-            invoice = self.create(
-                {
-                    "move_type": "in_invoice",
-                    "state": "draft",
-                }
-            )
+            invoice = self.create({"move_type": "in_invoice"})
+
+            # Find journal using same logic as EDI's _create_invoice_from_xml_tree
+            # (matches account_edi_ubl_cii module's journal selection)
+            if not invoice.journal_id:
+                move_type = invoice.move_type
+                if move_type in self.env["account.move"].get_purchase_types():
+                    journal_type = "purchase"
+                elif move_type in self.env["account.move"].get_sale_types():
+                    journal_type = "sale"
+                else:
+                    journal_type = "general"
+
+                journal = self.env["account.journal"].search(
+                    [("company_id", "=", invoice.company_id.id), ("type", "=", journal_type)],
+                    limit=1,
+                )
+                if journal:
+                    invoice.journal_id = journal
+                else:
+                    _logger.error(
+                        "No %s journal found for company %s",
+                        journal_type,
+                        invoice.company_id.name,
+                    )
+                    invoice.unlink()
+                    return self.env["account.move"]
 
             # 3. Attach the file to invoice (makes it findable by thread.get_context())
             attachment.write({"res_model": "account.move", "res_id": invoice.id})
 
-            # 4. Get or create thread with assistant
-            assistant = self.env["llm.assistant"].get_assistant_by_code(
-                "invoice_extraction"
-            )
-            if not assistant:
-                _logger.error("Invoice extraction assistant not configured")
+            # 4. Extract data from attachment
+            invoice_data = invoice._extract_invoice_data_from_attachment(attachment)
+
+            if not invoice_data:
+                _logger.warning(
+                    f"LLM extraction failed for attachment {attachment.name}"
+                )
                 invoice.unlink()
                 return self.env["account.move"]
 
-            thread = self.env["llm.thread"].create(
-                {
-                    "name": f"Invoice Extraction - {attachment.name}",
-                    "assistant_id": assistant.id,
-                    "model_id": assistant.model_id.id,
-                    "model": "account.move",
-                    "res_id": invoice.id,
-                }
-            )
+            # 5. Populate invoice with extracted data
+            success = invoice._populate_invoice_from_data(invoice_data)
 
-            # 5. Call generate() - auto-triggers with OCR computed in context
-            _logger.info(
-                f"Starting LLM extraction for invoice {invoice.id} with thread {thread.id}"
-            )
-            invoice_data = None
-            for response_event in thread.generate(user_message_body=None):
-                if response_event.get("type") == "message_create":
-                    message = response_event.get("message", {})
-                    if message.get("author_id"):  # Assistant message
-                        body = message.get("body", "")
-                        invoice_data = self._parse_invoice_json(body)
-                        break  # ONE response only!
-
-            # 6. Convert JSON to UBL XML and delegate to EDI
-            if invoice_data:
-                success = self._apply_extracted_data_via_edi(invoice, invoice_data)
-                if success:
-                    _logger.info(
-                        f"Successfully created invoice {invoice.name or invoice.id} "
-                        f"from {attachment.name}"
-                    )
-                    return invoice
-                else:
-                    _logger.warning(
-                        f"LLM extraction succeeded but EDI processing failed for {attachment.name}"
-                    )
-                    invoice.unlink()
-                    return self.env["account.move"]
+            if success:
+                _logger.info(
+                    f"Successfully created invoice {invoice.name or invoice.id} "
+                    f"from {attachment.name}"
+                )
+                return invoice
             else:
                 _logger.warning(
-                    f"LLM extraction failed for attachment {attachment.name}"
+                    f"LLM extraction succeeded but EDI processing failed for {attachment.name}"
                 )
                 invoice.unlink()
                 return self.env["account.move"]
@@ -141,6 +212,203 @@ class AccountMove(models.Model):
         except Exception as e:
             _logger.error(f"Error in LLM-OCR decoder: {str(e)}", exc_info=True)
             return self.env["account.move"]  # Return empty, try next decoder
+
+    # ============================================================================
+    # CORE EXTRACTION METHODS (Reusable)
+    # ============================================================================
+
+    def _extract_invoice_data_from_attachment(self, attachment):
+        """Extract structured invoice data from attachment using OCR + LLM
+
+        This is the core extraction logic that:
+        1. Creates a thread with the extraction assistant
+        2. Triggers OCR extraction (computed dynamically in thread.get_context())
+        3. Gets structured JSON from LLM in one shot
+        4. Parses and validates the response
+
+        Args:
+            attachment (ir.attachment): Invoice attachment (PDF or image)
+
+        Returns:
+            dict: Structured invoice data with keys (camelCase):
+                - vendorName (str)
+                - vat (str, optional)
+                - invoiceNumber (str)
+                - invoiceDate (str, YYYY-MM-DD)
+                - dueDate (str, optional, YYYY-MM-DD)
+                - currency (str, optional, default EUR)
+                - totalAmount (float)
+                - lines (list of dict):
+                    - description (str)
+                    - quantity (float)
+                    - unitPrice (float)
+                    - taxPercent (float, optional)
+            None: If extraction failed
+        """
+        try:
+            # Get the extraction assistant
+            assistant = self.env["llm.assistant"].get_assistant_by_code(
+                "invoice_extraction"
+            )
+            if not assistant:
+                _logger.error("Invoice extraction assistant not configured")
+                return None
+
+            # Create thread for this invoice
+            # OCR text will be computed dynamically in thread.get_context()
+            thread = self.env["llm.thread"].create(
+                {
+                    "name": f"Invoice Extraction - {attachment.name}",
+                    "assistant_id": assistant.id,
+                    "prompt_id": assistant.prompt_id.id,
+                    "provider_id": assistant.provider_id.id,
+                    "model_id": assistant.model_id.id,
+                    "model": "account.move",
+                    "res_id": self.id,
+                }
+            )
+
+            # Call generate() - prepend messages from prompt provide the user message
+            # The prompt template includes the user message with {{ ocr_text }}
+            _logger.info(
+                f"Starting LLM extraction for invoice {self.id} with thread {thread.id}"
+            )
+
+            # Consume all streaming events to let generation complete
+            for chunk in thread.generate(user_message_body=""):
+                _logger.info(chunk)
+
+            # After streaming completes, get the latest assistant message from thread
+            last_message = thread.get_latest_llm_message()
+            if last_message and last_message.llm_role == "assistant":
+                body = last_message.body
+                
+
+                invoice_data = self._parse_invoice_json(body)
+                if invoice_data:
+                    _logger.info(f"Successfully parsed invoice data: {list(invoice_data.keys())}")
+                    return invoice_data
+                else:
+                    _logger.warning("Failed to parse invoice JSON from response")
+                    return None
+            else:
+                _logger.warning("No assistant message found after generation")
+                return None
+
+        except Exception as e:
+            _logger.error(e)
+            _logger.error(
+                f"Error extracting invoice data from {attachment.name}: {str(e)}",
+                exc_info=True,
+            )
+            return None
+
+    def _populate_invoice_from_data(self, invoice_data):
+        """Populate THIS invoice from extracted data via EDI
+
+        This method:
+        1. Converts extracted JSON to UBL 2.0 XML
+        2. Creates a temporary XML attachment
+        3. Delegates to EDI for invoice population (partner matching, etc.)
+        4. Cleans up temporary attachment
+
+        Args:
+            invoice_data (dict): Structured invoice data from LLM
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            # 1. Build UBL XML tree from extracted data
+            ubl_tree = self._build_ubl_from_invoice_data(invoice_data)
+
+            # 2. Convert tree to bytes
+            ubl_xml_bytes = etree.tostring(
+                ubl_tree, pretty_print=True, xml_declaration=True, encoding="UTF-8"
+            )
+
+            # 3. Base64 encode for Odoo attachment (datas field expects base64)
+            ubl_xml_base64 = base64.b64encode(ubl_xml_bytes)
+
+            # 4. Create temporary XML attachment
+            temp_attachment = self.env["ir.attachment"].create(
+                {
+                    "name": "llm_extracted_invoice.xml",
+                    "datas": ubl_xml_base64,
+                    "res_model": "account.move",
+                    "res_id": self.id,
+                    "mimetype": "application/xml",
+                }
+            )
+            _logger.info(
+                f"Created temporary UBL XML attachment: {temp_attachment.id} "
+                f"({len(ubl_xml_bytes)} bytes)"
+            )
+
+            # Log the XML content for debugging
+            _logger.info(f"UBL XML content preview:\n{ubl_xml_bytes[:1000].decode('utf-8')}")
+
+            # 5. Delegate to EDI for processing - search ALL UBL/CII formats for auto-detection
+            # The EDI will use UBLVersionID and other fields to auto-detect the correct builder
+            edi_formats = self.env["account.edi.format"].search(
+                [
+                    ("code", "in", [
+                        "facturx_1_0_05", "ubl_bis3", "ubl_de", "nlcius_1",
+                        "efff_1", "ubl_2_1", "ubl_a_nz", "ubl_sg"
+                    ])
+                ]
+            )
+            if not edi_formats:
+                _logger.error(
+                    "No UBL/CII EDI formats found. "
+                    "Ensure account_edi_ubl_cii module is installed."
+                )
+                temp_attachment.unlink()
+                return False
+
+            _logger.info(f"Found {len(edi_formats)} UBL/CII EDI formats for auto-detection")
+
+            # Try EDI processing with detailed error catching
+            try:
+                _logger.info(f"Calling EDI _update_invoice_from_attachment with attachment {temp_attachment.id}")
+                _logger.info(f"Invoice BEFORE EDI: id={self.id}, journal={self.journal_id.name}, partner={self.partner_id}")
+
+                # Call on all formats - EDI will auto-detect based on UBLVersionID in XML
+                result = edi_formats._update_invoice_from_attachment(temp_attachment, self)
+
+                _logger.info(f"EDI update result: {result} (type: {type(result)})")
+                _logger.info(f"EDI result bool: {bool(result)}, len: {len(result) if result else 0}")
+                _logger.info(f"Invoice AFTER EDI: id={self.id}, partner={self.partner_id}, lines={len(self.invoice_line_ids)}")
+
+                # Check if self was modified even though result is empty
+                if not result and self.invoice_line_ids:
+                    _logger.warning(
+                        "EDI returned empty but invoice was modified! "
+                        f"Using self instead. Lines: {len(self.invoice_line_ids)}"
+                    )
+                    result = self
+            except Exception as e:
+                _logger.error(f"Exception during EDI processing: {e}", exc_info=True)
+                result = None
+
+            # 6. Clean up temporary attachment
+            temp_attachment.unlink()
+
+            if result:
+                _logger.info("Successfully populated invoice via EDI")
+                return True
+            else:
+                _logger.warning(
+                    f"EDI processing returned falsy result: {result}. "
+                    "Invoice may not have been populated correctly."
+                )
+                return False
+
+        except Exception as e:
+            _logger.error(
+                f"Error populating invoice from extracted data: {str(e)}", exc_info=True
+            )
+            return False
 
     # ============================================================================
     # HELPER METHODS
@@ -172,26 +440,30 @@ class AccountMove(models.Model):
         return True
 
     def _parse_invoice_json(self, response_text):
-        """Parse JSON from LLM response, handling markdown code blocks
+        """Parse JSON from LLM response, handling HTML and markdown code blocks
 
         Args:
-            response_text (str): LLM response text
+            response_text (str): LLM response text (may be HTML)
 
         Returns:
             dict: Parsed invoice data, or None if parsing failed
         """
+        # Convert HTML to plain text (removes <p>, <em>, etc.)
+        # Note: Using camelCase field names so no underscores to worry about
+        plain_text = html2plaintext(response_text).strip()
+
         # Extract JSON from markdown code blocks if present
         json_match = re.search(
-            r"```(?:json)?\s*(\{.*?\})\s*```", response_text, re.DOTALL
+            r"```(?:json)?\s*(\{.*?\})\s*```", plain_text, re.DOTALL
         )
         if json_match:
             json_text = json_match.group(1)
         else:
-            json_text = response_text.strip()
+            json_text = plain_text
 
         try:
             return json.loads(json_text)
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             _logger.error(
                 f"Failed to parse LLM response as JSON: {response_text[:500]}"
             )
@@ -201,60 +473,6 @@ class AccountMove(models.Model):
     # JSON → UBL XML CONVERSION
     # ============================================================================
 
-    def _apply_extracted_data_via_edi(self, invoice, invoice_data):
-        """Apply extracted invoice data via EDI (converts JSON → UBL XML → EDI)
-
-        This is the bridge between LLM extraction and EDI processing:
-        1. Build UBL 2.0 XML tree from JSON
-        2. Create temporary XML attachment
-        3. Delegate to EDI's _update_invoice_from_attachment()
-
-        Args:
-            invoice (account.move): Draft invoice to populate
-            invoice_data (dict): LLM-extracted invoice data
-
-        Returns:
-            bool: True if successful
-        """
-        try:
-            # 1. Build UBL XML tree from extracted data
-            ubl_tree = self._build_ubl_from_invoice_data(invoice_data)
-
-            # 2. Convert tree to string
-            ubl_xml = etree.tostring(
-                ubl_tree, pretty_print=True, xml_declaration=True, encoding="UTF-8"
-            )
-
-            # 3. Create temporary XML attachment
-            temp_attachment = self.env["ir.attachment"].create(
-                {
-                    "name": "llm_extracted_invoice.xml",
-                    "datas": ubl_xml,
-                    "res_model": "account.move",
-                    "res_id": invoice.id,
-                    "mimetype": "application/xml",
-                }
-            )
-
-            # 4. Delegate to EDI for processing
-            edi_format = self.env["account.edi.format"].search([], limit=1)
-            if not edi_format:
-                _logger.error("No EDI format found for processing UBL XML")
-                return False
-
-            result = edi_format._update_invoice_from_attachment(
-                temp_attachment, invoice
-            )
-
-            # 5. Clean up temporary attachment
-            temp_attachment.unlink()
-
-            return bool(result)
-
-        except Exception as e:
-            _logger.error(f"Error applying extracted data via EDI: {str(e)}")
-            return False
-
     def _build_ubl_from_invoice_data(self, invoice_data):
         """Build minimal UBL 2.0 XML tree from extracted invoice data
 
@@ -263,19 +481,19 @@ class AccountMove(models.Model):
         Args:
             invoice_data (dict): Extracted invoice data from LLM with structure:
                 {
-                    "vendor_name": str,
+                    "vendorName": str,
                     "vat": str (optional),
-                    "invoice_number": str,
-                    "invoice_date": str (YYYY-MM-DD),
-                    "due_date": str (YYYY-MM-DD, optional),
+                    "invoiceNumber": str,
+                    "invoiceDate": str (YYYY-MM-DD),
+                    "dueDate": str (YYYY-MM-DD, optional),
                     "currency": str (optional, default EUR),
-                    "total_amount": float,
+                    "totalAmount": float,
                     "lines": [
                         {
                             "description": str,
                             "quantity": float,
-                            "unit_price": float,
-                            "tax_percent": float (optional)
+                            "unitPrice": float,
+                            "taxPercent": float (optional)
                         }
                     ]
                 }
@@ -303,23 +521,27 @@ class AccountMove(models.Model):
         # DOCUMENT LEVEL FIELDS
         # ========================================================================
 
+        # UBL Version (REQUIRED for auto-detection by EDI)
+        # Path: ./{*}UBLVersionID
+        etree.SubElement(root, f"{{{ns['cbc']}}}UBLVersionID").text = "2.1"
+
         # Invoice Number (REQUIRED)
         # Path: ./{*}ID
         etree.SubElement(root, f"{{{ns['cbc']}}}ID").text = invoice_data.get(
-            "invoice_number", ""
+            "invoiceNumber", ""
         )
 
         # Invoice Date (REQUIRED)
         # Path: ./{*}IssueDate
         etree.SubElement(root, f"{{{ns['cbc']}}}IssueDate").text = invoice_data.get(
-            "invoice_date", ""
+            "invoiceDate", ""
         )
 
         # Due Date (OPTIONAL)
         # Path: ./{*}DueDate
-        if invoice_data.get("due_date"):
+        if invoice_data.get("dueDate"):
             etree.SubElement(root, f"{{{ns['cbc']}}}DueDate").text = invoice_data[
-                "due_date"
+                "dueDate"
             ]
 
         # Document Currency (REQUIRED)
@@ -340,7 +562,7 @@ class AccountMove(models.Model):
         # Path: .//cac:PartyName/cbc:Name
         party_name = etree.SubElement(party, f"{{{ns['cac']}}}PartyName")
         etree.SubElement(party_name, f"{{{ns['cbc']}}}Name").text = invoice_data.get(
-            "vendor_name", ""
+            "vendorName", ""
         )
 
         # VAT (HIGHLY RECOMMENDED)
@@ -381,8 +603,8 @@ class AccountMove(models.Model):
 
             # Line Total (REQUIRED)
             # Path: ./{*}LineExtensionAmount
-            # Formula: quantity × unit_price
-            unit_price = line_data.get("unit_price", 0.0)
+            # Formula: quantity × unitPrice
+            unit_price = line_data.get("unitPrice", 0.0)
             line_total = quantity * unit_price
             total_untaxed += line_total
 
@@ -404,7 +626,7 @@ class AccountMove(models.Model):
 
             # Tax Category (OPTIONAL but helpful)
             # Path: .//{ *}Item/{*}ClassifiedTaxCategory/{*}Percent
-            tax_percent = line_data.get("tax_percent", 0.0)
+            tax_percent = line_data.get("taxPercent", 0.0)
             if tax_percent:
                 classified_tax = etree.SubElement(
                     item, f"{{{ns['cac']}}}ClassifiedTaxCategory"
@@ -474,8 +696,8 @@ class AccountMove(models.Model):
         # Path: ./{*}PayableAmount
         payable = etree.SubElement(legal_total, f"{{{ns['cbc']}}}PayableAmount")
         payable.set("currencyID", currency)
-        # Use total_amount from LLM if available, otherwise calculated total
-        final_total = invoice_data.get("total_amount", total_with_tax)
+        # Use totalAmount from LLM if available, otherwise calculated total
+        final_total = invoice_data.get("totalAmount", total_with_tax)
         payable.text = f"{final_total:.2f}"
 
         return root

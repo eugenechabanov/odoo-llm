@@ -62,18 +62,29 @@ class LLMThreadInvoice(models.Model):
             str: Extracted text from OCR, or None if failed
         """
         try:
-            # Get OCR tool
-            ocr_tool = self.env["llm.tool.ocr.mistral"].search([], limit=1)
+            # Get Mistral OCR tool (llm.tool with implementation llm_tool_ocr_mistral)
+            ocr_tool = self.env["llm.tool"].search(
+                [("implementation", "=", "llm_tool_ocr_mistral")], limit=1
+            )
             if not ocr_tool:
                 _logger.warning("Mistral OCR tool not found in system")
                 return None
 
-            # Call OCR via tool's internal method
-            result = ocr_tool._parse_attachment(
-                attachment_id=attachment.id,
-                provider=ocr_tool.provider_id,
-                ocr_model=ocr_tool.model_id,
-            )
+            # Call OCR via tool's public execute method
+            results = ocr_tool.llm_tool_ocr_mistral_execute([attachment.id])
+
+            if not results or len(results) == 0:
+                _logger.warning(f"OCR returned no results for {attachment.name}")
+                return None
+
+            result = results[0]
+
+            # Check for errors
+            if result.get("error"):
+                _logger.error(
+                    f"OCR error for {attachment.name}: {result.get('error')}"
+                )
+                return None
 
             extracted_text = result.get("extracted_text", "")
             if extracted_text:
@@ -86,5 +97,7 @@ class LLMThreadInvoice(models.Model):
             return extracted_text
 
         except Exception as e:
-            _logger.error(f"OCR failed for attachment {attachment.id}: {e}")
+            _logger.error(
+                f"OCR failed for attachment {attachment.id}: {e}", exc_info=True
+            )
             return None
