@@ -6,7 +6,7 @@
         Features document parsing with OCR, automated data extraction, and smart invoice validation.
     """,
     "category": "Accounting/AI",
-    "version": "16.0.1.0.1",
+    "version": "16.0.1.0.2",
     "depends": [
         "account",  # Invoice model (account.move)
         "account_edi",  # EDI integration for decoder chain and UBL processing
