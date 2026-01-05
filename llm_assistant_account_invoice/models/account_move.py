@@ -106,11 +106,11 @@ class AccountMove(models.Model):
         is never called! We only see attachments EDI couldn't handle.
         """
         res = super()._get_create_document_from_attachment_decoders()
-        res.append((15, self._llm_ocr_decoder_oneshot))
+        res.append((15, self._llm_ocr_decoder))
         return res
 
     @api.model
-    def _llm_ocr_decoder_oneshot(self, attachment):
+    def _llm_ocr_decoder(self, attachment):
         """One-shot LLM-OCR decoder for invoice attachments (automatic)
 
         This decoder is called automatically by Odoo when:
@@ -247,51 +247,43 @@ class AccountMove(models.Model):
                     - taxPercent (float, optional)
             None: If extraction failed
         """
-        try:
-            # Get the extraction assistant
-            assistant = self.env["llm.assistant"].get_assistant_by_code(
-                "invoice_extraction"
-            )
-            if not assistant:
-                _logger.error("Invoice extraction assistant not configured")
-                return None
-
-            # Create thread for this invoice
-            # OCR text will be computed dynamically in thread.get_context()
-            thread = self.env["llm.thread"].create(
-                {
-                    "name": f"Invoice Extraction - {attachment.name}",
-                    "assistant_id": assistant.id,
-                    "prompt_id": assistant.prompt_id.id,
-                    "provider_id": assistant.provider_id.id,
-                    "model_id": assistant.model_id.id,
-                    "model": "account.move",
-                    "res_id": self.id,
-                }
-            )
-
-            # Call generate() - prepend messages from prompt provide the user message
-            # The prompt template includes the user message with {{ ocr_text }}
-            for _ in thread.generate(user_message_body=""):
-                pass
-
-            # After streaming completes, get the latest assistant message from thread
-            last_message = thread.get_latest_llm_message()
-            if last_message and last_message.llm_role == "assistant":
-                body = last_message.body
-                invoice_data = self._parse_invoice_json(body)
-                if invoice_data:
-                    return invoice_data
-
+        
+        # Get the extraction assistant
+        assistant = self.env["llm.assistant"].get_assistant_by_code(
+            "invoice_extraction"
+        )
+        if not assistant:
+            _logger.error("Invoice extraction assistant not configured")
             return None
 
-        except Exception as e:
-            _logger.error(e)
-            _logger.error(
-                f"Error extracting invoice data from {attachment.name}: {str(e)}",
-                exc_info=True,
-            )
-            return None
+        # Create thread for this invoice
+        # OCR text will be computed dynamically in thread.get_context()
+        thread = self.env["llm.thread"].create(
+            {
+                "name": f"Invoice Extraction - {attachment.name}",
+                "assistant_id": assistant.id,
+                "prompt_id": assistant.prompt_id.id,
+                "provider_id": assistant.provider_id.id,
+                "model_id": assistant.model_id.id,
+                "model": "account.move",
+                "res_id": self.id,
+            }
+        )
+
+        # Call generate() - prepend messages from prompt provide the user message
+        # The prompt template includes the user message with {{ ocr_text }}
+        for _ in thread.generate(user_message_body=""):
+            pass
+
+        # After streaming completes, get the latest assistant message from thread
+        last_message = thread.get_latest_llm_message()
+        if last_message and last_message.llm_role == "assistant":
+            body = last_message.body
+            invoice_data = self._parse_invoice_json(body)
+            if invoice_data:
+                return invoice_data
+
+        return None
 
     def _populate_invoice_from_data(self, invoice_data):
         """Populate THIS invoice from extracted data via EDI
@@ -309,15 +301,6 @@ class AccountMove(models.Model):
             bool: True if successful, False otherwise
         """
         try:
-            # Log the extracted invoice data for debugging
-            _logger.info(
-                f"\n{'='*80}\n"
-                f"EXTRACTED INVOICE DATA (JSON):\n"
-                f"{'='*80}\n"
-                f"{json.dumps(invoice_data, indent=2, ensure_ascii=False)}\n"
-                f"{'='*80}"
-            )
-
             # 1. Build UBL XML tree from extracted data
             ubl_tree = self._build_ubl_from_invoice_data(invoice_data)
 
@@ -338,20 +321,6 @@ class AccountMove(models.Model):
                     "res_id": self.id,
                     "mimetype": "application/xml",
                 }
-            )
-            _logger.info(
-                f"Created temporary UBL XML attachment: {temp_attachment.id} "
-                f"({len(ubl_xml_bytes)} bytes)"
-            )
-
-            # Log the COMPLETE XML tree for debugging
-            xml_string = ubl_xml_bytes.decode('utf-8')
-            _logger.info(
-                f"\n{'='*80}\n"
-                f"COMPLETE UBL XML TREE ({len(ubl_xml_bytes)} bytes):\n"
-                f"{'='*80}\n"
-                f"{xml_string}\n"
-                f"{'='*80}"
             )
 
             # 5. Delegate to EDI for processing - search ALL UBL/CII formats for auto-detection
