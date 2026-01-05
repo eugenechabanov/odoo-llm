@@ -422,7 +422,21 @@ class AccountMove(models.Model):
                 _logger.info("Successfully populated invoice via EDI")
 
                 # 7. Apply fiscal position tax mapping (EDI doesn't do this!)
-                # This handles intra-EU reverse charge scenarios
+                #
+                # ISSUE: EDI imports taxes by matching percentage from UBL XML, but does NOT
+                # apply fiscal position mappings. It directly writes to database, bypassing
+                # the @api.onchange handlers that normally trigger tax mapping in the UI.
+                #
+                # IMPACT: For intra-EU invoices, EDI finds domestic tax (e.g., "BTW 21%")
+                # instead of reverse charge tax (e.g., "Inkopen import binnen EU hoog 21%"),
+                # resulting in incorrect tax amounts (0.84 EUR instead of 0.00 EUR).
+                #
+                # SOLUTION: Manually call fiscal_position.map_tax() after EDI completes.
+                # This applies the same business logic that UI onchange handlers apply,
+                # mapping domestic taxes → reverse charge taxes for EU B2B transactions.
+                #
+                # See: account/models/partner.py::map_tax() (Odoo core)
+                #      account_edi_ubl_cii/models/account_edi_common.py::_import_fill_invoice_line_taxes()
                 if self.fiscal_position_id:
                     _logger.info(
                         f"Applying fiscal position '{self.fiscal_position_id.name}' "
