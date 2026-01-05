@@ -102,6 +102,7 @@ class AccountInvoiceImport(models.TransientModel):
                 return False
 
             # Convert our extraction format → Invoice Pivot Format
+            # Note: OCA wizard automatically adds the attachment, we don't need to
             return self._convert_llm_data_to_pivot(invoice_data, company)
 
         except Exception as e:
@@ -154,6 +155,9 @@ class AccountInvoiceImport(models.TransientModel):
             'lines': [...],
             'chatter_msg': [],
         }
+
+        Note: OCA wizard automatically adds the original file to parsed_inv["attachments"]
+        after the parser returns, so we don't need to include it here.
         """
         parsed_inv = {
             "type": "in_invoice",
