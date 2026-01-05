@@ -72,15 +72,14 @@ class AccountMove(models.Model):
         success = self._populate_invoice_from_data(invoice_data)
 
         if success:
+            # Reload the form view to show populated data
             return {
-                "type": "ir.actions.client",
-                "tag": "display_notification",
-                "params": {
-                    "title": "Success!",
-                    "message": f"Invoice populated successfully from {attachment.name}",
-                    "type": "success",
-                    "sticky": False,
-                },
+                "type": "ir.actions.act_window",
+                "res_model": "account.move",
+                "res_id": self.id,
+                "view_mode": "form",
+                "view_type": "form",
+                "target": "current",
             }
         else:
             raise UserError(
