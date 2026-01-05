@@ -59,11 +59,6 @@ class AccountMove(models.Model):
                 "Please attach an invoice document first."
             )
 
-        _logger.info(
-            f"Manual LLM processing triggered for invoice {self.id} "
-            f"with attachment {attachment.name}"
-        )
-
         # Extract data from attachment
         invoice_data = self._extract_invoice_data_from_attachment(attachment)
 
@@ -103,30 +98,15 @@ class AccountMove(models.Model):
 
         Priority chain:
         - 10: EDI (XML formats like UBL, CII, Factur-X) - Core Odoo
-        - 15: Our LLM-OCR (PDFs with AI) - This module ✨
+        - 15: Our LLM-OCR (PDFs with AI) - This module
         - 20+: Future modules
 
         NOTE: Decoders are tried in order until one succeeds (returns truthy invoice).
         If EDI successfully processes an attachment with embedded XML, our decoder
         is never called! We only see attachments EDI couldn't handle.
         """
-        _logger.info("🔧 _get_create_document_from_attachment_decoders() CALLED")
-
         res = super()._get_create_document_from_attachment_decoders()
-
-        _logger.info(
-            f"📋 Existing decoders from parent: {len(res)}, "
-            f"priorities: {[d[0] for d in res]}"
-        )
-
-        # Register our LLM-OCR decoder at priority 15
         res.append((15, self._llm_ocr_decoder_oneshot))
-
-        _logger.info(
-            f"✅ Registered LLM-OCR decoder at priority 15. "
-            f"Total decoders now: {len(res)}"
-        )
-
         return res
 
     @api.model
@@ -152,24 +132,9 @@ class AccountMove(models.Model):
         Returns:
             account.move: Created invoice (or empty recordset if failed/skipped)
         """
-        _logger.info(
-            f"\n{'='*80}\n"
-            f"🤖 LLM-OCR DECODER INVOKED\n"
-            f"{'='*80}\n"
-            f"Attachment: {attachment.name} (ID: {attachment.id})\n"
-            f"Mimetype: {attachment.mimetype}\n"
-            f"Res Model: {attachment.res_model}\n"
-            f"Res ID: {attachment.res_id}\n"
-            f"{'='*80}"
-        )
-
         try:
             # 1. Check if we should process this attachment
             if not self._should_process_with_llm_ocr(attachment):
-                _logger.info(
-                    f"❌ Skipping attachment {attachment.name} - not suitable for LLM-OCR "
-                    f"(mimetype: {attachment.mimetype})"
-                )
                 return self.env["account.move"]  # Return empty, try next decoder
 
             # 2. Check if attachment already linked to existing invoice
@@ -182,32 +147,18 @@ class AccountMove(models.Model):
                 existing_invoice = self.env['account.move'].browse(attachment.res_id)
 
                 if not existing_invoice.exists():
-                    _logger.warning(
-                        f"❌ Attachment {attachment.name} linked to non-existent "
-                        f"invoice {attachment.res_id}"
-                    )
                     return self.env["account.move"]
 
                 # Check if invoice already has data (partner or lines)
                 if existing_invoice.invoice_line_ids or existing_invoice.partner_id:
-                    _logger.info(
-                        f"❌ Skipping attachment {attachment.name} - invoice "
-                        f"{existing_invoice.id} already populated"
-                    )
                     return self.env["account.move"]
 
                 # Invoice exists but is EMPTY - we should populate it!
-                _logger.info(
-                    f"✅ Found empty invoice {existing_invoice.id} - will populate it"
-                )
                 invoice = existing_invoice
                 invoice_created_by_us = False  # Wizard created it, don't delete on error
 
             # 3. Create new invoice if none exists
             if not invoice:
-                _logger.info(
-                    f"✅ Creating new invoice for attachment: {attachment.name}"
-                )
                 invoice = self.create({"move_type": "in_invoice"})
                 invoice_created_by_us = True  # We created it, clean up on error
 
@@ -246,10 +197,6 @@ class AccountMove(models.Model):
             invoice_data = invoice._extract_invoice_data_from_attachment(attachment)
 
             if not invoice_data:
-                _logger.warning(
-                    f"LLM extraction failed for attachment {attachment.name}"
-                )
-                # Only delete if we created it, not if wizard created it
                 if invoice_created_by_us:
                     invoice.unlink()
                 return self.env["account.move"]
@@ -258,16 +205,8 @@ class AccountMove(models.Model):
             success = invoice._populate_invoice_from_data(invoice_data)
 
             if success:
-                _logger.info(
-                    f"Successfully populated invoice {invoice.name or invoice.id} "
-                    f"from {attachment.name}"
-                )
                 return invoice
             else:
-                _logger.warning(
-                    f"LLM extraction succeeded but EDI processing failed for {attachment.name}"
-                )
-                # Only delete if we created it, not if wizard created it
                 if invoice_created_by_us:
                     invoice.unlink()
                 return self.env["account.move"]
@@ -333,11 +272,6 @@ class AccountMove(models.Model):
 
             # Call generate() - prepend messages from prompt provide the user message
             # The prompt template includes the user message with {{ ocr_text }}
-            _logger.info(
-                f"Starting LLM extraction for invoice {self.id} with thread {thread.id}"
-            )
-
-            # Consume all streaming events to let generation complete
             for _ in thread.generate(user_message_body=""):
                 pass
 
@@ -345,18 +279,11 @@ class AccountMove(models.Model):
             last_message = thread.get_latest_llm_message()
             if last_message and last_message.llm_role == "assistant":
                 body = last_message.body
-                
-
                 invoice_data = self._parse_invoice_json(body)
                 if invoice_data:
-                    _logger.info(f"Successfully parsed invoice data: {list(invoice_data.keys())}")
                     return invoice_data
-                else:
-                    _logger.warning("Failed to parse invoice JSON from response")
-                    return None
-            else:
-                _logger.warning("No assistant message found after generation")
-                return None
+
+            return None
 
         except Exception as e:
             _logger.error(e)
@@ -445,26 +372,13 @@ class AccountMove(models.Model):
                 temp_attachment.unlink()
                 return False
 
-            _logger.info(f"Found {len(edi_formats)} UBL/CII EDI formats for auto-detection")
-
-            # Try EDI processing with detailed error catching
+            # Try EDI processing
             try:
-                _logger.info(f"Calling EDI _update_invoice_from_attachment with attachment {temp_attachment.id}")
-                _logger.info(f"Invoice BEFORE EDI: id={self.id}, journal={self.journal_id.name}, partner={self.partner_id}")
-
                 # Call on all formats - EDI will auto-detect based on UBLVersionID in XML
                 result = edi_formats._update_invoice_from_attachment(temp_attachment, self)
 
-                _logger.info(f"EDI update result: {result} (type: {type(result)})")
-                _logger.info(f"EDI result bool: {bool(result)}, len: {len(result) if result else 0}")
-                _logger.info(f"Invoice AFTER EDI: id={self.id}, partner={self.partner_id}, lines={len(self.invoice_line_ids)}")
-
                 # Check if self was modified even though result is empty
                 if not result and self.invoice_line_ids:
-                    _logger.warning(
-                        "EDI returned empty but invoice was modified! "
-                        f"Using self instead. Lines: {len(self.invoice_line_ids)}"
-                    )
                     result = self
             except Exception as e:
                 _logger.error(f"Exception during EDI processing: {e}", exc_info=True)
@@ -474,8 +388,6 @@ class AccountMove(models.Model):
             temp_attachment.unlink()
 
             if result:
-                _logger.info("Successfully populated invoice via EDI")
-
                 # 7. Apply fiscal position tax mapping (EDI doesn't do this!)
                 #
                 # ISSUE: EDI imports taxes by matching percentage from UBL XML, but does NOT
@@ -489,35 +401,16 @@ class AccountMove(models.Model):
                 # SOLUTION: Manually call fiscal_position.map_tax() after EDI completes.
                 # This applies the same business logic that UI onchange handlers apply,
                 # mapping domestic taxes → reverse charge taxes for EU B2B transactions.
-                #
-                # See: account/models/partner.py::map_tax() (Odoo core)
-                #      account_edi_ubl_cii/models/account_edi_common.py::_import_fill_invoice_line_taxes()
                 if self.fiscal_position_id:
-                    _logger.info(
-                        f"Applying fiscal position '{self.fiscal_position_id.name}' "
-                        f"tax mapping to {len(self.invoice_line_ids)} lines"
-                    )
                     for line in self.invoice_line_ids:
                         if line.tax_ids:
                             original_taxes = line.tax_ids
-                            # Map taxes through fiscal position
                             mapped_taxes = self.fiscal_position_id.map_tax(original_taxes)
                             if mapped_taxes != original_taxes:
                                 line.tax_ids = mapped_taxes
-                                _logger.info(
-                                    f"Line '{line.name[:50]}': "
-                                    f"Remapped taxes {original_taxes.mapped('name')} → "
-                                    f"{mapped_taxes.mapped('name')}"
-                                )
-                else:
-                    _logger.info("No fiscal position set, skipping tax remapping")
 
                 return True
             else:
-                _logger.warning(
-                    f"EDI processing returned falsy result: {result}. "
-                    "Invoice may not have been populated correctly."
-                )
                 return False
 
         except Exception as e:

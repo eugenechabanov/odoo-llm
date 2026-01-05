@@ -43,12 +43,7 @@ class LLMThreadInvoice(models.Model):
                 # Compute OCR on-the-fly
                 ocr_text = self._compute_ocr_for_attachment(attachment)
                 if ocr_text:
-                    # Add to context for dynamic defaults evaluation
                     context["ocr_text"] = ocr_text
-                    _logger.info(
-                        f"Computed OCR text for invoice {invoice.name or 'Draft'} "
-                        f"from attachment {attachment.name} ({len(ocr_text)} chars)"
-                    )
 
         return context
 
@@ -86,15 +81,7 @@ class LLMThreadInvoice(models.Model):
                 )
                 return None
 
-            extracted_text = result.get("extracted_text", "")
-            if extracted_text:
-                _logger.info(
-                    f"OCR extracted {len(extracted_text)} chars from {attachment.name}"
-                )
-            else:
-                _logger.warning(f"OCR returned empty text for {attachment.name}")
-
-            return extracted_text
+            return result.get("extracted_text", "")
 
         except Exception as e:
             _logger.error(

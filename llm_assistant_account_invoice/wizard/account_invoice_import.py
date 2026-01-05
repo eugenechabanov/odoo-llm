@@ -71,10 +71,6 @@ class AccountInvoiceImport(models.TransientModel):
             return res
 
         # Try our LLM-OCR extraction
-        _logger.info(
-            "🤖 LLM-OCR fallback parser: Attempting to extract invoice data"
-        )
-
         temp_attachment = None
         temp_invoice = None
 
@@ -110,22 +106,13 @@ class AccountInvoiceImport(models.TransientModel):
             )
 
             if not invoice_data:
-                _logger.warning("LLM-OCR extraction returned no data")
                 return False
 
             # Convert our extraction format → Invoice Pivot Format
-            parsed_inv = self._convert_llm_data_to_pivot(invoice_data, company)
-
-            _logger.info(
-                f"✅ LLM-OCR extraction successful: "
-                f"vendor={parsed_inv.get('partner', {}).get('name')}, "
-                f"amount={parsed_inv.get('amount_total')}"
-            )
-
-            return parsed_inv
+            return self._convert_llm_data_to_pivot(invoice_data, company)
 
         except Exception as e:
-            _logger.error(f"❌ LLM-OCR extraction failed: {e}", exc_info=True)
+            _logger.error(f"LLM-OCR extraction failed: {e}", exc_info=True)
             return False
 
         finally:
