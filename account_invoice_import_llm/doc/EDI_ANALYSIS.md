@@ -343,7 +343,7 @@ discount = 100 * (1 - (price_subtotal - fixed_taxes) / (billed_qty * price_unit)
 
 ### Architecture Overview
 
-**Your System** (`llm_assistant_account_invoice`):
+**Your System** (`account_invoice_import_llm`):
 
 ```
 Invoice Upload (Any Format)
@@ -892,7 +892,7 @@ def _create_document_from_attachment(attachment):
 
 ### LLM Processing Flow
 
-**File Path**: `/extra-addons/.src/apexive/odoo-llm/llm_assistant_account_invoice/models/llm_tool_account_move_invoice_analyzer.py`
+**File Path**: `/extra-addons/.src/apexive/odoo-llm/account_invoice_import_llm/models/llm_tool_account_move_invoice_analyzer.py`
 
 ```python
 # Entry Point (line 191-228)
@@ -1086,18 +1086,18 @@ Do you have >10% e-invoice volume?
 ### LLM System Files
 
 **Tools**:
-- `llm_assistant_account_invoice/models/llm_tool_account_move_invoice_analyzer.py`
+- `account_invoice_import_llm/models/llm_tool_account_move_invoice_analyzer.py`
   - Partner matching: lines 430-504
   - Product matching: lines 560-627
   - Duplicate check: lines 270-302
   - Historical patterns: lines 348-390
 
-- `llm_assistant_account_invoice/models/llm_tool_account_move_invoice_updater.py`
+- `account_invoice_import_llm/models/llm_tool_account_move_invoice_updater.py`
   - Invoice creation: lines 129-216
   - Line preparation: lines 66-104
 
 **Type Definitions**:
-- `llm_assistant_account_invoice/models/invoice_tool_types.py`
+- `account_invoice_import_llm/models/invoice_tool_types.py`
   - ExtractedInvoiceData: lines 25-34
   - AnalyzerConstraints: lines 61-66
   - AnalyzerResponse: lines 303-341
@@ -1105,7 +1105,7 @@ Do you have >10% e-invoice volume?
   - SearchHints: lines 200-233
 
 **System Prompt**:
-- `llm_assistant_account_invoice/data/llm_assistant_data.xml`
+- `account_invoice_import_llm/data/llm_assistant_data.xml`
   - Workflow instructions: line 20
   - Tool descriptions: lines 26-33
 

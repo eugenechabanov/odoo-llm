@@ -21,7 +21,7 @@ AI-powered invoice analysis assistant with OCR document parsing for Odoo 16.
 2. Install the module:
 
    ```bash
-   odoo-bin -d your_database -i llm_assistant_account_invoice
+   odoo-bin -d your_database -i account_invoice_import_llm
    ```
 
 3. Configure Mistral provider in **Settings → LLM → Providers**
@@ -147,9 +147,9 @@ The assistant knows how to:
 This module contains **no Python code** - just XML data files:
 
 ```
-llm_assistant_account_invoice/
+account_invoice_import_llm/
 ├── __manifest__.py              # Dependencies and metadata
-├── __init__.py                  # Empty (no code needed)
+├── __init__.py                  # Pre-init hook for module rename
 ├── data/
 │   ├── llm_prompt_invoice_data.xml  # Invoice-specific prompt template
 │   └── llm_assistant_data.xml       # Assistant configuration

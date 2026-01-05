@@ -289,7 +289,7 @@ DONE (saved 60% of processing by early exit)
 
 ### File Structure
 ```
-llm_assistant_account_invoice/
+account_invoice_import_llm/
 ├── models/
 │   ├── account_move.py                     # Process with AI button
 │   ├── llm_tool_invoice_analyzer.py        # NEW: Analyzer tool
