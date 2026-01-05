@@ -110,12 +110,22 @@ class AccountMove(models.Model):
         If EDI successfully processes an attachment with embedded XML, our decoder
         is never called! We only see attachments EDI couldn't handle.
         """
+        _logger.info("🔧 _get_create_document_from_attachment_decoders() CALLED")
+
         res = super()._get_create_document_from_attachment_decoders()
+
+        _logger.info(
+            f"📋 Existing decoders from parent: {len(res)}, "
+            f"priorities: {[d[0] for d in res]}"
+        )
 
         # Register our LLM-OCR decoder at priority 15
         res.append((15, self._llm_ocr_decoder_oneshot))
 
-        _logger.info(f"Registered LLM-OCR decoder at priority 15. Total decoders: {len(res)}")
+        _logger.info(
+            f"✅ Registered LLM-OCR decoder at priority 15. "
+            f"Total decoders now: {len(res)}"
+        )
 
         return res
 
@@ -129,20 +139,28 @@ class AccountMove(models.Model):
 
         Flow:
         1. Check if suitable for OCR (PDF, image)
-        2. Create draft invoice record
-        3. Attach file to invoice
-        4. Extract data from attachment
-        5. Populate invoice with extracted data
+        2. Skip if already linked to invoice (wizard/manual creation)
+        3. Create draft invoice record
+        4. Find appropriate journal
+        5. Attach file to invoice
+        6. Extract data from attachment
+        7. Populate invoice with extracted data
 
         Args:
             attachment (ir.attachment): Invoice attachment to process
 
         Returns:
-            account.move: Created invoice (or empty recordset if failed)
+            account.move: Created invoice (or empty recordset if failed/skipped)
         """
         _logger.info(
-            f"🤖 LLM-OCR decoder CALLED for attachment: {attachment.name} "
-            f"(ID: {attachment.id}, mimetype: {attachment.mimetype})"
+            f"\n{'='*80}\n"
+            f"🤖 LLM-OCR DECODER INVOKED\n"
+            f"{'='*80}\n"
+            f"Attachment: {attachment.name} (ID: {attachment.id})\n"
+            f"Mimetype: {attachment.mimetype}\n"
+            f"Res Model: {attachment.res_model}\n"
+            f"Res ID: {attachment.res_id}\n"
+            f"{'='*80}"
         )
 
         try:
@@ -154,15 +172,46 @@ class AccountMove(models.Model):
                 )
                 return self.env["account.move"]  # Return empty, try next decoder
 
-            _logger.info(
-                f"✅ LLM-OCR decoder processing attachment: {attachment.name} "
-                f"(mimetype: {attachment.mimetype})"
-            )
+            # 2. Check if attachment already linked to existing invoice
+            # If yes, populate it ONLY if it's empty (wizard created shell)
+            # If already populated, skip to avoid overwriting
+            invoice = None
+            invoice_created_by_us = False  # Track if we created it (to clean up on error)
 
-            # 2. Create draft invoice for the thread to attach to
-            invoice = self.create({"move_type": "in_invoice"})
+            if attachment.res_model == 'account.move' and attachment.res_id:
+                existing_invoice = self.env['account.move'].browse(attachment.res_id)
 
-            # Find journal using same logic as EDI's _create_invoice_from_xml_tree
+                if not existing_invoice.exists():
+                    _logger.warning(
+                        f"❌ Attachment {attachment.name} linked to non-existent "
+                        f"invoice {attachment.res_id}"
+                    )
+                    return self.env["account.move"]
+
+                # Check if invoice already has data (partner or lines)
+                if existing_invoice.invoice_line_ids or existing_invoice.partner_id:
+                    _logger.info(
+                        f"❌ Skipping attachment {attachment.name} - invoice "
+                        f"{existing_invoice.id} already populated"
+                    )
+                    return self.env["account.move"]
+
+                # Invoice exists but is EMPTY - we should populate it!
+                _logger.info(
+                    f"✅ Found empty invoice {existing_invoice.id} - will populate it"
+                )
+                invoice = existing_invoice
+                invoice_created_by_us = False  # Wizard created it, don't delete on error
+
+            # 3. Create new invoice if none exists
+            if not invoice:
+                _logger.info(
+                    f"✅ Creating new invoice for attachment: {attachment.name}"
+                )
+                invoice = self.create({"move_type": "in_invoice"})
+                invoice_created_by_us = True  # We created it, clean up on error
+
+            # 4. Find journal using same logic as EDI's _create_invoice_from_xml_tree
             # (matches account_edi_ubl_cii module's journal selection)
             if not invoice.journal_id:
                 move_type = invoice.move_type
@@ -188,25 +237,29 @@ class AccountMove(models.Model):
                     invoice.unlink()
                     return self.env["account.move"]
 
-            # 3. Attach the file to invoice (makes it findable by thread.get_context())
-            attachment.write({"res_model": "account.move", "res_id": invoice.id})
+            # 5. Attach the file to invoice (makes it findable by thread.get_context())
+            # Only needed if we created a new invoice (not if populating existing)
+            if attachment.res_id != invoice.id:
+                attachment.write({"res_model": "account.move", "res_id": invoice.id})
 
-            # 4. Extract data from attachment
+            # 6. Extract data from attachment
             invoice_data = invoice._extract_invoice_data_from_attachment(attachment)
 
             if not invoice_data:
                 _logger.warning(
                     f"LLM extraction failed for attachment {attachment.name}"
                 )
-                invoice.unlink()
+                # Only delete if we created it, not if wizard created it
+                if invoice_created_by_us:
+                    invoice.unlink()
                 return self.env["account.move"]
 
-            # 5. Populate invoice with extracted data
+            # 7. Populate invoice with extracted data
             success = invoice._populate_invoice_from_data(invoice_data)
 
             if success:
                 _logger.info(
-                    f"Successfully created invoice {invoice.name or invoice.id} "
+                    f"Successfully populated invoice {invoice.name or invoice.id} "
                     f"from {attachment.name}"
                 )
                 return invoice
@@ -214,7 +267,9 @@ class AccountMove(models.Model):
                 _logger.warning(
                     f"LLM extraction succeeded but EDI processing failed for {attachment.name}"
                 )
-                invoice.unlink()
+                # Only delete if we created it, not if wizard created it
+                if invoice_created_by_us:
+                    invoice.unlink()
                 return self.env["account.move"]
 
         except Exception as e:
@@ -283,8 +338,8 @@ class AccountMove(models.Model):
             )
 
             # Consume all streaming events to let generation complete
-            for chunk in thread.generate(user_message_body=""):
-                _logger.info(chunk)
+            for _ in thread.generate(user_message_body=""):
+                pass
 
             # After streaming completes, get the latest assistant message from thread
             last_message = thread.get_latest_llm_message()
