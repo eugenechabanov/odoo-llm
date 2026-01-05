@@ -6,7 +6,7 @@
         Features document parsing with OCR, automated data extraction, and smart invoice validation.
     """,
     "category": "Accounting/AI",
-    "version": "16.0.1.0.2",
+    "version": "16.0.1.0.3",
     "depends": [
         "account_invoice_import",  # OCA invoice import wizard (fallback_parse_pdf_invoice)
         "account_edi",  # EDI integration for decoder chain and UBL processing
@@ -25,6 +25,7 @@
     "installable": True,
     "application": False,
     "auto_install": False,
+    "pre_init_hook": "pre_init_hook",
     "images": [
         "static/description/banner.jpeg",
     ],

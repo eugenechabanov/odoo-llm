@@ -1,5 +1,5 @@
 """
-Migration script for llm_assistant_account_invoice 16.0.1.0.1
+Migration script for account_invoice_import_llm 16.0.1.0.1
 
 Removes threads and messages referencing the old interactive assistant before deletion.
 This prevents foreign key constraint violations during module upgrade.
@@ -17,14 +17,14 @@ def migrate(cr, version):
         return
 
     _logger.info("=" * 80)
-    _logger.info("Running pre-migration for llm_assistant_account_invoice 16.0.1.0.1")
+    _logger.info("Running pre-migration for account_invoice_import_llm 16.0.1.0.1")
     _logger.info("=" * 80)
 
     # Find the old assistant ID
     cr.execute("""
         SELECT res_id
         FROM ir_model_data
-        WHERE module = 'llm_assistant_account_invoice'
+        WHERE module = 'account_invoice_import_llm'
         AND name = 'llm_assistant_invoice_analyzer'
         AND model = 'llm.assistant'
     """)

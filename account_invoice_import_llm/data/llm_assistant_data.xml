@@ -9,7 +9,7 @@
         <field name="is_public" eval="False" />
         <field
       name="prompt_id"
-      ref="llm_assistant_account_invoice.llm_prompt_invoice_extraction"
+      ref="account_invoice_import_llm.llm_prompt_invoice_extraction"
     />
         <field name="has_dynamic_defaults" eval="True" />
         <field
