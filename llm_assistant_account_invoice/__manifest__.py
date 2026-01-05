@@ -8,7 +8,7 @@
     "category": "Accounting/AI",
     "version": "16.0.1.0.2",
     "depends": [
-        "account",  # Invoice model (account.move)
+        "account_invoice_import",  # OCA invoice import wizard (fallback_parse_pdf_invoice)
         "account_edi",  # EDI integration for decoder chain and UBL processing
         "account_edi_ubl_cii",  # UBL 2.0 XML processing
         "llm_assistant",  # Includes llm, llm_thread, llm_tool
