@@ -1,5 +1,5 @@
 {
-    "name": "LLM Invoice Assistant",
+    "name": "Account Invoice Import LLM",
     "summary": "AI-powered invoice analysis assistant with OCR document parsing",
     "description": """
         Intelligent invoice assistant that helps analyze vendor bills and invoices using AI.

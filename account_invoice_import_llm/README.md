@@ -1,22 +1,26 @@
-# LLM Invoice Assistant
+# Account Invoice Import LLM
 
-AI-powered invoice analysis assistant with OCR document parsing for Odoo 16.
+AI-powered invoice data extraction with OCR for Odoo 16 - integrates with OCA's account_invoice_import.
 
 ## Features
 
-- 📄 **OCR Document Parsing**: Extract text from invoice PDFs and images using Mistral OCR
-- 🔍 **Smart Invoice Analysis**: Analyze vendor bills with AI assistance
-- ✅ **Automated Validation**: Check for common invoice errors
-- 📝 **Data Extraction**: Fill invoice fields from scanned documents
-- 🔗 **ERP Integration**: Access related purchase orders, products, and vendor history
+- 📄 **Automatic OCR Extraction**: Extract invoice data from PDFs and images using Mistral OCR
+- 🤖 **One-Shot AI Processing**: Single LLM call extracts all invoice data (vendor, dates, amounts, line items)
+- 🔗 **OCA Integration**: Seamlessly extends `account_invoice_import` wizard as fallback parser
+- ⚡ **EDI Decoder**: Automatically processes attachments via Odoo's EDI decoder chain
+- 🔘 **Manual Trigger**: "Process with AI" button for on-demand extraction
+- 📊 **Smart Data Mapping**: Converts LLM output to OCA's Invoice Pivot Format
 
 ## Installation
 
 1. Install dependencies:
 
    - `account` (Odoo core)
-   - `llm_assistant`
-   - `llm_tool_ocr_mistral`
+   - `account_invoice_import` (OCA - invoice import wizard)
+   - `account_edi` (Odoo EDI framework)
+   - `account_edi_ubl_cii` (UBL/CII XML processing)
+   - `llm_assistant` (LLM infrastructure)
+   - `llm_tool_ocr_mistral` (Mistral OCR tool)
 
 2. Install the module:
 
@@ -38,278 +42,317 @@ After syncing, the `mistral-ocr-latest` model is automatically available for par
 
 ![OCR Models](static/description/screenshot-ocr-models.png)
 
-### 3. ChatGPT/Gemini for Intelligent Assistant
-Configure ChatGPT or Gemini models for the intelligent assistant experience - they provide natural conversation and answer your questions.
+### 3. LLM Provider for Data Extraction
+Configure any LLM provider (ChatGPT, Gemini, Claude, etc.) for intelligent data extraction from OCR text.
 
 ![ChatGPT Provider](static/description/screenshot-chatgpt-provider.png)
 
 ### 4. Click "Process with AI" on Draft Invoice
-Open any draft vendor bill and click the "Process with AI" button.
+Open any draft vendor bill and click the "Process with AI" button to manually trigger extraction.
 
 ![Process with AI Button](static/description/screenshot-press-process.png)
 
-### 5. Chat with AI Assistant
-The AI assistant opens in the chatter. It reads the invoice PDF using OCR and starts extracting data.
-
-![Chat with AI Assistant](static/description/screenshot-chat-with-assistant.png)
-
-### 6. Invoice Automatically Filled
-After AI processing, the invoice is automatically filled with extracted data: vendor, date, amounts, line items.
+### 5. Invoice Automatically Filled
+After AI processing, the form reloads with extracted data: vendor, date, amounts, line items.
 
 ![Filled Invoice](static/description/screenshot-filled-up-invoice.png)
 
 ## Usage
 
-### Create Invoice Analysis Thread
+### Three Ways to Extract Invoice Data
 
-1. **Manual Way**:
+#### 1. **Automatic Processing** (Recommended)
 
-   - Go to **LLM → Threads → Create**
-   - Link to your invoice using the record picker
-   - Select "Invoice Analysis Assistant"
-   - Start chatting!
+Simply upload a PDF or image to an invoice:
 
-2. **Future Enhancement**: Add "Ask AI" button to invoice form
+1. Create a new vendor bill (Accounting → Vendors → Bills)
+2. Attach an invoice PDF or image
+3. **Invoice is automatically processed!**
+   - EDI decoder triggers on attachment upload
+   - OCR extracts text from document
+   - LLM extracts structured data
+   - Invoice fields are populated
 
-### Example Conversations
+#### 2. **Manual Processing**
 
-**Basic Analysis**:
+For invoices created before module installation:
 
-```
-User: What is the vendor and total amount?
-Assistant: The vendor is Acme Corp and the total amount is $5,420.00
-```
+1. Open a draft invoice with an attached PDF/image
+2. Click **"Process with AI"** button
+3. **Form reloads with extracted data**
 
-**Document Parsing**:
+#### 3. **OCA Invoice Import Wizard**
 
-```
-User: Parse attachment 123
-Assistant: [uses llm_mistral_attachment_parser]
-Assistant: I extracted: Invoice #INV-2024-001 from Acme Corp
-         Date: 2024-01-15, Total: $5,420.00
-         Line items:
-         - Product A: $2,000.00
-         - Product B: $3,420.00
-```
+When using OCA's invoice import wizard:
 
-**Data Retrieval**:
+1. Go to **Accounting → Vendors → Import Vendor Bill**
+2. Upload PDF invoice
+3. If no embedded XML found, **LLM extraction is used as fallback**
+4. Invoice is created with extracted data
 
-```
-User: Find other invoices from this vendor
-Assistant: [uses odoo_record_retriever]
-Assistant: Found 3 other invoices from Acme Corp:
-         - INV-2023-045: $3,200.00 (Paid)
-         - INV-2023-089: $1,850.00 (Paid)
-         - INV-2024-002: $4,100.00 (Draft)
-```
+### What Gets Extracted
 
-**Validation**:
+The LLM extracts and populates:
 
-```
-User: Check if this invoice looks correct
-Assistant: I've reviewed the invoice and found:
-         ✓ Vendor VAT number present
-         ✓ Invoice has line items
-         ⚠️ Warning: Invoice date is in the future
-         ⚠️ Warning: No payment terms specified
-```
-
-## Assistant Configuration
-
-The Invoice Analysis Assistant includes:
-
-### Context Awareness
-
-- Automatically accesses invoice fields via `related_record` proxy
-- No need to specify invoice ID in every query
-
-### Available Tools
-
-1. **llm_tool_ocr_mistral**: Parse PDFs/images with Mistral OCR
-2. **odoo_record_retriever**: Search and retrieve Odoo records
-3. **odoo_record_updater**: Update invoice fields (requires consent)
-4. **odoo_model_inspector**: Inspect model structure
-
-### Intelligent Instructions
-
-The assistant knows how to:
-
-- Extract data from OCR results
-- Validate invoice consistency
-- Handle accounting workflows
-- Respect user consent for updates
-- Follow best practices for financial data
+- ✅ Vendor name and VAT number
+- ✅ Invoice number and reference
+- ✅ Invoice date and due date
+- ✅ Currency
+- ✅ Subtotal, tax, and total amounts
+- ✅ Line items with descriptions, quantities, unit prices, and tax rates
 
 ## Module Architecture
 
-### Pure Configuration Module
+### OCA Invoice Import Integration
 
-This module contains **no Python code** - just XML data files:
+Follows the standard OCA pattern for extending `account_invoice_import`:
 
 ```
 account_invoice_import_llm/
 ├── __manifest__.py              # Dependencies and metadata
 ├── __init__.py                  # Pre-init hook for module rename
+├── models/
+│   ├── account_move.py          # EDI decoder + "Process with AI" button
+│   └── llm_thread_invoice.py   # Dynamic OCR context provider
+├── wizard/
+│   └── account_invoice_import.py # OCA fallback_parse_pdf_invoice()
 ├── data/
-│   ├── llm_prompt_invoice_data.xml  # Invoice-specific prompt template
+│   ├── llm_prompt_invoice_data.xml  # One-shot extraction prompt
 │   └── llm_assistant_data.xml       # Assistant configuration
-├── views/
-│   └── account_move_views.xml   # "Process with AI" button on invoice form
-└── static/
-    └── description/
-        └── index.html           # App store description
+└── views/
+    └── account_move_views.xml   # "Process with AI" button
 ```
 
-### How It Works
+### Processing Flows
 
-1. **Uses existing prompt template** from `llm_assistant`
-2. **Provides invoice-specific context** via `default_values`
-3. **References existing tools** via XML `ref()`
-4. **Leverages llm_thread** for record linking
+#### Flow 1: Automatic Decoder (Odoo Native)
 
-## Dependencies
+```
+1. User uploads PDF to invoice
+   ↓
+2. account.move.create_document_from_attachment_decoders()
+   ↓
+3. _llm_ocr_decoder() checks if PDF is suitable
+   ↓
+4. Creates draft invoice with journal
+   ↓
+5. _extract_invoice_data_from_attachment()
+   - Creates LLM thread with OCR context
+   - Runs one-shot extraction prompt
+   - Returns extracted data as JSON
+   ↓
+6. _populate_invoice_from_data()
+   - Populates vendor, dates, amounts
+   - Creates invoice lines
+   - Processes UBL XML if present
+   ↓
+7. Decoder returns invoice
+   ↓
+8. Journal links attachment to invoice
+```
 
-### Required Modules
+#### Flow 2: Manual Trigger
 
-- **account**: Core Odoo accounting (vendor bills)
-- **llm_assistant**: Base LLM assistant framework
-- **llm_tool_ocr_mistral**: Mistral OCR tool for parsing documents
+```
+1. User clicks "Process with AI" button
+   ↓
+2. action_process_with_llm()
+   - Validates invoice is draft
+   - Finds PDF/image attachment
+   ↓
+3. _extract_invoice_data_from_attachment()
+   - Same extraction as automatic flow
+   ↓
+4. _populate_invoice_from_data()
+   - Populates invoice fields
+   ↓
+5. Returns action to reload form view
+   ↓
+6. User sees populated invoice data
+```
 
-### Transitive Dependencies
+#### Flow 3: OCA Wizard Fallback
 
-These are pulled in automatically:
+```
+1. User uploads PDF via OCA wizard
+   ↓
+2. Wizard calls parse_pdf_invoice()
+   ↓
+3. Checks for embedded XML (UBL, Factur-X)
+   - If found: Uses XML parser
+   - If not found: Calls fallback_parse_pdf_invoice()
+   ↓
+4. Our fallback_parse_pdf_invoice()
+   - Creates temp invoice for context
+   - Extracts data via LLM
+   - Converts to OCA's Invoice Pivot Format
+   ↓
+5. Wizard creates invoice from pivot format
+   ↓
+6. Wizard automatically links attachment
+```
 
-- `llm`: Core LLM provider/model system
-- `llm_thread`: Thread management with record linking
-- `llm_tool`: Tool registration and consent
-- `llm_mistral`: Mistral AI provider
+### Key Components
+
+#### 1. LLM Thread with Dynamic OCR Context
+
+**File**: `models/llm_thread_invoice.py`
+
+Provides OCR text dynamically when processing invoice attachments:
+
+- **Priority 1**: Check context for `llm_invoice_attachment_id` (decoder mode)
+- **Priority 2**: Search for attachment on invoice (manual mode)
+- Runs Mistral OCR on-the-fly
+- Injects `ocr_text` into prompt context
+
+#### 2. One-Shot Extraction Prompt
+
+**File**: `data/llm_prompt_invoice_data.xml`
+
+Structured prompt that instructs LLM to extract:
+
+```json
+{
+  "vendorName": "Supplier Inc.",
+  "vat": "BE0123456789",
+  "invoiceNumber": "INV-2024-001",
+  "invoiceDate": "2024-01-15",
+  "dueDate": "2024-02-14",
+  "currency": "EUR",
+  "subtotalAmount": 100.0,
+  "taxAmount": 21.0,
+  "totalAmount": 121.0,
+  "lines": [
+    {
+      "description": "Product",
+      "quantity": 1.0,
+      "unitPrice": 100.0,
+      "taxPercent": 21.0
+    }
+  ]
+}
+```
+
+#### 3. OCA Pivot Format Conversion
+
+**File**: `wizard/account_invoice_import.py`
+
+Converts LLM's camelCase JSON to OCA's snake_case Invoice Pivot Format:
+
+```python
+{
+    'type': 'in_invoice',
+    'partner': {'vat': 'BE0123456789', 'name': 'Supplier Inc.'},
+    'currency': {'iso': 'EUR'},
+    'date': '2024-01-15',
+    'date_due': '2024-02-14',
+    'amount_untaxed': 100.0,
+    'amount_total': 121.0,
+    'invoice_number': 'INV-2024-001',
+    'lines': [
+        {
+            'name': 'Product description',
+            'qty': 1.0,
+            'price_unit': 100.0,
+            'taxes': [{'amount_type': 'percent', 'amount': 21.0}],
+        }
+    ],
+    'chatter_msg': [],
+}
+```
+
+## Technical Details
+
+### EDI Decoder Registration
+
+The module registers `_llm_ocr_decoder` in Odoo's EDI decoder chain:
+
+```python
+@api.model
+def _get_create_document_from_attachment_decoders(self):
+    decoders = super()._get_create_document_from_attachment_decoders()
+    return decoders + [self._llm_ocr_decoder]
+```
+
+Decoder priority ensures XML parsers run first, LLM-OCR as fallback.
+
+### Error Handling Strategy
+
+- **Top-level handlers**: Decoder, manual action, OCA wizard
+- **Intermediate methods**: Raise exceptions directly (no hiding)
+- **User-friendly errors**: Clear messages about what failed and why
+- **Logging**: Detailed error info in server logs for debugging
+
+### Pre-Init Hook
+
+**File**: `__init__.py`
+
+Handles module rename from `llm_assistant_account_invoice` → `account_invoice_import_llm`:
+
+1. Updates `ir_model_data` records from old module name
+2. Adopts orphaned records (prevents FK violations)
+3. Prevents duplicate key errors on installation
 
 ## Configuration
 
-### 1. Mistral Provider Setup
+### Invoice Extraction Assistant
 
-1. Go to **Settings → LLM → Providers**
-2. Find or create "Mistral AI" provider
-3. Enter your API key
-4. Click "Sync Models"
-5. Verify OCR models appear (e.g., "mistral-ocr-latest")
+**Location**: Settings → LLM → Assistants → Invoice Data Extraction (Automatic)
 
-### 2. Assistant Settings
+The assistant is pre-configured with:
 
-The assistant is pre-configured with sensible defaults:
+- **Prompt**: One-shot extraction template with detailed instructions
+- **Model**: Any LLM (GPT-4, Claude, Gemini, etc.)
+- **OCR Tool**: Mistral OCR for text extraction
+- **Dynamic Context**: OCR text injected automatically
 
-- **Name**: Invoice Analysis Assistant
-- **Code**: `invoice_analyzer`
-- **Model**: `account.move`
-- **Public**: Yes (all users can access)
-- **Default**: Yes (default assistant for invoices)
+### Customization
 
-Customize in **Settings → LLM → Assistants** if needed.
+To customize extraction behavior:
 
-## Security & Permissions
-
-### Access Control
-
-- **Thread creation**: Requires `llm_thread` permissions
-- **Tool usage**: Controlled by `llm_tool` consent system
-- **Invoice access**: Controlled by `account` module groups
-
-### Tool Consent
-
-- **llm_tool_ocr_mistral**: Requires consent (accesses attachments)
-- **odoo_record_retriever**: No consent (read-only)
-- **odoo_record_updater**: Requires consent (modifies data)
-
-Users must approve tool execution before sensitive operations.
-
-## Customization
-
-### Add Custom Instructions
-
-Edit the assistant's `default_values` in `data/llm_assistant_data.xml`:
-
-```xml
-<field name="default_values"><![CDATA[{
-    "role": "Invoice Analysis Assistant",
-    "goal": "...",
-    "instructions": "Your custom instructions here..."
-}]]></field>
-```
-
-### Add More Tools
-
-Reference additional tools in the `tool_ids` field:
-
-```xml
-<field name="tool_ids" eval="[(6, 0, [
-    ref('llm_tool_ocr_mistral.llm_tool_ocr_mistral'),
-    ref('llm_tool.llm_tool_odoo_record_retriever'),
-    ref('your_module.your_custom_tool'),  <!-- Add this -->
-])]" />
-```
-
-### Create Multiple Assistants
-
-Duplicate the record with different configurations:
-
-- Invoice Validator (read-only, no updater tool)
-- Invoice Data Entry (focuses on OCR + updates)
-- Invoice Approver (workflow-focused)
-
-## Best Practices
-
-### For Users
-
-1. **Upload documents first**, then ask AI to parse them
-2. **Review extracted data** before confirming updates
-3. **Use specific questions** for better results
-4. **Link threads to invoices** for context-aware responses
-
-### For Administrators
-
-1. **Monitor tool consent**: Review which users approve updates
-2. **Track assistant usage**: Check thread activity
-3. **Customize instructions**: Tailor to your accounting workflows
-4. **Train users**: Show examples of effective prompts
+1. Go to **Settings → LLM → Prompts → Invoice Data Extraction (One-Shot)**
+2. Edit the `instructions` argument to add/remove fields
+3. Update the JSON structure in `default_values`
+4. Modify `_convert_llm_data_to_pivot()` if adding new fields
 
 ## Troubleshooting
 
-### "No OCR model found"
+### Issue: "No PDF or image attachment found"
 
-**Solution**: Sync models from Mistral provider settings
+**Solution**: Attach a PDF or image file to the invoice before clicking "Process with AI"
 
-### "Mistral provider not found"
+### Issue: "Failed to extract data"
 
-**Solution**: Install and configure `llm_mistral` module with your API key
+**Possible causes**:
+- Poor quality scan/image
+- Non-standard invoice format
+- OCR couldn't extract text
 
-### "Tool requires consent"
+**Solution**: Check server logs for detailed error. Try with a higher quality scan.
 
-**Expected**: User must approve before tool executes. This is by design for security.
+### Issue: "Mistral OCR tool not found"
 
-### Thread not linked to invoice
+**Solution**: Install `llm_tool_ocr_mistral` module and configure Mistral provider
 
-**Solution**: Use record picker to link thread to `account.move` record
+### Issue: Duplicate records after module rename
 
-## Future Enhancements
+**Solution**: The pre-init hook should handle this automatically. If issues persist, check `ir_model_data` for orphaned records.
 
-Potential additions (not yet implemented):
+## Credits
 
-1. **Auto-process on attachment** - Automatically trigger AI processing when an invoice receives an attachment (PDF/image), filling in vendor, date, amounts, and line items without manual intervention
-2. **Automated invoice matching** with purchase orders (3-way matching)
-3. **Approval workflow tools** (approve/reject invoices)
-4. **Multi-invoice analysis** (batch processing)
-5. **Learning from corrections** (feedback loop)
+### Authors
 
-## Contributing
+- Apexive Solutions LLC
 
-Found a bug or have a suggestion? Open an issue at:
-https://github.com/apexive/odoo-llm/issues
+### Contributors
+
+- Module development and LLM integration
+- OCA invoice import pattern implementation
+
+### Maintainers
+
+This module is maintained by Apexive Solutions LLC.
 
 ## License
 
 LGPL-3
-
-## Credits
-
-**Author**: Apexive Solutions LLC
-**Website**: https://github.com/apexive/odoo-llm
