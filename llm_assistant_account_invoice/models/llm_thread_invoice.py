@@ -12,9 +12,9 @@ class LLMThreadInvoice(models.Model):
     def get_context(self, base_context=None):
         """Override to compute OCR text dynamically from invoice attachments
 
-        This method is called by get_prepend_messages() when building the prompt.
-        It computes OCR text on-the-fly from the invoice's attachment, allowing
-        dynamic context injection via {{ ocr_text }} in assistant's default_values.
+        This method supports two modes:
+        1. Decoder mode: Attachment ID passed via context (before attachment is linked)
+        2. Manual mode: Search for attachment on invoice (for manual trigger button)
 
         Returns:
             dict: Context with computed 'ocr_text' key for invoice threads
@@ -23,27 +23,35 @@ class LLMThreadInvoice(models.Model):
 
         # Only for invoice threads
         if self.model == "account.move" and self.res_id:
-            invoice = self.env["account.move"].browse(self.res_id)
+            attachment = None
 
-            # Get first PDF/image attachment
-            attachment = self.env["ir.attachment"].search(
-                [
-                    ("res_model", "=", "account.move"),
-                    ("res_id", "=", invoice.id),
-                    (
-                        "mimetype",
-                        "in",
-                        ["application/pdf", "image/png", "image/jpeg", "image/jpg"],
-                    ),
-                ],
-                limit=1,
-            )
+            # Priority 1: Check if attachment passed via context (decoder mode)
+            attachment_id = self.env.context.get('llm_invoice_attachment_id')
+            if attachment_id:
+                attachment = self.env["ir.attachment"].browse(attachment_id)
+                if not attachment.exists():
+                    attachment = None
+
+            # Priority 2: Search for attachment on invoice (manual mode, OCA wizard)
+            if not attachment:
+                invoice = self.env["account.move"].browse(self.res_id)
+                attachment = self.env["ir.attachment"].search(
+                    [
+                        ("res_model", "=", "account.move"),
+                        ("res_id", "=", invoice.id),
+                        (
+                            "mimetype",
+                            "in",
+                            ["application/pdf", "image/png", "image/jpeg", "image/jpg"],
+                        ),
+                    ],
+                    limit=1,
+                )
 
             if attachment:
-                # Compute OCR on-the-fly
+                # Compute OCR on-the-fly (raises exception if fails)
                 ocr_text = self._compute_ocr_for_attachment(attachment)
-                if ocr_text:
-                    context["ocr_text"] = ocr_text
+                context["ocr_text"] = ocr_text
 
         return context
 
@@ -54,37 +62,30 @@ class LLMThreadInvoice(models.Model):
             attachment (ir.attachment): Invoice attachment to process
 
         Returns:
-            str: Extracted text from OCR, or None if failed
+            str: Extracted text from OCR
+
+        Raises:
+            Exception: If OCR tool not found or OCR processing fails
         """
-        try:
-            # Get Mistral OCR tool (llm.tool with implementation llm_tool_ocr_mistral)
-            ocr_tool = self.env["llm.tool"].search(
-                [("implementation", "=", "llm_tool_ocr_mistral")], limit=1
+        # Get Mistral OCR tool (llm.tool with implementation llm_tool_ocr_mistral)
+        ocr_tool = self.env["llm.tool"].search(
+            [("implementation", "=", "llm_tool_ocr_mistral")], limit=1
+        )
+        if not ocr_tool:
+            raise RuntimeError("Mistral OCR tool not found in system")
+
+        # Call OCR via tool's public execute method
+        results = ocr_tool.llm_tool_ocr_mistral_execute([attachment.id])
+
+        if not results or len(results) == 0:
+            raise RuntimeError(f"OCR returned no results for {attachment.name}")
+
+        result = results[0]
+
+        # Check for errors
+        if result.get("error"):
+            raise RuntimeError(
+                f"OCR error for {attachment.name}: {result.get('error')}"
             )
-            if not ocr_tool:
-                _logger.warning("Mistral OCR tool not found in system")
-                return None
 
-            # Call OCR via tool's public execute method
-            results = ocr_tool.llm_tool_ocr_mistral_execute([attachment.id])
-
-            if not results or len(results) == 0:
-                _logger.warning(f"OCR returned no results for {attachment.name}")
-                return None
-
-            result = results[0]
-
-            # Check for errors
-            if result.get("error"):
-                _logger.error(
-                    f"OCR error for {attachment.name}: {result.get('error')}"
-                )
-                return None
-
-            return result.get("extracted_text", "")
-
-        except Exception as e:
-            _logger.error(
-                f"OCR failed for attachment {attachment.id}: {e}", exc_info=True
-            )
-            return None
+        return result.get("extracted_text", "")

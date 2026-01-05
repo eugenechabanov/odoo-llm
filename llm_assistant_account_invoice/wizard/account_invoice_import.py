@@ -76,20 +76,16 @@ class AccountInvoiceImport(models.TransientModel):
 
         try:
             # Create temporary attachment from raw bytes
-            # We need an attachment because the extraction logic expects one
-            # (for thread context and OCR processing)
+            # Attachment is passed via context, so no need to link it to invoice
             temp_attachment = self.env["ir.attachment"].create(
                 {
                     "name": "temp_invoice_import.pdf",
                     "datas": base64.b64encode(file_data),
                     "mimetype": "application/pdf",
-                    "res_model": "account.move",  # Generic, no specific res_id
-                    "res_id": 0,
                 }
             )
 
-            # Create a temporary invoice to host the extraction
-            # (extraction needs an invoice for thread context)
+            # Create temporary invoice for thread context
             temp_invoice = self.env["account.move"].create(
                 {
                     "move_type": "in_invoice",
@@ -97,10 +93,7 @@ class AccountInvoiceImport(models.TransientModel):
                 }
             )
 
-            # Link attachment to temp invoice for extraction
-            temp_attachment.write({"res_id": temp_invoice.id})
-
-            # Extract invoice data using existing logic
+            # Extract invoice data - attachment passed via context (no linking needed)
             invoice_data = temp_invoice._extract_invoice_data_from_attachment(
                 temp_attachment
             )
@@ -116,18 +109,11 @@ class AccountInvoiceImport(models.TransientModel):
             return False
 
         finally:
-            # Clean up temporary invoice
-            # When invoice is deleted, attachment becomes orphaned and will be
-            # cleaned up by Odoo's autovacuum job (ir.attachment._gc_file_store)
-            # This avoids lock conflicts with autovacuum during our transaction
+            # Clean up temporary records
             if temp_invoice and temp_invoice.exists():
                 temp_invoice.unlink()
-
-            # Note: We intentionally don't delete temp_attachment here
-            # - Deleting it can cause lock conflicts with autovacuum
-            # - It becomes orphaned when invoice is deleted (res_id → deleted record)
-            # - Autovacuum will clean it up in next scheduled run
-            # - Temporary storage overhead is minimal (one attachment for ~1 hour max)
+            if temp_attachment and temp_attachment.exists():
+                temp_attachment.unlink()
 
     @api.model
     def _convert_llm_data_to_pivot(self, llm_data, _company):

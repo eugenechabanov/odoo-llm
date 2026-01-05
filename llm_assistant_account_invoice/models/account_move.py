@@ -111,109 +111,56 @@ class AccountMove(models.Model):
 
     @api.model
     def _llm_ocr_decoder(self, attachment):
-        """One-shot LLM-OCR decoder for invoice attachments (automatic)
+        """LLM-OCR decoder for invoice attachments (automatic)
 
-        This decoder is called automatically by Odoo when:
+        This decoder is called automatically by Odoo's decoder chain when:
         1. User uploads attachment via journal "Upload" button
-        2. User drags & drops attachment to existing invoice
+        2. Email with attachment received (alias)
 
-        Flow:
-        1. Check if suitable for OCR (PDF, image)
-        2. Skip if already linked to invoice (wizard/manual creation)
-        3. Create draft invoice record
-        4. Find appropriate journal
-        5. Attach file to invoice
-        6. Extract data from attachment
-        7. Populate invoice with extracted data
+        The decoder creates a new invoice and populates it with extracted data.
+        The journal handles attachment linking AFTER the decoder returns.
 
         Args:
             attachment (ir.attachment): Invoice attachment to process
 
         Returns:
-            account.move: Created invoice (or empty recordset if failed/skipped)
+            account.move: Created and populated invoice, or empty recordset if failed
         """
         try:
-            # 1. Check if we should process this attachment
+            # 1. Check if suitable for LLM-OCR processing
             if not self._should_process_with_llm_ocr(attachment):
-                return self.env["account.move"]  # Return empty, try next decoder
+                return self.env["account.move"]
 
-            # 2. Check if attachment already linked to existing invoice
-            # If yes, populate it ONLY if it's empty (wizard created shell)
-            # If already populated, skip to avoid overwriting
-            invoice = None
-            invoice_created_by_us = False  # Track if we created it (to clean up on error)
+            # 2. Find appropriate journal (reuse EDI logic)
+            journal = self._get_journal_for_import("in_invoice")
+            if not journal:
+                return self.env["account.move"]
 
-            if attachment.res_model == 'account.move' and attachment.res_id:
-                existing_invoice = self.env['account.move'].browse(attachment.res_id)
+            # 3. Create draft invoice with journal
+            invoice = self.create({
+                "move_type": "in_invoice",
+                "journal_id": journal.id,
+            })
 
-                if not existing_invoice.exists():
-                    return self.env["account.move"]
-
-                # Check if invoice already has data (partner or lines)
-                if existing_invoice.invoice_line_ids or existing_invoice.partner_id:
-                    return self.env["account.move"]
-
-                # Invoice exists but is EMPTY - we should populate it!
-                invoice = existing_invoice
-                invoice_created_by_us = False  # Wizard created it, don't delete on error
-
-            # 3. Create new invoice if none exists
-            if not invoice:
-                invoice = self.create({"move_type": "in_invoice"})
-                invoice_created_by_us = True  # We created it, clean up on error
-
-            # 4. Find journal using same logic as EDI's _create_invoice_from_xml_tree
-            # (matches account_edi_ubl_cii module's journal selection)
-            if not invoice.journal_id:
-                move_type = invoice.move_type
-                if move_type in self.env["account.move"].get_purchase_types():
-                    journal_type = "purchase"
-                elif move_type in self.env["account.move"].get_sale_types():
-                    journal_type = "sale"
-                else:
-                    journal_type = "general"
-
-                journal = self.env["account.journal"].search(
-                    [("company_id", "=", invoice.company_id.id), ("type", "=", journal_type)],
-                    limit=1,
-                )
-                if journal:
-                    invoice.journal_id = journal
-                else:
-                    _logger.error(
-                        "No %s journal found for company %s",
-                        journal_type,
-                        invoice.company_id.name,
-                    )
-                    invoice.unlink()
-                    return self.env["account.move"]
-
-            # 5. Attach the file to invoice (makes it findable by thread.get_context())
-            # Only needed if we created a new invoice (not if populating existing)
-            if attachment.res_id != invoice.id:
-                attachment.write({"res_model": "account.move", "res_id": invoice.id})
-
-            # 6. Extract data from attachment
+            # 4. Extract data from attachment (passes attachment via context)
             invoice_data = invoice._extract_invoice_data_from_attachment(attachment)
 
             if not invoice_data:
-                if invoice_created_by_us:
-                    invoice.unlink()
+                invoice.unlink()
                 return self.env["account.move"]
 
-            # 7. Populate invoice with extracted data
+            # 5. Populate invoice with extracted data
             success = invoice._populate_invoice_from_data(invoice_data)
 
             if success:
                 return invoice
             else:
-                if invoice_created_by_us:
-                    invoice.unlink()
+                invoice.unlink()
                 return self.env["account.move"]
 
         except Exception as e:
             _logger.error(f"Error in LLM-OCR decoder: {str(e)}", exc_info=True)
-            return self.env["account.move"]  # Return empty, try next decoder
+            return self.env["account.move"]
 
     # ============================================================================
     # CORE EXTRACTION METHODS (Reusable)
@@ -224,7 +171,7 @@ class AccountMove(models.Model):
 
         This is the core extraction logic that:
         1. Creates a thread with the extraction assistant
-        2. Triggers OCR extraction (computed dynamically in thread.get_context())
+        2. Passes attachment via context (for OCR lookup)
         3. Gets structured JSON from LLM in one shot
         4. Parses and validates the response
 
@@ -247,7 +194,6 @@ class AccountMove(models.Model):
                     - taxPercent (float, optional)
             None: If extraction failed
         """
-        
         # Get the extraction assistant
         assistant = self.env["llm.assistant"].get_assistant_by_code(
             "invoice_extraction"
@@ -256,19 +202,19 @@ class AccountMove(models.Model):
             _logger.error("Invoice extraction assistant not configured")
             return None
 
-        # Create thread for this invoice
-        # OCR text will be computed dynamically in thread.get_context()
-        thread = self.env["llm.thread"].create(
-            {
-                "name": f"Invoice Extraction - {attachment.name}",
-                "assistant_id": assistant.id,
-                "prompt_id": assistant.prompt_id.id,
-                "provider_id": assistant.provider_id.id,
-                "model_id": assistant.model_id.id,
-                "model": "account.move",
-                "res_id": self.id,
-            }
-        )
+        # Create thread with attachment ID in context
+        # This allows thread.get_context() to find the attachment without it being linked yet
+        thread = self.env["llm.thread"].with_context(
+            llm_invoice_attachment_id=attachment.id
+        ).create({
+            "name": f"Invoice Extraction - {attachment.name}",
+            "assistant_id": assistant.id,
+            "prompt_id": assistant.prompt_id.id,
+            "provider_id": assistant.provider_id.id,
+            "model_id": assistant.model_id.id,
+            "model": "account.move",
+            "res_id": self.id,
+        })
 
         # Call generate() - prepend messages from prompt provide the user message
         # The prompt template includes the user message with {{ ocr_text }}
@@ -300,97 +246,128 @@ class AccountMove(models.Model):
         Returns:
             bool: True if successful, False otherwise
         """
-        try:
-            # 1. Build UBL XML tree from extracted data
-            ubl_tree = self._build_ubl_from_invoice_data(invoice_data)
+        # 1. Build UBL XML tree from extracted data
+        ubl_tree = self._build_ubl_from_invoice_data(invoice_data)
 
-            # 2. Convert tree to bytes
-            ubl_xml_bytes = etree.tostring(
-                ubl_tree, pretty_print=True, xml_declaration=True, encoding="UTF-8"
-            )
+        # 2. Convert tree to bytes
+        ubl_xml_bytes = etree.tostring(
+            ubl_tree, pretty_print=True, xml_declaration=True, encoding="UTF-8"
+        )
 
-            # 3. Base64 encode for Odoo attachment (datas field expects base64)
-            ubl_xml_base64 = base64.b64encode(ubl_xml_bytes)
+        # 3. Base64 encode for Odoo attachment (datas field expects base64)
+        ubl_xml_base64 = base64.b64encode(ubl_xml_bytes)
 
-            # 4. Create temporary XML attachment
-            temp_attachment = self.env["ir.attachment"].create(
-                {
-                    "name": "llm_extracted_invoice.xml",
-                    "datas": ubl_xml_base64,
-                    "res_model": "account.move",
-                    "res_id": self.id,
-                    "mimetype": "application/xml",
-                }
-            )
+        # 4. Create temporary XML attachment
+        temp_attachment = self.env["ir.attachment"].create(
+            {
+                "name": "llm_extracted_invoice.xml",
+                "datas": ubl_xml_base64,
+                "res_model": "account.move",
+                "res_id": self.id,
+                "mimetype": "application/xml",
+            }
+        )
 
-            # 5. Delegate to EDI for processing - search ALL UBL/CII formats for auto-detection
-            # The EDI will use UBLVersionID and other fields to auto-detect the correct builder
-            edi_formats = self.env["account.edi.format"].search(
-                [
-                    ("code", "in", [
-                        "facturx_1_0_05", "ubl_bis3", "ubl_de", "nlcius_1",
-                        "efff_1", "ubl_2_1", "ubl_a_nz", "ubl_sg"
-                    ])
-                ]
-            )
-            if not edi_formats:
-                _logger.error(
-                    "No UBL/CII EDI formats found. "
-                    "Ensure account_edi_ubl_cii module is installed."
-                )
-                temp_attachment.unlink()
-                return False
-
-            # Try EDI processing
-            try:
-                # Call on all formats - EDI will auto-detect based on UBLVersionID in XML
-                result = edi_formats._update_invoice_from_attachment(temp_attachment, self)
-
-                # Check if self was modified even though result is empty
-                if not result and self.invoice_line_ids:
-                    result = self
-            except Exception as e:
-                _logger.error(f"Exception during EDI processing: {e}", exc_info=True)
-                result = None
-
-            # 6. Clean up temporary attachment
-            temp_attachment.unlink()
-
-            if result:
-                # 7. Apply fiscal position tax mapping (EDI doesn't do this!)
-                #
-                # ISSUE: EDI imports taxes by matching percentage from UBL XML, but does NOT
-                # apply fiscal position mappings. It directly writes to database, bypassing
-                # the @api.onchange handlers that normally trigger tax mapping in the UI.
-                #
-                # IMPACT: For intra-EU invoices, EDI finds domestic tax (e.g., "BTW 21%")
-                # instead of reverse charge tax (e.g., "Inkopen import binnen EU hoog 21%"),
-                # resulting in incorrect tax amounts (0.84 EUR instead of 0.00 EUR).
-                #
-                # SOLUTION: Manually call fiscal_position.map_tax() after EDI completes.
-                # This applies the same business logic that UI onchange handlers apply,
-                # mapping domestic taxes → reverse charge taxes for EU B2B transactions.
-                if self.fiscal_position_id:
-                    for line in self.invoice_line_ids:
-                        if line.tax_ids:
-                            original_taxes = line.tax_ids
-                            mapped_taxes = self.fiscal_position_id.map_tax(original_taxes)
-                            if mapped_taxes != original_taxes:
-                                line.tax_ids = mapped_taxes
-
-                return True
-            else:
-                return False
-
-        except Exception as e:
+        # 5. Delegate to EDI for processing - search ALL UBL/CII formats for auto-detection
+        # The EDI will use UBLVersionID and other fields to auto-detect the correct builder
+        edi_formats = self.env["account.edi.format"].search(
+            [
+                ("code", "in", [
+                    "facturx_1_0_05", "ubl_bis3", "ubl_de", "nlcius_1",
+                    "efff_1", "ubl_2_1", "ubl_a_nz", "ubl_sg"
+                ])
+            ]
+        )
+        if not edi_formats:
             _logger.error(
-                f"Error populating invoice from extracted data: {str(e)}", exc_info=True
+                "No UBL/CII EDI formats found. "
+                "Ensure account_edi_ubl_cii module is installed."
             )
+            temp_attachment.unlink()
+            return False
+
+        # Call on all formats - EDI will auto-detect based on UBLVersionID in XML
+        result = edi_formats._update_invoice_from_attachment(temp_attachment, self)
+
+        # Check if self was modified even though result is empty
+        if not result and self.invoice_line_ids:
+            result = self
+
+        # 6. Clean up temporary attachment
+        temp_attachment.unlink()
+
+        if result:
+            # 7. Apply fiscal position tax mapping (EDI doesn't do this!)
+            #
+            # ISSUE: EDI imports taxes by matching percentage from UBL XML, but does NOT
+            # apply fiscal position mappings. It directly writes to database, bypassing
+            # the @api.onchange handlers that normally trigger tax mapping in the UI.
+            #
+            # IMPACT: For intra-EU invoices, EDI finds domestic tax (e.g., "BTW 21%")
+            # instead of reverse charge tax (e.g., "Inkopen import binnen EU hoog 21%"),
+            # resulting in incorrect tax amounts (0.84 EUR instead of 0.00 EUR).
+            #
+            # SOLUTION: Manually call fiscal_position.map_tax() after EDI completes.
+            # This applies the same business logic that UI onchange handlers apply,
+            # mapping domestic taxes → reverse charge taxes for EU B2B transactions.
+            if self.fiscal_position_id:
+                for line in self.invoice_line_ids:
+                    if line.tax_ids:
+                        original_taxes = line.tax_ids
+                        mapped_taxes = self.fiscal_position_id.map_tax(original_taxes)
+                        if mapped_taxes != original_taxes:
+                            line.tax_ids = mapped_taxes
+
+            return True
+        else:
             return False
 
     # ============================================================================
     # HELPER METHODS
     # ============================================================================
+
+    @api.model
+    def _get_journal_for_import(self, move_type):
+        """Find appropriate journal for invoice import (matches EDI logic)
+
+        This method replicates the journal-finding logic used by EDI modules
+        to ensure consistent behavior across import methods.
+
+        Args:
+            move_type (str): Invoice move type (e.g., 'in_invoice', 'out_invoice')
+
+        Returns:
+            account.journal: Found journal, or empty recordset if not found
+        """
+        # Check context for default journal first (like EDI does)
+        journal = self.env["account.journal"].browse(
+            self._context.get("default_journal_id")
+        )
+        if journal.exists():
+            return journal
+
+        # Determine journal type from move type
+        if move_type in self.env["account.move"].get_purchase_types():
+            journal_type = "purchase"
+        elif move_type in self.env["account.move"].get_sale_types():
+            journal_type = "sale"
+        else:
+            journal_type = "general"
+
+        # Search for journal
+        journal = self.env["account.journal"].search(
+            [("company_id", "=", self.env.company.id), ("type", "=", journal_type)],
+            limit=1,
+        )
+
+        if not journal:
+            _logger.error(
+                "No %s journal found for company %s",
+                journal_type,
+                self.env.company.name,
+            )
+
+        return journal
 
     def _should_process_with_llm_ocr(self, attachment):
         """Check if attachment is suitable for LLM-OCR processing
