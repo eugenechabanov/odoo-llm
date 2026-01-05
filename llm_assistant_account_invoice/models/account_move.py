@@ -115,6 +115,8 @@ class AccountMove(models.Model):
         # Register our LLM-OCR decoder at priority 15
         res.append((15, self._llm_ocr_decoder_oneshot))
 
+        _logger.info(f"Registered LLM-OCR decoder at priority 15. Total decoders: {len(res)}")
+
         return res
 
     @api.model
@@ -138,16 +140,22 @@ class AccountMove(models.Model):
         Returns:
             account.move: Created invoice (or empty recordset if failed)
         """
+        _logger.info(
+            f"🤖 LLM-OCR decoder CALLED for attachment: {attachment.name} "
+            f"(ID: {attachment.id}, mimetype: {attachment.mimetype})"
+        )
+
         try:
             # 1. Check if we should process this attachment
             if not self._should_process_with_llm_ocr(attachment):
                 _logger.info(
-                    f"Skipping attachment {attachment.name} - not suitable for LLM-OCR"
+                    f"❌ Skipping attachment {attachment.name} - not suitable for LLM-OCR "
+                    f"(mimetype: {attachment.mimetype})"
                 )
                 return self.env["account.move"]  # Return empty, try next decoder
 
             _logger.info(
-                f"LLM-OCR decoder processing attachment: {attachment.name} "
+                f"✅ LLM-OCR decoder processing attachment: {attachment.name} "
                 f"(mimetype: {attachment.mimetype})"
             )
 
@@ -319,6 +327,15 @@ class AccountMove(models.Model):
             bool: True if successful, False otherwise
         """
         try:
+            # Log the extracted invoice data for debugging
+            _logger.info(
+                f"\n{'='*80}\n"
+                f"EXTRACTED INVOICE DATA (JSON):\n"
+                f"{'='*80}\n"
+                f"{json.dumps(invoice_data, indent=2, ensure_ascii=False)}\n"
+                f"{'='*80}"
+            )
+
             # 1. Build UBL XML tree from extracted data
             ubl_tree = self._build_ubl_from_invoice_data(invoice_data)
 
@@ -345,8 +362,15 @@ class AccountMove(models.Model):
                 f"({len(ubl_xml_bytes)} bytes)"
             )
 
-            # Log the XML content for debugging
-            _logger.info(f"UBL XML content preview:\n{ubl_xml_bytes[:1000].decode('utf-8')}")
+            # Log the COMPLETE XML tree for debugging
+            xml_string = ubl_xml_bytes.decode('utf-8')
+            _logger.info(
+                f"\n{'='*80}\n"
+                f"COMPLETE UBL XML TREE ({len(ubl_xml_bytes)} bytes):\n"
+                f"{'='*80}\n"
+                f"{xml_string}\n"
+                f"{'='*80}"
+            )
 
             # 5. Delegate to EDI for processing - search ALL UBL/CII formats for auto-detection
             # The EDI will use UBLVersionID and other fields to auto-detect the correct builder
@@ -396,6 +420,29 @@ class AccountMove(models.Model):
 
             if result:
                 _logger.info("Successfully populated invoice via EDI")
+
+                # 7. Apply fiscal position tax mapping (EDI doesn't do this!)
+                # This handles intra-EU reverse charge scenarios
+                if self.fiscal_position_id:
+                    _logger.info(
+                        f"Applying fiscal position '{self.fiscal_position_id.name}' "
+                        f"tax mapping to {len(self.invoice_line_ids)} lines"
+                    )
+                    for line in self.invoice_line_ids:
+                        if line.tax_ids:
+                            original_taxes = line.tax_ids
+                            # Map taxes through fiscal position
+                            mapped_taxes = self.fiscal_position_id.map_tax(original_taxes)
+                            if mapped_taxes != original_taxes:
+                                line.tax_ids = mapped_taxes
+                                _logger.info(
+                                    f"Line '{line.name[:50]}': "
+                                    f"Remapped taxes {original_taxes.mapped('name')} → "
+                                    f"{mapped_taxes.mapped('name')}"
+                                )
+                else:
+                    _logger.info("No fiscal position set, skipping tax remapping")
+
                 return True
             else:
                 _logger.warning(
@@ -576,13 +623,21 @@ class AccountMove(models.Model):
             )
             company_id.text = invoice_data["vat"]
 
+            # TaxScheme is REQUIRED for proper VAT identification
+            tax_scheme = etree.SubElement(
+                party_tax_scheme, f"{{{ns['cac']}}}TaxScheme"
+            )
+            etree.SubElement(tax_scheme, f"{{{ns['cbc']}}}ID").text = "VAT"
+
         # ========================================================================
         # INVOICE LINES
         # ========================================================================
 
         lines = invoice_data.get("lines", [])
-        total_tax = 0.0
-        total_untaxed = 0.0
+
+        # Use extracted amounts from LLM (no calculations!)
+        total_tax = invoice_data.get("taxAmount", 0.0)
+        total_untaxed = invoice_data.get("subtotalAmount", 0.0)
 
         for idx, line_data in enumerate(lines, start=1):
             # Path: ./{*}InvoiceLine
@@ -606,7 +661,6 @@ class AccountMove(models.Model):
             # Formula: quantity × unitPrice
             unit_price = line_data.get("unitPrice", 0.0)
             line_total = quantity * unit_price
-            total_untaxed += line_total
 
             line_extension = etree.SubElement(
                 invoice_line, f"{{{ns['cbc']}}}LineExtensionAmount"
@@ -624,25 +678,22 @@ class AccountMove(models.Model):
                 "description", ""
             )
 
-            # Tax Category (OPTIONAL but helpful)
+            # Tax Category (REQUIRED for EDI tax matching)
             # Path: .//{ *}Item/{*}ClassifiedTaxCategory/{*}Percent
+            # Always include, even if 0% (for reverse charge/exempt scenarios)
             tax_percent = line_data.get("taxPercent", 0.0)
-            if tax_percent:
-                classified_tax = etree.SubElement(
-                    item, f"{{{ns['cac']}}}ClassifiedTaxCategory"
-                )
-                etree.SubElement(
-                    classified_tax, f"{{{ns['cbc']}}}Percent"
-                ).text = f"{tax_percent:.2f}"
 
-                tax_scheme = etree.SubElement(
-                    classified_tax, f"{{{ns['cac']}}}TaxScheme"
-                )
-                etree.SubElement(tax_scheme, f"{{{ns['cbc']}}}ID").text = "VAT"
+            classified_tax = etree.SubElement(
+                item, f"{{{ns['cac']}}}ClassifiedTaxCategory"
+            )
+            etree.SubElement(
+                classified_tax, f"{{{ns['cbc']}}}Percent"
+            ).text = f"{tax_percent:.2f}"
 
-                # Calculate tax for this line
-                line_tax = line_total * (tax_percent / 100)
-                total_tax += line_tax
+            tax_scheme = etree.SubElement(
+                classified_tax, f"{{{ns['cac']}}}TaxScheme"
+            )
+            etree.SubElement(tax_scheme, f"{{{ns['cbc']}}}ID").text = "VAT"
 
             # Price
             # Path: ./{*}Price/{*}PriceAmount
