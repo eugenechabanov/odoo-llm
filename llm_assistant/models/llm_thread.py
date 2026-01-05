@@ -192,14 +192,17 @@ class LLMThread(models.Model):
         """Generate messages with actual AI intelligence."""
         self.ensure_one()
 
+        # Get prepend messages once to avoid duplicate calls
+        # (used both for initial user message extraction and chat API)
+        prepend_messages = self.get_prepend_messages()
+
         # Get last message if not provided
         if not last_message:
             try:
                 last_message = self.get_latest_llm_message()
             except UserError:
                 # No DB messages found - check if prepended messages have a user message
-                prepend_msgs = self.get_prepend_messages()
-                user_msg = next((msg for msg in prepend_msgs if msg.get("role") == "user"), None)
+                user_msg = next((msg for msg in prepend_messages if msg.get("role") == "user"), None)
 
                 if user_msg:
                     # Extract content from prepended user message
@@ -226,7 +229,7 @@ class LLMThread(models.Model):
                     last_message = yield from self._generate_response(last_message)
                 else:
                     # Generate assistant response
-                    last_message = yield from self._generate_assistant_response()
+                    last_message = yield from self._generate_assistant_response(prepend_messages)
             elif (
                 last_message.llm_role == "assistant"
                 and last_message.has_tool_calls()
@@ -251,8 +254,12 @@ class LLMThread(models.Model):
     def _generate_response(self, last_message):
         raise NotImplementedError
 
-    def _generate_assistant_response(self):
-        """Generate assistant response and handle tool calls."""
+    def _generate_assistant_response(self, prepend_messages):
+        """Generate assistant response and handle tool calls.
+
+        Args:
+            prepend_messages (list): Pre-computed prepend messages to avoid duplicate calls
+        """
         # Use the new optimized method for LLM context
         message_history = self.get_llm_messages()
 
@@ -263,7 +270,7 @@ class LLMThread(models.Model):
             "messages": message_history,
             "tools": self.tool_ids,
             "stream": use_streaming,
-            "prepend_messages": self.get_prepend_messages(),
+            "prepend_messages": prepend_messages,
         }
         if use_streaming:
             # Handle streaming response - process tool calls directly from stream
