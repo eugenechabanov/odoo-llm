@@ -1,3 +1,9 @@
+16.0.1.3.1 (2026-01-07)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Fixed session deletion permission - all authenticated users can now delete sessions
+* [IMP] Simplified permission model for MCP session management
+
 16.0.1.3.0 (2025-12-02)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
