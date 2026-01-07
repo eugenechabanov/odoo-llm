@@ -1,6 +1,6 @@
 {
     "name": "LLM ComfyUI Integration",
-    "version": "16.0.1.0.1",
+    "version": "16.0.1.0.2",
     "category": "Productivity/LLM",
     "summary": "Integration with ComfyUI API for media generation",
     "description": """
@@ -18,8 +18,6 @@
         "data/llm_publisher.xml",
         "data/llm_prompt_category_data.xml",
         "data/llm_prompt_data.xml",
-        "data/llm_provider.xml",
-        "data/llm_model.xml",
     ],
     "images": [
         "static/description/banner.png",

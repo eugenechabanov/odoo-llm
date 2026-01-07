@@ -1,3 +1,9 @@
+16.0.1.1.5 (2026-01-07)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [REM] Removed provider and model data files - users now create providers manually
+* [IMP] Provider/model data is now user-owned and survives module uninstall
+
 16.0.1.1.4 (2025-11-17)
 ~~~~~~~~~~~~~~~~~~~~~~~
 

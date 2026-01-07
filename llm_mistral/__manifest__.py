@@ -8,14 +8,13 @@
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "category": "Technical",
-    "version": "16.0.1.0.1",
+    "version": "16.0.1.0.2",
     "depends": ["base", "llm_openai"],
     "external_dependencies": {
         "python": ["mistralai"],
     },
     "data": [
         "data/llm_publisher.xml",
-        "data/llm_provider.xml",
     ],
     "license": "LGPL-3",
     "installable": True,
