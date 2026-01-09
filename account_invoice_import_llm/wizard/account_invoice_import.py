@@ -1,40 +1,9 @@
 """
 OCA Invoice Import Wizard Integration
 
-This module integrates LLM-OCR extraction into the OCA account_invoice_import wizard.
-
-Flow when OCA account_invoice_import is installed:
-1. User uploads PDF → create_document_from_attachment() (overridden by OCA)
-2. OCA creates wizard → calls import_invoices()
-3. Wizard calls parse_pdf_invoice()
-4. parse_pdf_invoice() tries:
-   a) pdf_get_xml_files() - extract embedded XML (UBL, Factur-X)
-   b) fallback_parse_pdf_invoice() ← OUR INTEGRATION HERE
-5. Wizard creates invoice from parsed data
-
-We override fallback_parse_pdf_invoice() to use LLM-OCR extraction as a fallback
-when other parsers fail.
-
-Expected return format (Invoice Pivot Format):
-{
-    'type': 'in_invoice',  # or 'in_refund'
-    'partner': {'vat': 'BE0123456789', 'name': 'Vendor Name', ...},
-    'currency': {'iso': 'EUR'},
-    'date': '2024-01-15',
-    'date_due': '2024-02-14',
-    'amount_untaxed': 100.0,
-    'amount_total': 121.0,
-    'invoice_number': 'INV-2024-001',
-    'lines': [
-        {
-            'name': 'Product description',
-            'qty': 1.0,
-            'price_unit': 100.0,
-            'taxes': [{'amount_type': 'percent', 'amount': 21.0}],
-        }
-    ],
-    'chatter_msg': [],
-}
+Integrates LLM-OCR extraction into OCA account_invoice_import wizard.
+Overrides fallback_parse_pdf_invoice() to extract invoice data when
+embedded XML parsers (UBL, Factur-X) fail.
 """
 
 import json
@@ -298,9 +267,8 @@ class AccountInvoiceImport(models.TransientModel):
     def _render_invoice_extraction_prompt(self, ocr_text):
         """Render the invoice extraction prompt with OCR text
 
-        This method renders the prompt template without creating a thread.
-        It directly accesses the prompt template and renders it with the
-        OCR text context.
+        This method uses the prompt's get_messages() method to render
+        the template with OCR text context (no thread needed).
 
         Args:
             ocr_text (str): OCR extracted text from invoice
@@ -311,8 +279,6 @@ class AccountInvoiceImport(models.TransientModel):
         Raises:
             UserError: If assistant or prompt not configured
         """
-        from odoo.addons.llm_assistant.utils import render_template
-
         # Get the invoice extraction assistant
         assistant = self.env["llm.assistant"].get_assistant_by_code(
             "invoice_extraction"
@@ -328,38 +294,13 @@ class AccountInvoiceImport(models.TransientModel):
                 "4. Ensure it has a prompt configured"
             ))
 
-        prompt = assistant.prompt_id
-
         # Build context (simplified - no thread/invoice needed)
         context = {
             "ocr_text": ocr_text,
         }
 
-        # Fill default values for missing arguments
-        context = prompt.sudo()._fill_default_values(context)
-
-        # Render the prompt template
-        rendered_content = render_template(template=prompt.template, context=context)
-
-        # Parse messages based on format (same logic as prompt.get_messages())
-        if prompt.format == "text":
-            messages = prompt._parse_text_messages(rendered_content)
-        elif prompt.format == "yaml":
-            import yaml
-
-            messages = list(
-                prompt._parse_dict_messages(yaml.safe_load_all(rendered_content))
-            )
-        elif prompt.format == "json":
-            messages = list(prompt._parse_dict_messages(json.loads(rendered_content)))
-        else:
-            raise UserError(_(
-                "Unsupported Prompt Format\n\n"
-                "The invoice extraction prompt has an unsupported format: %s\n\n"
-                "Supported formats: text, yaml, json\n\n"
-                "Please check the prompt configuration in:\n"
-                "Settings → LLM → Prompts → Invoice Data Extraction"
-            ) % prompt.format)
+        # Use prompt's get_messages() - handles rendering, validation, and parsing
+        messages = assistant.prompt_id.get_messages(context)
 
         return messages, assistant
 
@@ -369,6 +310,9 @@ class AccountInvoiceImport(models.TransientModel):
 
         This method calls the LLM model directly for one-shot extraction
         without creating a thread. It uses non-streaming mode for simplicity.
+
+        The provider returns a standardized response dict:
+        {"content": "text response", "tool_calls": [...]}
 
         Args:
             prepend_messages (list): Rendered prompt messages
@@ -381,6 +325,7 @@ class AccountInvoiceImport(models.TransientModel):
             UserError: If LLM call fails or returns invalid format
         """
         # Call model.chat() directly (no streaming needed for one-shot)
+        # Returns standardized dict: {"content": "...", "tool_calls": [...]}
         response = assistant.model_id.chat(
             messages=[],  # No conversation history for one-shot
             tools=False,  # No tool calling needed
@@ -388,26 +333,24 @@ class AccountInvoiceImport(models.TransientModel):
             prepend_messages=prepend_messages,
         )
 
-        # Extract response text from APIResponse object
-        if hasattr(response, "choices") and response.choices:
-            first_choice = response.choices[0]
-            if hasattr(first_choice, "message") and hasattr(
-                first_choice.message, "content"
-            ):
-                return first_choice.message.content
+        # Extract content from standardized response dict
+        if isinstance(response, dict) and "content" in response:
+            content = response.get("content", "")
+            if content:
+                return content
 
+        # Fallback error if response format is unexpected
         raise UserError(_(
             "Invalid LLM Response Format\n\n"
             "The LLM returned an unexpected response format.\n\n"
+            "Expected: dict with 'content' key\n"
+            "Received: %s\n\n"
             "This could indicate:\n"
             "1. Model configuration issue\n"
             "2. Provider API changes\n"
             "3. Network/connection problem\n\n"
-            "Please check:\n"
-            "- LLM model is properly configured\n"
-            "- Provider API key is valid\n"
-            "- Check logs for detailed error information"
-        ))
+            "Please check logs for detailed error information"
+        ) % type(response).__name__)
 
     @api.model
     def _parse_llm_response(self, llm_response_text):
