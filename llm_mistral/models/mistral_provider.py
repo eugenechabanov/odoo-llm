@@ -102,6 +102,69 @@ class LLMProvider(models.Model):
         # Fall back to parent for standard classification (chat, embedding, multimodal)
         return super()._determine_model_use(name, capabilities)
 
+    def mistral_get_default_ocr_model(self):
+        """Get the default OCR model for this Mistral provider
+
+        Finds the best available OCR model with the following priority:
+        1. Active OCR model marked as default (model_use=ocr, default=True, active=True)
+        2. Any active OCR model (model_use=ocr, active=True)
+
+        Returns:
+            llm.model: The OCR model record
+
+        Raises:
+            UserError: If provider is not Mistral or no OCR model found
+
+        Example:
+            >>> provider = env["llm.provider"].search([("service", "=", "mistral")], limit=1)
+            >>> ocr_model = provider.mistral_get_default_ocr_model()
+            >>> provider.process_ocr(model_name=ocr_model.name, data=pdf_bytes, mimetype="application/pdf")
+        """
+        self.ensure_one()
+
+        # Verify this is a Mistral provider
+        if self.service != "mistral":
+            raise UserError(_(
+                "This method is only for Mistral AI providers.\n"
+                "Current provider '%s' uses service: %s"
+            ) % (self.name, self.service))
+
+        # Priority 1: Active OCR model marked as default
+        ocr_model = self.env["llm.model"].search([
+            ("provider_id", "=", self.id),
+            ("model_use", "=", "ocr"),
+            ("default", "=", True),
+            ("active", "=", True),
+        ], limit=1)
+
+        if ocr_model:
+            return ocr_model
+
+        # Priority 2: Any active OCR model
+        ocr_model = self.env["llm.model"].search([
+            ("provider_id", "=", self.id),
+            ("model_use", "=", "ocr"),
+            ("active", "=", True),
+        ], limit=1)
+
+        if ocr_model:
+            _logger.info(
+                "Using OCR model '%s' (no default OCR model set for provider '%s')",
+                ocr_model.name,
+                self.name
+            )
+            return ocr_model
+
+        # No OCR model found - provide helpful error message
+        raise UserError(_(
+            "No active OCR model found for Mistral provider '%s'.\n\n"
+            "Please sync models:\n"
+            "1. Open provider '%s' settings\n"
+            "2. Click 'Sync Models' button\n"
+            "3. Ensure OCR models are available and active\n"
+            "4. Optionally: Mark one as default"
+        ) % (self.name, self.name))
+
     def process_ocr(self, model_name, data, mimetype, **kwargs):
         self.ensure_one()
 

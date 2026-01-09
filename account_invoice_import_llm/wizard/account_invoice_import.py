@@ -37,8 +37,9 @@ Expected return format (Invoice Pivot Format):
 }
 """
 
-import base64
+import json
 import logging
+import re
 
 from odoo import _, api, models
 
@@ -51,10 +52,16 @@ class AccountInvoiceImport(models.TransientModel):
     @api.model
     def fallback_parse_pdf_invoice(self, file_data, company):
         """
-        Fallback parser for PDFs without embedded XML.
+        Fallback parser for PDFs without embedded XML (Simplified - No temp records).
 
         Called by parse_pdf_invoice() when no XML is found in PDF.
         This is the extension point for adding custom PDF parsers.
+
+        New simplified flow:
+        1. Run OCR directly on file_data bytes
+        2. Render prompt with OCR context (no thread)
+        3. Call LLM directly (no thread)
+        4. Parse response and convert to pivot format
 
         Args:
             file_data (bytes): Raw PDF file content
@@ -70,51 +77,44 @@ class AccountInvoiceImport(models.TransientModel):
             # Another module already handled it
             return res
 
-        # Try our LLM-OCR extraction
-        temp_attachment = None
-        temp_invoice = None
-
+        # Try our simplified LLM-OCR extraction (no temporary records)
         try:
-            # Create temporary attachment from raw bytes
-            # Attachment is passed via context, so no need to link it to invoice
-            temp_attachment = self.env["ir.attachment"].create(
-                {
-                    "name": "temp_invoice_import.pdf",
-                    "datas": base64.b64encode(file_data),
-                    "mimetype": "application/pdf",
-                }
-            )
-
-            # Create temporary invoice for thread context
-            temp_invoice = self.env["account.move"].create(
-                {
-                    "move_type": "in_invoice",
-                    "company_id": company.id,
-                }
-            )
-
-            # Extract invoice data - attachment passed via context (no linking needed)
-            invoice_data = temp_invoice._extract_invoice_data_from_attachment(
-                temp_attachment
-            )
-
-            if not invoice_data:
+            # Step 1: Run OCR directly on file bytes
+            _logger.info("Running OCR on invoice file...")
+            ocr_text = self._run_ocr_on_file_data(file_data)
+            if not ocr_text:
+                _logger.warning("OCR returned empty text")
                 return False
 
-            # Convert our extraction format → Invoice Pivot Format
-            # Note: OCA wizard automatically adds the attachment, we don't need to
-            return self._convert_llm_data_to_pivot(invoice_data, company)
+            # Step 2: Render prompt with OCR context
+            _logger.info("Rendering extraction prompt...")
+            prepend_messages, assistant = self._render_invoice_extraction_prompt(
+                ocr_text
+            )
+
+            # Step 3: Call LLM directly (no thread)
+            _logger.info(
+                f"Calling LLM for extraction (model: {assistant.model_id.name})..."
+            )
+            llm_response = self._call_llm_for_extraction(prepend_messages, assistant)
+
+            # Step 4: Parse LLM response
+            _logger.info("Parsing LLM response...")
+            invoice_data = self._parse_llm_response(llm_response)
+            if not invoice_data:
+                _logger.warning("Failed to parse LLM response as JSON")
+                return False
+
+            # Step 5: Convert to pivot format
+            _logger.info("Converting to Invoice Pivot Format...")
+            pivot_data = self._convert_llm_data_to_pivot(invoice_data, company)
+
+            _logger.info("LLM-OCR extraction completed successfully")
+            return pivot_data
 
         except Exception as e:
             _logger.error(f"LLM-OCR extraction failed: {e}", exc_info=True)
             return False
-
-        finally:
-            # Clean up temporary records
-            if temp_invoice and temp_invoice.exists():
-                temp_invoice.unlink()
-            if temp_attachment and temp_attachment.exists():
-                temp_attachment.unlink()
 
     @api.model
     def _convert_llm_data_to_pivot(self, llm_data, _company):
@@ -241,3 +241,204 @@ class AccountInvoiceImport(models.TransientModel):
         )
 
         return parsed_inv
+
+    # ============================================================================
+    # SIMPLIFIED EXTRACTION METHODS (No temporary records)
+    # ============================================================================
+
+    @api.model
+    def _run_ocr_on_file_data(self, file_data, mimetype="application/pdf"):
+        """Run OCR directly on file bytes without creating attachment
+
+        This method calls Mistral OCR provider directly without creating
+        temporary attachment records. Uses the same OCR processing as
+        llm_tool_ocr_mistral but without the attachment wrapper.
+
+        Args:
+            file_data (bytes): Raw file content
+            mimetype (str): MIME type of the file
+
+        Returns:
+            str: Extracted OCR text in markdown format
+
+        Raises:
+            RuntimeError: If Mistral provider or OCR model not configured
+        """
+        # Get Mistral provider
+        provider = self.env["llm.provider"].search(
+            [("service", "=", "mistral")], limit=1
+        )
+        if not provider:
+            raise RuntimeError(
+                "Mistral provider not configured. "
+                "Please configure Mistral AI provider in LLM settings."
+            )
+
+        # Find OCR model (prefer mistral-ocr-latest)
+        ocr_model = self.env["llm.model"].search(
+            [
+                ("provider_id", "=", provider.id),
+                ("name", "=", "mistral-ocr-latest"),
+                ("model_use", "=", "ocr"),
+            ],
+            limit=1,
+        )
+
+        if not ocr_model:
+            # Fallback: Any OCR model
+            ocr_model = self.env["llm.model"].search(
+                [
+                    ("provider_id", "=", provider.id),
+                    ("model_use", "=", "ocr"),
+                ],
+                limit=1,
+            )
+
+        if not ocr_model:
+            raise RuntimeError(
+                "No OCR model found. "
+                "Please sync models from Mistral provider settings."
+            )
+
+        # Call provider's OCR processing directly
+        ocr_response = provider.process_ocr(
+            model_name=ocr_model.name,
+            data=file_data,
+            mimetype=mimetype,
+        )
+
+        # Format response to markdown (same as llm_tool_ocr_mistral)
+        parts = []
+        for page_idx, page in enumerate(ocr_response.pages, start=1):
+            page_md = page.markdown.strip() if page.markdown else ""
+            if page_md:
+                parts.append(f"## Page {page_idx}\n\n{page_md}")
+
+        return "\n\n".join(parts) if parts else ""
+
+    @api.model
+    def _render_invoice_extraction_prompt(self, ocr_text):
+        """Render the invoice extraction prompt with OCR text
+
+        This method renders the prompt template without creating a thread.
+        It directly accesses the prompt template and renders it with the
+        OCR text context.
+
+        Args:
+            ocr_text (str): OCR extracted text from invoice
+
+        Returns:
+            tuple: (prepend_messages, assistant) ready for model.chat()
+
+        Raises:
+            RuntimeError: If assistant or prompt not configured
+        """
+        from odoo.addons.llm_assistant.utils import render_template
+
+        # Get the invoice extraction assistant
+        assistant = self.env["llm.assistant"].get_assistant_by_code(
+            "invoice_extraction"
+        )
+        if not assistant or not assistant.prompt_id:
+            raise RuntimeError(
+                "Invoice extraction assistant not configured. "
+                "Please configure the invoice_extraction assistant."
+            )
+
+        prompt = assistant.prompt_id
+
+        # Build context (simplified - no thread/invoice needed)
+        context = {
+            "ocr_text": ocr_text,
+        }
+
+        # Fill default values for missing arguments
+        context = prompt.sudo()._fill_default_values(context)
+
+        # Render the prompt template
+        rendered_content = render_template(template=prompt.template, context=context)
+
+        # Parse messages based on format (same logic as prompt.get_messages())
+        if prompt.format == "text":
+            messages = prompt._parse_text_messages(rendered_content)
+        elif prompt.format == "yaml":
+            import yaml
+
+            messages = list(
+                prompt._parse_dict_messages(yaml.safe_load_all(rendered_content))
+            )
+        elif prompt.format == "json":
+            messages = list(prompt._parse_dict_messages(json.loads(rendered_content)))
+        else:
+            raise RuntimeError(f"Unsupported prompt format: {prompt.format}")
+
+        return messages, assistant
+
+    @api.model
+    def _call_llm_for_extraction(self, prepend_messages, assistant):
+        """Call LLM directly without thread abstraction
+
+        This method calls the LLM model directly for one-shot extraction
+        without creating a thread. It uses non-streaming mode for simplicity.
+
+        Args:
+            prepend_messages (list): Rendered prompt messages
+            assistant (llm.assistant): Assistant record for model/provider
+
+        Returns:
+            str: LLM response text
+
+        Raises:
+            RuntimeError: If LLM call fails or returns invalid format
+        """
+        # Call model.chat() directly (no streaming needed for one-shot)
+        response = assistant.model_id.chat(
+            messages=[],  # No conversation history for one-shot
+            tools=False,  # No tool calling needed
+            stream=False,  # Non-streaming for simplicity
+            prepend_messages=prepend_messages,
+        )
+
+        # Extract response text from APIResponse object
+        if hasattr(response, "choices") and response.choices:
+            first_choice = response.choices[0]
+            if hasattr(first_choice, "message") and hasattr(
+                first_choice.message, "content"
+            ):
+                return first_choice.message.content
+
+        raise RuntimeError("Invalid LLM response format")
+
+    @api.model
+    def _parse_llm_response(self, llm_response_text):
+        """Parse JSON from LLM response
+
+        Extracts and parses JSON data from LLM response, handling both
+        code-block wrapped JSON and raw JSON formats.
+
+        Args:
+            llm_response_text (str): Raw LLM response
+
+        Returns:
+            dict: Parsed invoice data, or None if parsing failed
+        """
+        # Extract JSON from code blocks or raw text
+        json_match = re.search(
+            r"```(?:json)?\s*(\{.*?\})\s*```", llm_response_text, re.DOTALL
+        )
+        if json_match:
+            json_str = json_match.group(1)
+        else:
+            # Try to find raw JSON
+            json_match = re.search(r"\{.*\}", llm_response_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(0)
+            else:
+                _logger.error("No JSON found in LLM response")
+                return None
+
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            _logger.error(f"Failed to parse JSON: {e}")
+            return None
