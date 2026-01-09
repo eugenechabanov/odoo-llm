@@ -42,6 +42,7 @@ import logging
 import re
 
 from odoo import _, api, models
+from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
@@ -262,43 +263,20 @@ class AccountInvoiceImport(models.TransientModel):
             str: Extracted OCR text in markdown format
 
         Raises:
-            RuntimeError: If Mistral provider or OCR model not configured
+            UserError: If Mistral provider or OCR model not configured
         """
         # Get Mistral provider
         provider = self.env["llm.provider"].search(
             [("service", "=", "mistral")], limit=1
         )
         if not provider:
-            raise RuntimeError(
+            raise UserError(_(
                 "Mistral provider not configured. "
                 "Please configure Mistral AI provider in LLM settings."
-            )
+            ))
 
-        # Find OCR model (prefer mistral-ocr-latest)
-        ocr_model = self.env["llm.model"].search(
-            [
-                ("provider_id", "=", provider.id),
-                ("name", "=", "mistral-ocr-latest"),
-                ("model_use", "=", "ocr"),
-            ],
-            limit=1,
-        )
-
-        if not ocr_model:
-            # Fallback: Any OCR model
-            ocr_model = self.env["llm.model"].search(
-                [
-                    ("provider_id", "=", provider.id),
-                    ("model_use", "=", "ocr"),
-                ],
-                limit=1,
-            )
-
-        if not ocr_model:
-            raise RuntimeError(
-                "No OCR model found. "
-                "Please sync models from Mistral provider settings."
-            )
+        # Delegate to provider's method - single source of truth for OCR model selection
+        ocr_model = provider.mistral_get_default_ocr_model()
 
         # Call provider's OCR processing directly
         ocr_response = provider.process_ocr(
@@ -331,7 +309,7 @@ class AccountInvoiceImport(models.TransientModel):
             tuple: (prepend_messages, assistant) ready for model.chat()
 
         Raises:
-            RuntimeError: If assistant or prompt not configured
+            UserError: If assistant or prompt not configured
         """
         from odoo.addons.llm_assistant.utils import render_template
 
@@ -340,10 +318,15 @@ class AccountInvoiceImport(models.TransientModel):
             "invoice_extraction"
         )
         if not assistant or not assistant.prompt_id:
-            raise RuntimeError(
-                "Invoice extraction assistant not configured. "
-                "Please configure the invoice_extraction assistant."
-            )
+            raise UserError(_(
+                "Invoice Extraction Assistant Not Found\n\n"
+                "The invoice extraction assistant is required but not configured.\n\n"
+                "Please check:\n"
+                "1. Go to Settings → LLM → Assistants\n"
+                "2. Ensure 'Invoice Extraction' assistant exists\n"
+                "3. Code should be: invoice_extraction\n"
+                "4. Ensure it has a prompt configured"
+            ))
 
         prompt = assistant.prompt_id
 
@@ -370,7 +353,13 @@ class AccountInvoiceImport(models.TransientModel):
         elif prompt.format == "json":
             messages = list(prompt._parse_dict_messages(json.loads(rendered_content)))
         else:
-            raise RuntimeError(f"Unsupported prompt format: {prompt.format}")
+            raise UserError(_(
+                "Unsupported Prompt Format\n\n"
+                "The invoice extraction prompt has an unsupported format: %s\n\n"
+                "Supported formats: text, yaml, json\n\n"
+                "Please check the prompt configuration in:\n"
+                "Settings → LLM → Prompts → Invoice Data Extraction"
+            ) % prompt.format)
 
         return messages, assistant
 
@@ -389,7 +378,7 @@ class AccountInvoiceImport(models.TransientModel):
             str: LLM response text
 
         Raises:
-            RuntimeError: If LLM call fails or returns invalid format
+            UserError: If LLM call fails or returns invalid format
         """
         # Call model.chat() directly (no streaming needed for one-shot)
         response = assistant.model_id.chat(
@@ -407,7 +396,18 @@ class AccountInvoiceImport(models.TransientModel):
             ):
                 return first_choice.message.content
 
-        raise RuntimeError("Invalid LLM response format")
+        raise UserError(_(
+            "Invalid LLM Response Format\n\n"
+            "The LLM returned an unexpected response format.\n\n"
+            "This could indicate:\n"
+            "1. Model configuration issue\n"
+            "2. Provider API changes\n"
+            "3. Network/connection problem\n\n"
+            "Please check:\n"
+            "- LLM model is properly configured\n"
+            "- Provider API key is valid\n"
+            "- Check logs for detailed error information"
+        ))
 
     @api.model
     def _parse_llm_response(self, llm_response_text):
