@@ -15,12 +15,9 @@ AI-powered invoice data extraction with OCR for Odoo 16 - integrates with OCA's 
 
 1. Install dependencies:
 
-   - `account` (Odoo core)
    - `account_invoice_import` (OCA - invoice import wizard)
-   - `account_edi` (Odoo EDI framework)
-   - `account_edi_ubl_cii` (UBL/CII XML processing)
    - `llm_assistant` (LLM infrastructure)
-   - `llm_tool_ocr_mistral` (Mistral OCR tool)
+   - `llm_mistral` (Mistral provider for OCR)
 
 2. Install the module:
 
@@ -109,18 +106,18 @@ Follows the standard OCA pattern for extending `account_invoice_import`:
 
 ```
 account_invoice_import_llm/
-├── __manifest__.py              # Dependencies and metadata
-├── __init__.py                  # Pre-init hook for module rename
+├── __manifest__.py                   # Dependencies and metadata
+├── __init__.py                       # Pre-init hook for module rename
 ├── models/
-│   ├── account_move.py          # EDI decoder + "Process with AI" button
-│   └── llm_thread_invoice.py   # Dynamic OCR context provider
+│   ├── account_invoice_import_ocr.py # AbstractModel: OCR + LLM extraction
+│   └── account_move.py               # "Process with AI" button
 ├── wizard/
-│   └── account_invoice_import.py # OCA fallback_parse_pdf_invoice()
+│   └── account_invoice_import.py     # OCA fallback_parse_pdf_invoice()
 ├── data/
-│   ├── llm_prompt_invoice_data.xml  # One-shot extraction prompt
-│   └── llm_assistant_data.xml       # Assistant configuration
+│   ├── llm_prompt_invoice_data.xml   # One-shot extraction prompt
+│   └── llm_assistant_data.xml        # Assistant configuration
 └── views/
-    └── account_move_views.xml   # "Process with AI" button
+    └── account_move_views.xml        # Button view extension
 ```
 
 ### Processing Flows
@@ -194,16 +191,16 @@ account_invoice_import_llm/
 
 ### Key Components
 
-#### 1. LLM Thread with Dynamic OCR Context
+#### 1. OCR Extraction AbstractModel
 
-**File**: `models/llm_thread_invoice.py`
+**File**: `models/account_invoice_import_ocr.py`
 
-Provides OCR text dynamically when processing invoice attachments:
+Central extraction logic shared by wizard and manual button:
 
-- **Priority 1**: Check context for `llm_invoice_attachment_id` (decoder mode)
-- **Priority 2**: Search for attachment on invoice (manual mode)
-- Runs Mistral OCR on-the-fly
-- Injects `ocr_text` into prompt context
+- Runs Mistral OCR on file bytes
+- Renders prompt with OCR text context
+- Calls LLM for structured extraction
+- Converts to OCA Invoice Pivot Format
 
 #### 2. One-Shot Extraction Prompt
 
@@ -233,11 +230,13 @@ Structured prompt that instructs LLM to extract:
 }
 ```
 
-#### 3. OCA Pivot Format Conversion
+#### 3. OCA Wizard Integration
 
 **File**: `wizard/account_invoice_import.py`
 
-Converts LLM's camelCase JSON to OCA's snake_case Invoice Pivot Format:
+Extends `fallback_parse_pdf_invoice()` to delegate to OCR AbstractModel.
+
+The AbstractModel converts LLM's camelCase JSON to OCA's snake_case Invoice Pivot Format:
 
 ```python
 {
@@ -330,9 +329,9 @@ To customize extraction behavior:
 
 **Solution**: Check server logs for detailed error. Try with a higher quality scan.
 
-### Issue: "Mistral OCR tool not found"
+### Issue: "Mistral provider not configured"
 
-**Solution**: Install `llm_tool_ocr_mistral` module and configure Mistral provider
+**Solution**: Install `llm_mistral` module and configure Mistral provider with API key
 
 ### Issue: Duplicate records after module rename
 
