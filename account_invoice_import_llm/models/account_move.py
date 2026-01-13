@@ -5,12 +5,9 @@ Adds "Process with AI" button to draft invoices for manual OCR processing.
 """
 
 import base64
-import logging
 
 from odoo import models
 from odoo.exceptions import UserError
-
-_logger = logging.getLogger(__name__)
 
 
 class AccountMove(models.Model):

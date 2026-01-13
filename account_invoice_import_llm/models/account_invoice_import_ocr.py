@@ -20,23 +20,19 @@ class AccountInvoiceImportOCR(models.AbstractModel):
     _description = "Invoice data extraction using LLM and OCR"
 
     @api.model
-    def extract_invoice_data(self, file_data, company, mimetype="application/pdf"):
-        """Extract invoice data from file bytes using OCR + LLM
-
-        This is the main entry point for invoice extraction. It orchestrates:
-        1. OCR extraction from file
-        2. Prompt rendering with OCR context
-        3. LLM call for structured extraction
-        4. Response parsing and validation
-        5. Conversion to OCA invoice pivot format
+    def extract_invoice_data(self, file_data, company=None, mimetype="application/pdf"):
+        """Extract invoice data from file bytes using OCR + LLM.
 
         Args:
             file_data (bytes): Raw file content (PDF or image)
-            company (res.company): Company context for parsing
+            company (res.company): Company context (for future use)
             mimetype (str): MIME type of the file
 
         Returns:
-            dict: Invoice data in OCA pivot format, or False if extraction failed
+            dict: Invoice data in OCA pivot format
+
+        Raises:
+            UserError: If extraction fails at any step
 
         OCA Invoice Pivot Format:
         {
@@ -59,58 +55,24 @@ class AccountInvoiceImportOCR(models.AbstractModel):
             'chatter_msg': [],
         }
         """
-        try:
-            # Step 1: Run OCR directly on file bytes
-            _logger.info("Running OCR on invoice file...")
-            ocr_text = self._run_ocr_on_file_data(file_data, mimetype)
-            if not ocr_text:
-                _logger.warning("OCR returned empty text")
-                return False
-
-            # Step 2: Render prompt with OCR context
-            _logger.info("Rendering extraction prompt...")
-            prepend_messages, assistant = self._render_invoice_extraction_prompt(
-                ocr_text
-            )
-
-            # Step 3: Call LLM directly (no thread)
-            _logger.info(
-                f"Calling LLM for extraction (model: {assistant.model_id.name})..."
-            )
-            llm_response = self._call_llm_for_extraction(prepend_messages, assistant)
-
-            # Step 4: Parse LLM response
-            _logger.info("Parsing LLM response...")
-            invoice_data = self._parse_llm_response(llm_response)
-            if not invoice_data:
-                _logger.warning("Failed to parse LLM response as JSON")
-                return False
-
-            # Step 5: Convert to pivot format
-            _logger.info("Converting to Invoice Pivot Format...")
-            pivot_data = self._convert_llm_data_to_pivot(invoice_data, company)
-
-            _logger.info("LLM-OCR extraction completed successfully")
-            return pivot_data
-
-        except UserError:
-            # Re-raise UserErrors directly (they have good messages)
-            raise
-        except Exception as e:
-            # Log technical error and re-raise with user-friendly message
-            _logger.error(f"LLM-OCR extraction failed: {e}", exc_info=True)
+        # Step 1: Run OCR directly on file bytes
+        ocr_text = self._run_ocr_on_file_data(file_data, mimetype)
+        if not ocr_text:
             raise UserError(
-                _(
-                    "Failed to extract invoice data using OCR.\n\n"
-                    "Error: %s\n\n"
-                    "Please check:\n"
-                    "1. The document is a valid PDF or image\n"
-                    "2. Mistral OCR provider is configured\n"
-                    "3. Invoice Extraction assistant is configured\n"
-                    "4. Check logs for detailed error information"
-                )
-                % str(e)
-            ) from e
+                _("OCR returned empty text. The document may be unreadable or empty.")
+            )
+
+        # Step 2: Render prompt with OCR context
+        prepend_messages, assistant = self._render_invoice_extraction_prompt(ocr_text)
+
+        # Step 3: Call LLM directly (no thread)
+        llm_response = self._call_llm_for_extraction(prepend_messages, assistant)
+
+        # Step 4: Parse LLM response
+        invoice_data = self._parse_llm_response(llm_response)
+
+        # Step 5: Convert to pivot format
+        return self._convert_llm_data_to_pivot(invoice_data)
 
     @api.model
     def _run_ocr_on_file_data(self, file_data, mimetype="application/pdf"):
@@ -260,7 +222,7 @@ class AccountInvoiceImportOCR(models.AbstractModel):
 
     @api.model
     def _parse_llm_response(self, llm_response_text):
-        """Parse JSON from LLM response
+        """Parse JSON from LLM response.
 
         Extracts and parses JSON data from LLM response, handling both
         code-block wrapped JSON and raw JSON formats.
@@ -269,7 +231,10 @@ class AccountInvoiceImportOCR(models.AbstractModel):
             llm_response_text (str): Raw LLM response
 
         Returns:
-            dict: Parsed invoice data, or None if parsing failed
+            dict: Parsed invoice data
+
+        Raises:
+            UserError: If no valid JSON found in response
         """
         # Extract JSON from code blocks or raw text
         json_match = re.search(
@@ -283,17 +248,19 @@ class AccountInvoiceImportOCR(models.AbstractModel):
             if json_match:
                 json_str = json_match.group(0)
             else:
-                _logger.error("No JSON found in LLM response")
-                return None
+                raise UserError(
+                    _("No JSON found in LLM response. The model may have returned an unexpected format.")
+                )
 
         try:
             return json.loads(json_str)
         except json.JSONDecodeError as e:
-            _logger.error(f"Failed to parse JSON: {e}")
-            return None
+            raise UserError(
+                _("Failed to parse JSON from LLM response: %s") % str(e)
+            ) from e
 
     @api.model
-    def _convert_llm_data_to_pivot(self, llm_data, company):
+    def _convert_llm_data_to_pivot(self, llm_data):
         """Convert LLM extraction format → Invoice Pivot Format
 
         LLM Format (camelCase):

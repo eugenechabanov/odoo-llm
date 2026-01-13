@@ -18,27 +18,16 @@ class AccountInvoiceImport(models.TransientModel):
 
     @api.model
     def fallback_parse_pdf_invoice(self, file_data, company):
-        """
-        Fallback parser for PDFs without embedded XML.
-
-        Called by parse_pdf_invoice() when no XML is found in PDF.
-        Delegates to account.invoice.import.ocr AbstractModel for extraction.
-
-        Args:
-            file_data (bytes): Raw PDF file content
-            company (res.company): Company context for parsing
-
-        Returns:
-            dict: Invoice pivot format, or False if parsing failed
-        """
-        # Call parent first (allows other modules to handle first)
+        """Fallback parser using LLM-OCR for PDFs without embedded XML."""
         res = super().fallback_parse_pdf_invoice(file_data, company)
-
         if res:
-            # Another module already handled it
             return res
 
-        # Delegate to OCR extraction AbstractModel
-        return self.env["account.invoice.import.ocr"].extract_invoice_data(
-            file_data, company
-        )
+        # Don't break OCA flow if our extraction fails
+        try:
+            return self.env["account.invoice.import.ocr"].extract_invoice_data(
+                file_data, company
+            )
+        except Exception:
+            _logger.exception("LLM-OCR extraction failed, skipping")
+            return res
