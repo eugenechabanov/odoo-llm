@@ -1,3 +1,9 @@
+16.0.1.0.3 (2026-01-14)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [ADD] Added mistral_get_default_ocr_model() method for unified OCR model selection
+* [IMP] Single source of truth for OCR model selection across all consumers
+
 16.0.1.0.2 (2026-01-07)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
