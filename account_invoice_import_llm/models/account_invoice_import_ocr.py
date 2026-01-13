@@ -93,9 +93,24 @@ class AccountInvoiceImportOCR(models.AbstractModel):
             _logger.info("LLM-OCR extraction completed successfully")
             return pivot_data
 
+        except UserError:
+            # Re-raise UserErrors directly (they have good messages)
+            raise
         except Exception as e:
+            # Log technical error and re-raise with user-friendly message
             _logger.error(f"LLM-OCR extraction failed: {e}", exc_info=True)
-            return False
+            raise UserError(
+                _(
+                    "Failed to extract invoice data using OCR.\n\n"
+                    "Error: %s\n\n"
+                    "Please check:\n"
+                    "1. The document is a valid PDF or image\n"
+                    "2. Mistral OCR provider is configured\n"
+                    "3. Invoice Extraction assistant is configured\n"
+                    "4. Check logs for detailed error information"
+                )
+                % str(e)
+            ) from e
 
     @api.model
     def _run_ocr_on_file_data(self, file_data, mimetype="application/pdf"):
@@ -150,8 +165,8 @@ class AccountInvoiceImportOCR(models.AbstractModel):
     def _render_invoice_extraction_prompt(self, ocr_text):
         """Render the invoice extraction prompt with OCR text
 
-        This method uses the prompt's get_messages() method to render
-        the template with OCR text context (no thread needed).
+        Uses the assistant's dynamic defaults system to merge our context
+        (ocr_text) with the assistant's default values (role, goal, etc.).
 
         Args:
             ocr_text (str): OCR extracted text from invoice
@@ -179,13 +194,16 @@ class AccountInvoiceImportOCR(models.AbstractModel):
                 )
             )
 
-        # Build context (simplified - no thread/invoice needed)
-        context = {
-            "ocr_text": ocr_text,
-        }
+        # Build our context
+        context = {"ocr_text": ocr_text}
 
-        # Use prompt's get_messages() - handles rendering, validation, and parsing
-        messages = assistant.prompt_id.get_messages(context)
+        # Let assistant evaluate default values with our context
+        # This merges assistant's defaults (role, goal, etc.) with our ocr_text
+        # and renders any template expressions
+        evaluated_values = assistant.get_evaluated_default_values(context)
+
+        # Pass complete arguments to prompt
+        messages = assistant.prompt_id.get_messages(evaluated_values)
 
         return messages, assistant
 
@@ -356,10 +374,22 @@ class AccountInvoiceImportOCR(models.AbstractModel):
         if llm_data.get("lines"):
             pivot_lines = []
             for llm_line in llm_data["lines"]:
+                qty = float(llm_line.get("quantity", 1.0))
+                price_unit = float(llm_line.get("unitPrice", 0.0))
+
+                # Use LLM-extracted subtotal if available, otherwise calculate
+                # (LLM's value is more accurate - reflects actual invoice with discounts/rounding)
+                if llm_line.get("lineSubtotal") is not None:
+                    price_subtotal = float(llm_line["lineSubtotal"])
+                else:
+                    price_subtotal = qty * price_unit  # Fallback calculation
+
                 pivot_line = {
                     "name": llm_line.get("description", "Invoice Line"),
-                    "qty": float(llm_line.get("quantity", 1.0)),
-                    "price_unit": float(llm_line.get("unitPrice", 0.0)),
+                    "qty": qty,
+                    "price_unit": price_unit,
+                    "price_subtotal": price_subtotal,  # OCA needs this for adjustment calculations
+                    "taxes": [],  # Always initialize as empty list (OCA expects list, not None)
                 }
 
                 # Tax info

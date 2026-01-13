@@ -51,16 +51,11 @@ class AccountMove(models.Model):
             )
 
         # Extract pivot data using OCR AbstractModel
+        # Note: extract_invoice_data() raises UserError with details if it fails
         file_data = base64.b64decode(attachment.datas)
         pivot_data = self.env["account.invoice.import.ocr"].extract_invoice_data(
             file_data, self.company_id, attachment.mimetype or "application/pdf"
         )
-
-        if not pivot_data:
-            raise UserError(
-                f"Failed to extract data from {attachment.name}. "
-                "The document may be unreadable or in an unsupported format."
-            )
 
         # Update invoice from pivot data
         # Note: _update_invoice_from_pivot() calls post_create_or_update()
