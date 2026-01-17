@@ -1,3 +1,8 @@
+16.0.1.5.3 (2026-01-05)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* [FIX] Prevent duplicate get_prepend_messages() calls in generate_messages()
+
 16.0.1.5.2 (2025-12-02)
 ~~~~~~~~~~~~~~~~~~~~~~~
 
