@@ -19,7 +19,7 @@
         "data/llm_assistant_data.xml",
         "views/account_move_views.xml",
     ],
-    "license": "LGPL-3",
+    "license": "AGPL-3",
     "installable": True,
     "application": False,
     "auto_install": False,
