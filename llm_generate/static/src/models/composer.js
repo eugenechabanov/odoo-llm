@@ -45,9 +45,10 @@ registerPatch({
 
       try {
         // Prepare attachment_ids - just use the raw IDs, not the Many2many format
-        const attachment_ids = attachments.length > 0 
-          ? attachments.map(att => att.id) // Just the IDs as integers
-          : [];
+        const attachment_ids =
+          attachments.length > 0
+            ? attachments.map((att) => att.id) // Just the IDs as integers
+            : [];
 
         // Post user message with body_json containing generation inputs
         this.messaging

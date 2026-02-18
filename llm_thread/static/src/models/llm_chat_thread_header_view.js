@@ -161,7 +161,9 @@ registerModel({
      */
     onClickTopbarThreadName() {
       // Check llmChatView.isSmall which includes chatter aside detection
-      const isSmall = this.threadView.thread.llmChat?.llmChatView?.isSmall ?? this.messaging.device.isSmall;
+      const isSmall =
+        this.threadView.thread.llmChat?.llmChatView?.isSmall ??
+        this.messaging.device.isSmall;
       if (this.isEditingName || isSmall) {
         return;
       }

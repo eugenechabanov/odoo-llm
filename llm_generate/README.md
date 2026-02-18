@@ -20,6 +20,7 @@ The LLM Generate module serves as the unified interface for all content generati
 ### Unified Generation Interface
 
 **Single Method for All Content Types:**
+
 ```python
 # Text generation
 response = thread.generate_response(
@@ -27,7 +28,7 @@ response = thread.generate_response(
     generation_type="text"
 )
 
-# Image generation  
+# Image generation
 image = thread.generate_response(
     user_input="A beautiful landscape with mountains",
     generation_type="image",
@@ -54,7 +55,7 @@ def get_input_schema(self):
     # 1. Assistant's prompt schema (if assistant selected)
     # 2. Thread's direct prompt schema (if prompt directly selected)
     # 3. Model's default schema
-    
+
     if self.assistant_id and self.assistant_id.prompt_id:
         return self.assistant_id.prompt_id.input_schema_json
     elif self.prompt_id:
@@ -64,12 +65,13 @@ def get_input_schema(self):
 ```
 
 **Schema-Driven Form Fields:**
+
 ```javascript
 // Automatic form field generation
 get formFields() {
     const schema = this.inputSchema;
     if (!schema?.properties) return [];
-    
+
     return Object.entries(schema.properties).map(([key, field]) => ({
         name: key,
         type: this.getFieldType(field),
@@ -107,6 +109,7 @@ async _handleContextChange() {
 ```
 
 **Loading State Management:**
+
 - Proper loading indicators during async operations
 - Prevention of premature form rendering
 - Smooth user experience without UI flashing
@@ -119,29 +122,30 @@ async _handleContextChange() {
 ```python
 def generate_response_stream(self, user_input, **kwargs):
     """Generate content with real-time streaming updates"""
-    
+
     # Create placeholder message
     message = self.message_post(
         body="",
         llm_role="assistant"
     )
-    
+
     # Stream content generation
     stream = self.provider_id.generate_stream(
         prompt=user_input,
         model=self.model_id.name,
         **kwargs
     )
-    
+
     # Update message in real-time
     for chunk in stream:
         message.body += chunk.content
         self._notify_message_update(message)
-    
+
     return message
 ```
 
 **Frontend Streaming Support:**
+
 ```javascript
 // Real-time UI updates during generation
 async _streamGeneration(generationData) {
@@ -149,7 +153,7 @@ async _streamGeneration(generationData) {
         route: '/llm/generate/stream',
         params: generationData
     });
-    
+
     // Listen for real-time updates
     this.env.bus.addEventListener('llm_message_update', (event) => {
         this._updateStreamingMessage(event.detail);
@@ -166,7 +170,7 @@ get schemaSource() {
     if (this.state.isLoading) {
         return { type: 'loading', name: 'Loading...' };
     }
-    
+
     if (this.thread?.assistant_id?.prompt_id) {
         return {
             type: 'prompt',
@@ -174,15 +178,15 @@ get schemaSource() {
             source: 'Assistant Prompt'
         };
     }
-    
+
     if (this.thread?.prompt_id) {
         return {
-            type: 'prompt', 
+            type: 'prompt',
             name: this.thread.prompt_id.name,
             source: 'Thread Prompt'
         };
     }
-    
+
     if (this.thread?.model_id) {
         return {
             type: 'model',
@@ -190,12 +194,13 @@ get schemaSource() {
             source: 'Model Default'
         };
     }
-    
+
     return { type: 'none', name: 'No Schema Available' };
 }
 ```
 
 **Visual Schema Indicators:**
+
 - Badge showing schema source type (Prompt/Model/None)
 - Clear indication of which configuration is being used
 - Warning messages when no schema is available
@@ -245,7 +250,7 @@ image_result = env['llm.thread'].generate_content(
 batch_images = env['llm.thread'].generate_batch(
     prompts=[
         "Product photo - laptop on desk",
-        "Product photo - laptop in meeting room", 
+        "Product photo - laptop in meeting room",
         "Product photo - laptop outdoor setting"
     ],
     content_type="image",
@@ -308,29 +313,30 @@ queue = env['llm.generation.queue'].create({
 ### Dynamic Schema-Based Forms
 
 **Automatic Field Generation:**
+
 ```javascript
 // Schema definition
 const schema = {
-    "properties": {
-        "style": {
-            "type": "string",
-            "enum": ["photorealistic", "artistic", "cartoon"],
-            "title": "Image Style",
-            "description": "Choose the visual style"
-        },
-        "mood": {
-            "type": "string", 
-            "title": "Mood",
-            "description": "Describe the desired mood"
-        },
-        "resolution": {
-            "type": "string",
-            "enum": ["512x512", "1024x1024", "1024x1792"],
-            "default": "1024x1024",
-            "title": "Resolution"
-        }
+  properties: {
+    style: {
+      type: "string",
+      enum: ["photorealistic", "artistic", "cartoon"],
+      title: "Image Style",
+      description: "Choose the visual style",
     },
-    "required": ["style", "mood"]
+    mood: {
+      type: "string",
+      title: "Mood",
+      description: "Describe the desired mood",
+    },
+    resolution: {
+      type: "string",
+      enum: ["512x512", "1024x1024", "1024x1792"],
+      default: "1024x1024",
+      title: "Resolution",
+    },
+  },
+  required: ["style", "mood"],
 };
 
 // Automatic form generation creates:
@@ -345,29 +351,29 @@ const schema = {
 ```javascript
 // Custom field types for specific use cases
 const customFieldTypes = {
-    'color': ColorPickerField,
-    'slider': SliderField,
-    'file_upload': FileUploadField,
-    'model_selector': ModelSelectorField
+  color: ColorPickerField,
+  slider: SliderField,
+  file_upload: FileUploadField,
+  model_selector: ModelSelectorField,
 };
 
 // Usage in schema
 const advancedSchema = {
-    "properties": {
-        "primary_color": {
-            "type": "color",
-            "title": "Primary Color",
-            "default": "#3498db"
-        },
-        "creativity": {
-            "type": "slider",
-            "minimum": 0,
-            "maximum": 1,
-            "step": 0.1,
-            "default": 0.7,
-            "title": "Creativity Level"
-        }
-    }
+  properties: {
+    primary_color: {
+      type: "color",
+      title: "Primary Color",
+      default: "#3498db",
+    },
+    creativity: {
+      type: "slider",
+      minimum: 0,
+      maximum: 1,
+      step: 0.1,
+      default: 0.7,
+      title: "Creativity Level",
+    },
+  },
 };
 ```
 
@@ -381,26 +387,26 @@ def generate_with_validation(self, prompt, **kwargs):
     try:
         # Validate inputs
         self._validate_generation_inputs(prompt, **kwargs)
-        
+
         # Check provider availability
         if not self.provider_id.is_available():
             raise UserError("Provider is currently unavailable")
-        
+
         # Validate content type support
         if not self.model_id.supports_content_type(kwargs.get('content_type')):
             raise UserError(f"Model doesn't support {kwargs.get('content_type')}")
-        
+
         # Generate content
         return self._generate_content(prompt, **kwargs)
-        
+
     except ValidationError as e:
         self._log_generation_error(e, 'validation')
         raise UserError(f"Validation failed: {e}")
-        
+
     except APIError as e:
         self._log_generation_error(e, 'api')
         return self._handle_api_error(e)
-        
+
     except Exception as e:
         self._log_generation_error(e, 'unknown')
         raise UserError("An unexpected error occurred during generation")
@@ -414,14 +420,14 @@ _validateForm() {
     const errors = [];
     const values = this.state.formValues;
     const schema = this.inputSchema;
-    
+
     // Required field validation
     schema.required?.forEach(field => {
         if (!values[field]) {
             errors.push(`${field} is required`);
         }
     });
-    
+
     // Type validation
     Object.entries(schema.properties).forEach(([key, fieldSchema]) => {
         const value = values[key];
@@ -429,7 +435,7 @@ _validateForm() {
             errors.push(`Invalid value for ${key}`);
         }
     });
-    
+
     this.state.validationErrors = errors;
     return errors.length === 0;
 }
@@ -442,7 +448,7 @@ _validateForm() {
 ```python
 class CRMLead(models.Model):
     _inherit = 'crm.lead'
-    
+
     def generate_follow_up_email(self):
         """Generate personalized follow-up email using AI"""
         thread = self.env['llm.thread'].create({
@@ -451,7 +457,7 @@ class CRMLead(models.Model):
             'model': self._name,
             'res_id': self.id
         })
-        
+
         # Generate email content
         email_content = thread.generate_response(
             user_input="Generate follow-up email",
@@ -462,7 +468,7 @@ class CRMLead(models.Model):
                 'opportunity_value': self.expected_revenue
             }
         )
-        
+
         return email_content
 ```
 
@@ -471,11 +477,11 @@ class CRMLead(models.Model):
 ```python
 class ProductTemplate(models.Model):
     _inherit = 'product.template'
-    
+
     def generate_marketing_content(self, content_types=['description', 'image']):
         """Generate marketing content for product"""
         results = {}
-        
+
         for content_type in content_types:
             if content_type == 'description':
                 results['description'] = self._generate_description()
@@ -483,9 +489,9 @@ class ProductTemplate(models.Model):
                 results['image'] = self._generate_product_image()
             elif content_type == 'ad_copy':
                 results['ad_copy'] = self._generate_ad_copy()
-        
+
         return results
-    
+
     def _generate_product_image(self):
         """Generate product marketing image"""
         prompt = f"""
@@ -495,7 +501,7 @@ class ProductTemplate(models.Model):
         - Professional, commercial style
         - Clean background, good lighting
         """
-        
+
         return self.env['llm.thread'].generate_content(
             prompt=prompt,
             content_type="image",
@@ -516,7 +522,7 @@ class ProductTemplate(models.Model):
 def generate_response(self, user_input, generation_type="text", **kwargs):
     """Main generation method with unified interface"""
 
-# Streaming generation  
+# Streaming generation
 def generate_response_stream(self, user_input, **kwargs):
     """Generate with real-time streaming updates"""
 
@@ -573,12 +579,14 @@ def _get_cached_schema(self, model_id, prompt_id, assistant_id):
 ### Version 16.0.2.0.0 Changes
 
 **Race Condition Fixes:**
+
 - Fixed async loading issues in media form components
 - Improved schema computation consistency
 - Enhanced loading state management
 - Better error handling and recovery
 
 **New Features:**
+
 - Schema source transparency and indicators
 - Enhanced form validation
 - Improved streaming generation
@@ -592,7 +600,7 @@ def _get_cached_schema(self, model_id, prompt_id, assistant_id):
 
 - **Name**: LLM Generate
 - **Version**: 16.0.2.0.0
-- **Category**: Productivity  
+- **Category**: Productivity
 - **License**: LGPL-3
 - **Dependencies**: `llm`, `llm_assistant`, `mail`
 - **Author**: Apexive Solutions LLC
@@ -631,4 +639,4 @@ This module is licensed under [LGPL-3](https://www.gnu.org/licenses/lgpl-3.0.htm
 
 ---
 
-*© 2025 Apexive Solutions LLC. All rights reserved.*
+_© 2025 Apexive Solutions LLC. All rights reserved._

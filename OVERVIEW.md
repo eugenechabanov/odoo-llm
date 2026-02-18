@@ -57,14 +57,16 @@ body_json = fields.Json()  # Structured data for tool messages
 ### Message Subtypes
 
 Integrated message subtypes for AI interactions:
+
 - **`llm.mt_user`**: User messages in AI conversations
-- **`llm.mt_assistant`**: AI-generated responses  
+- **`llm.mt_assistant`**: AI-generated responses
 - **`llm.mt_tool`**: Tool execution results and data
 - **`llm.mt_system`**: System prompts and configuration messages
 
 ### Performance Optimization
 
 The **`llm_role` field** provides **10x faster** message queries by:
+
 - Eliminating expensive subtype lookups with indexed field access
 - Enabling efficient conversation history processing
 - Simplifying frontend filtering and display logic
@@ -79,7 +81,7 @@ The **`llm_role` field** provides **10x faster** message queries by:
 ```python
 class LLMThread(models.Model):
     _name = "llm.thread"
-    _description = "LLM Chat Thread" 
+    _description = "LLM Chat Thread"
     _inherit = ["mail.thread"]
 ```
 
@@ -91,15 +93,17 @@ class LLMThread(models.Model):
 - **Multi-Threading**: Multiple concurrent conversations per business record
 
 **Key Relationships**:
+
 ```
 Odoo Record (sale.order, project.task, etc.)
     ↓ (1:many relationship)
 LLM Thread(s) - Multiple AI conversations per record
-    ↓ (inherits from mail.thread)  
+    ↓ (inherits from mail.thread)
 Mail Messages - Conversation history with AI enhancements
 ```
 
 **PostgreSQL Advisory Locking**:
+
 - Prevents concurrent generation conflicts
 - Ensures message consistency during streaming
 - Database-level coordination for multi-user scenarios
@@ -118,8 +122,9 @@ class LLMAssistant(models.Model):
 **Core Function**: Provides the intelligence layer that configures HOW to connect Odoo data to AI models:
 
 **Configuration Domains**:
+
 - **Model Selection**: AI provider and model specification
-- **Instruction Templates**: System prompts and conversation templates  
+- **Instruction Templates**: System prompts and conversation templates
 - **Data Mapping**: Odoo record transformation to LLM inputs
 - **Tool Orchestration**: Available tools and usage patterns
 - **Context Management**: History trimming and optimization
@@ -135,8 +140,9 @@ default_values = fields.Json()  # Default template arguments
 ```
 
 **Assistant Types**:
+
 1. **Chat Assistants**: Conversational AI with specific personas
-2. **Generation Assistants**: Content creation workflows  
+2. **Generation Assistants**: Content creation workflows
 3. **Analysis Assistants**: Data analysis and insights
 4. **Training Assistants**: Model fine-tuning workflows
 
@@ -152,6 +158,7 @@ class LLMProvider(models.Model):
 ```
 
 **Provider Integration Pattern**:
+
 ```python
 def _dispatch(self, method, *args, **kwargs):
     """Dynamic method dispatch to service implementations"""
@@ -160,6 +167,7 @@ def _dispatch(self, method, *args, **kwargs):
 ```
 
 **Supported Providers**:
+
 - **OpenAI** (`llm_openai`): GPT models, DALL-E, embeddings
 - **Anthropic** (`llm_anthropic`): Claude models with tool calling
 - **Ollama** (`llm_ollama`): Local model deployment
@@ -180,18 +188,20 @@ class LLMTool(models.Model):
 ```
 
 **Enhanced Tool System**:
+
 - **Structured Data Storage**: Tool results in `body_json` format
 - **MCP Integration**: Model Context Protocol compatibility
 - **Security Framework**: User consent and permission system
 - **Error Handling**: Comprehensive error propagation and logging
 
 **Tool Message Format**:
+
 ```python
 # New structured format
 thread.message_post(
     body_json={
         "tool_call_id": "call_123",
-        "function": "search_records", 
+        "function": "search_records",
         "arguments": {"model": "sale.order", "domain": [...]},
         "result": {"records": [...], "count": 5}
     },
@@ -211,11 +221,13 @@ class LLMStore(models.Model):
 ```
 
 **Vector Store Implementations**:
+
 - **ChromaDB** (`llm_chroma`): HTTP client integration
 - **pgvector** (`llm_pgvector`): PostgreSQL extension
 - **Qdrant** (`llm_qdrant`): Qdrant vector database
 
 **RAG Integration**:
+
 ```python
 # Vector similarity search
 results = store.search_vectors(
@@ -250,7 +262,7 @@ def get_input_schema(self):
     """Generate form schema for model inputs"""
     # Priority order:
     # 1. Assistant's prompt schema
-    # 2. Thread's direct prompt schema  
+    # 2. Thread's direct prompt schema
     # 3. Model's default schema
 ```
 
@@ -270,21 +282,24 @@ Comprehensive fixes for async loading issues:
 The `llm_knowledge` module consolidates functionality from the former `llm_resource` module:
 
 **Consolidated Features**:
+
 - **Resource Management**: Document processing and storage (`llm.resource`)
 - **RAG Capabilities**: Retrieval-Augmented Generation
 - **Vector Integration**: Embedding and similarity search
 - **Processing Pipeline**: Retrieve → Parse → Chunk → Embed → Index
 
 **Processing States**:
+
 ```
 draft → retrieved → parsed → chunked → ready
 ```
 
 **API Compatibility**: All existing methods preserved:
+
 ```python
 # Complete processing pipeline
 resource.process_resource()  # Full pipeline
-resource.retrieve()          # Get content from source  
+resource.retrieve()          # Get content from source
 resource.parse()            # Convert to markdown
 resource.chunk()            # Split into segments
 resource.embed()            # Generate embeddings
@@ -298,15 +313,15 @@ resource.embed()            # Generate embeddings
 # Role-based message posting
 def message_post(self, body=None, llm_role=None, body_json=None, **kwargs):
     """Enhanced message posting with AI-specific fields"""
-    
+
     # Automatic role computation from subtype
     if not llm_role and message_type:
         llm_role = self._compute_role_from_subtype(message_type)
-    
+
     # Structured data handling
     if body_json:
         kwargs['body_json'] = body_json
-        
+
     return super().message_post(body=body, **kwargs)
 ```
 
@@ -319,7 +334,7 @@ def message_post_from_stream(self, stream, llm_role, **kwargs):
     """Create and update message from streaming response"""
     # Create placeholder message
     message = self.message_post(body="", llm_role=llm_role, **kwargs)
-    
+
     # Update content as stream progresses
     for chunk in stream:
         message.body += chunk
@@ -335,7 +350,7 @@ def message_post_from_stream(self, stream, llm_role, **kwargs):
 def _get_available_services(self):
     return super()._get_available_services() + [
         ('openai', 'OpenAI'),
-        ('anthropic', 'Anthropic'), 
+        ('anthropic', 'Anthropic'),
         ('ollama', 'Ollama'),
         # Additional providers...
     ]
@@ -346,7 +361,7 @@ def _get_available_services(self):
 ```python
 def openai_chat(self, messages, model=None, stream=False, **kwargs):
     """OpenAI-specific chat implementation"""
-    
+
 def anthropic_chat(self, messages, model=None, stream=False, **kwargs):
     """Anthropic-specific chat implementation"""
 ```
@@ -359,7 +374,7 @@ def anthropic_chat(self, messages, model=None, stream=False, **kwargs):
 class LLMMCPServer(models.Model):
     _name = "llm.mcp.server"
     _description = "MCP Server Configuration"
-    
+
     name = fields.Char(required=True)
     command = fields.Char(required=True)  # Server start command
     args = fields.Text()                   # Command arguments
@@ -383,6 +398,7 @@ def get_tool_definition(self):
 ### JavaScript Component Structure
 
 **Core Components**:
+
 - **LLMChatContainer**: Main chat interface controller
 - **LLMChatComposer**: Message input and generation forms
 - **LLMChatThreadHeader**: Provider/model/assistant selection
@@ -400,6 +416,7 @@ def get_tool_definition(self):
 ### Role-Based Security
 
 **User Groups**:
+
 - **LLM User** (`llm.group_llm_user`): Basic access to AI features
 - **LLM Manager** (`llm.group_llm_manager`): Full administrative access
 
@@ -462,20 +479,22 @@ read_only_hint = fields.Boolean(default=True)
 ### Module Consolidations
 
 **Completed Consolidations**:
+
 - `llm_resource` → `llm_knowledge` (resource management + RAG)
 - `llm_prompt` → `llm_assistant` (prompt templates + assistants)
 - `llm_mail_message_subtypes` → `llm` (message subtypes)
 
 **Migration Scripts**: Automatic migration preserves all data:
+
 - Message subtype conversion
-- Tool data format migration  
+- Tool data format migration
 - Module dependency updates
 - Configuration preservation
 
 ### Backward Compatibility
 
 - **API Compatibility**: All existing methods continue to work
-- **Data Preservation**: Zero data loss during consolidations  
+- **Data Preservation**: Zero data loss during consolidations
 - **Configuration Migration**: Settings automatically transferred
 - **Progressive Enhancement**: New features don't break existing workflows
 

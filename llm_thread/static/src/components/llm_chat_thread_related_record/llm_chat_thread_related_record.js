@@ -42,7 +42,9 @@ export class LLMChatThreadRelatedRecord extends Component {
   get isSmall() {
     // Check llmChatView.isSmall which includes chatter aside detection
     // Falls back to device.isSmall if llmChatView not available
-    return this.thread.llmChat?.llmChatView?.isSmall ?? this.messaging.device.isSmall;
+    return (
+      this.thread.llmChat?.llmChatView?.isSmall ?? this.messaging.device.isSmall
+    );
   }
 
   /**

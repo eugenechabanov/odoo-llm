@@ -19,23 +19,29 @@ class LLMThread(models.Model):
         # 1. Assistant's prompt schema (if assistant selected)
         # 2. Thread's direct prompt schema (if prompt directly selected)
         # 3. Model's default schema
-        
+
         # Check assistant's prompt first
-        if hasattr(self, 'assistant_id') and self.assistant_id and self.assistant_id.prompt_id:
-            prompt_schema = self._ensure_dict(self.assistant_id.prompt_id.input_schema_json)
-            if prompt_schema and prompt_schema.get('properties'):
+        if (
+            hasattr(self, "assistant_id")
+            and self.assistant_id
+            and self.assistant_id.prompt_id
+        ):
+            prompt_schema = self._ensure_dict(
+                self.assistant_id.prompt_id.input_schema_json
+            )
+            if prompt_schema and prompt_schema.get("properties"):
                 return prompt_schema
-        
+
         # Check thread's direct prompt
         if self.prompt_id and hasattr(self.prompt_id, "input_schema_json"):
             prompt_schema = self._ensure_dict(self.prompt_id.input_schema_json)
-            if prompt_schema and prompt_schema.get('properties'):
+            if prompt_schema and prompt_schema.get("properties"):
                 return prompt_schema
-        
+
         # Fall back to model schema
         if self.model_id and self.model_id.details:
             return self._ensure_dict(self.model_id.details.get("input_schema", {}))
-        
+
         return {}
 
     def _ensure_dict(self, value):
@@ -57,13 +63,13 @@ class LLMThread(models.Model):
 
         # Start with context values
         defaults = dict(context)
-        
+
         # Add schema defaults for any missing properties
         if schema.get("properties"):
             for prop_name, prop_def in schema["properties"].items():
                 if prop_name not in defaults and "default" in prop_def:
                     defaults[prop_name] = prop_def["default"]
-            
+
             # Filter to only include schema properties
             defaults = {
                 k: v
@@ -103,7 +109,7 @@ class LLMThread(models.Model):
 
     def _generate_response(self, message):
         """Handle a user message with generation data in body_json.
-        
+
         If anything goes wrong, this method will fail cleanly without
         creating an assistant message or committing the cursor.
         """
@@ -111,33 +117,32 @@ class LLMThread(models.Model):
 
         # Prepare final inputs
         final_inputs = self.prepare_generation_inputs(
-            message.body_json or {}, 
-            attachment_ids=message.attachment_ids
+            message.body_json or {}, attachment_ids=message.attachment_ids
         )
 
         _logger.info(final_inputs)
         # Generate using model - now returns tuple (output_data, urls)
         output_data, urls = self.model_id.generate(final_inputs)
-        
+
         # Create assistant message first (without attachments)
         generated_message = self.message_post(
             body="",  # Will be updated with markdown content
             llm_role="assistant",
             body_json=output_data,
         )
-        
+
         # Use message method to process URLs and create attachments
         markdown_content, attachments = generated_message.process_generation_urls(urls)
-        
+
         # Update message with final markdown content
-        generated_message.write({'body': markdown_content})
-        
+        generated_message.write({"body": markdown_content})
+
         # Yield the successful result
         yield {
             "type": "message_create",
             "message": generated_message.message_format()[0],
         }
-        
+
         # Return the actual message record for yield from compatibility
         return generated_message
 

@@ -7,8 +7,9 @@ from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
-from ..utils import render_template
 from odoo.addons.llm_thread.models.llm_thread import RelatedRecordProxy
+
+from ..utils import render_template
 
 
 class LLMThreadMock(models.TransientModel):
@@ -417,7 +418,6 @@ class LLMPromptTest(models.TransientModel):
 
             # Add related_record proxy if we have a record
             if self.related_record_ref:
-
                 context["related_record"] = RelatedRecordProxy(self.related_record_ref)
                 context["related_model_name"] = self.related_record_ref._name
                 context["related_model_id"] = self.related_record_ref._name

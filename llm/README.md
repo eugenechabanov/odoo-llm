@@ -24,7 +24,7 @@ The module extends Odoo's `mail.message` model with LLM-specific fields:
 # Performance-optimized role field (10x faster queries)
 llm_role = fields.Selection([
     ('user', 'User'),
-    ('assistant', 'Assistant'), 
+    ('assistant', 'Assistant'),
     ('tool', 'Tool'),
     ('system', 'System')
 ], compute='_compute_llm_role', store=True, index=True)
@@ -36,9 +36,10 @@ body_json = fields.Json()
 ### AI Message Subtypes
 
 Integrated message subtypes for AI interactions:
+
 - **`llm.mt_user`**: User messages in AI conversations
 - **`llm.mt_assistant`**: AI-generated responses
-- **`llm.mt_tool`**: Tool execution results and data  
+- **`llm.mt_tool`**: Tool execution results and data
 - **`llm.mt_system`**: System prompts and configuration messages
 
 ### Provider Framework
@@ -53,6 +54,7 @@ provider._dispatch('generate', prompt=prompt, type='image')
 ```
 
 **Supported Providers:**
+
 - **OpenAI** - GPT models, DALL-E, embeddings
 - **Anthropic** - Claude models with tool calling
 - **Ollama** - Local model deployment
@@ -99,6 +101,7 @@ The new `llm_role` field provides dramatic performance improvements:
 ### Basic Configuration
 
 1. **Set up AI Provider:**
+
    ```
    Navigate to: LLM → Configuration → Providers
    Create new provider with API credentials
@@ -106,8 +109,9 @@ The new `llm_role` field provides dramatic performance improvements:
    ```
 
 2. **Configure Models:**
+
    ```
-   Go to: LLM → Configuration → Models  
+   Go to: LLM → Configuration → Models
    Set default models for chat, embedding, etc.
    Configure model parameters and capabilities
    ```
@@ -133,28 +137,36 @@ The new `llm_role` field provides dramatic performance improvements:
 ### Key Models
 
 #### `llm.provider`
+
 Manages connections to AI service providers:
+
 - API authentication and configuration
 - Model discovery and import
 - Service-specific implementations
 - Usage tracking and monitoring
 
-#### `llm.model` 
+#### `llm.model`
+
 Represents individual AI models:
+
 - Model capabilities and parameters
 - Publisher information and status
 - Default model configuration
 - Performance and cost metadata
 
 #### `llm.publisher`
+
 Tracks AI model publishers:
+
 - Organization information
 - Official status verification
 - Model portfolio management
 - Publisher-specific settings
 
 #### `mail.message` (Extended)
+
 Enhanced with LLM-specific fields:
+
 - `llm_role`: Performance-optimized role tracking
 - `body_json`: Structured data for tool messages
 - Computed role from message subtypes
@@ -223,11 +235,12 @@ thread.message_post(
 ### Extending with New Providers
 
 1. **Create Provider Module:**
+
    ```python
    class LLMProvider(models.Model):
        _inherit = "llm.provider"
-       
-       @api.model  
+
+       @api.model
        def _get_available_services(self):
            return super()._get_available_services() + [
                ('my_service', 'My AI Service')
@@ -239,7 +252,7 @@ thread.message_post(
    def my_service_chat(self, messages, model=None, **kwargs):
        """Service-specific chat implementation"""
        # Implementation details
-       
+
    def my_service_embedding(self, text, model=None, **kwargs):
        """Service-specific embedding implementation"""
        # Implementation details
@@ -250,13 +263,13 @@ thread.message_post(
 ```python
 class CustomThread(models.Model):
     _inherit = "llm.thread"
-    
+
     def message_post(self, **kwargs):
         # Custom pre-processing
         if kwargs.get('llm_role') == 'custom':
             # Handle custom role logic
             pass
-            
+
         return super().message_post(**kwargs)
 ```
 
@@ -265,11 +278,13 @@ class CustomThread(models.Model):
 ### From Previous Versions
 
 **Message Subtype Migration:**
+
 - Message subtypes moved from separate module to base module
 - Automatic migration preserves existing data
 - Performance improvements applied to existing messages
 
 **Role Field Migration:**
+
 - Automatic computation of `llm_role` for existing messages
 - Database migration creates indexes for performance
 - Backward compatibility maintained
@@ -277,6 +292,7 @@ class CustomThread(models.Model):
 ### Breaking Changes
 
 **Version 16.0.1.3.0:**
+
 - Moved message subtypes to base module
 - Added required `llm_role` field computation
 - Enhanced provider dispatch mechanism
@@ -305,4 +321,4 @@ This module is licensed under [LGPL-3](https://www.gnu.org/licenses/lgpl-3.0.htm
 
 ---
 
-*© 2025 Apexive Solutions LLC. All rights reserved.*
+_© 2025 Apexive Solutions LLC. All rights reserved._

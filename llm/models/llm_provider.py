@@ -107,9 +107,11 @@ class LLMProvider(models.Model):
         self.ensure_one()
 
         # Create wizard first so it has an ID
-        wizard = self.env["llm.fetch.models.wizard"].create({
-            "provider_id": self.id,
-        })
+        wizard = self.env["llm.fetch.models.wizard"].create(
+            {
+                "provider_id": self.id,
+            }
+        )
 
         # Get existing models for comparison
         existing_models = {
@@ -150,15 +152,17 @@ class LLMProvider(models.Model):
             if existing:
                 status = "modified" if existing.details != details else "existing"
 
-            lines_to_create.append({
-                "wizard_id": wizard.id,
-                "name": name,
-                "model_use": model_use,
-                "status": status,
-                "details": details,
-                "existing_model_id": existing.id if existing else False,
-                "selected": status in ["new", "modified"],
-            })
+            lines_to_create.append(
+                {
+                    "wizard_id": wizard.id,
+                    "name": name,
+                    "model_use": model_use,
+                    "status": status,
+                    "details": details,
+                    "existing_model_id": existing.id if existing else False,
+                    "selected": status in ["new", "modified"],
+                }
+            )
 
         # Create all lines
         if lines_to_create:

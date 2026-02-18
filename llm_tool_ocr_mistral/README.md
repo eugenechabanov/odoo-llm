@@ -25,11 +25,13 @@ Unlike traditional OCR, Mistral's vision models understand document structure an
 ### Install Steps
 
 1. **Install required Odoo modules:**
+
    ```bash
    odoo-bin -d your_database -i llm,llm_mistral,llm_tool,llm_tool_ocr_mistral
    ```
 
 2. **Configure Mistral Provider:**
+
    - Navigate to **LLM → Providers → Mistral**
    - Add your Mistral API key
    - Click **Sync Models**
@@ -71,6 +73,7 @@ thread.generate_response()
 **Tool Name:** `extract_text_from_attachment`
 
 **Input:**
+
 ```json
 {
   "attachment_id": 5
@@ -78,6 +81,7 @@ thread.generate_response()
 ```
 
 **Output:**
+
 ```json
 {
   "text": "Extracted text content from the document...",
@@ -134,16 +138,19 @@ The assistant's prompt template tells it about attachments and how to use OCR.
 ## Screenshots
 
 ### 1. Configure Mistral Provider
+
 ![Mistral Provider](static/description/screenshot-mistral-provider.png)
-*Add API key and sync models*
+_Add API key and sync models_
 
 ### 2. OCR Models Available
+
 ![OCR Models](static/description/screenshot-ocr-models.png)
-*Mistral vision models ready for parsing*
+_Mistral vision models ready for parsing_
 
 ### 3. Text Extraction
+
 ![OCR Results](static/description/screenshot-compare-image.png)
-*Clean text extracted from invoices and receipts*
+_Clean text extracted from invoices and receipts_
 
 ---
 
@@ -167,6 +174,7 @@ odoo-bin -d your_database -i llm_mcp_server
 ```
 
 **Compatible Clients:**
+
 - Claude Desktop
 - Cursor IDE
 - Claude Code CLI
@@ -198,20 +206,24 @@ Configure in **LLM → Tools → Extract Text from Attachment**:
 ## Troubleshooting
 
 **Tool not found?**
+
 - Check `llm_tool_ocr_mistral` is installed
 - Verify tool is active in **LLM → Tools**
 
 **No vision models?**
+
 - Go to **LLM → Providers → Mistral**
 - Click **Sync Models**
 - Verify API key is valid
 
 **Extraction fails?**
+
 - Verify attachment ID exists
 - Check attachment is image/PDF format
 - Ensure Mistral vision model is available
 
 **Poor quality results?**
+
 - Use higher resolution images (300+ DPI)
 - Ensure text is legible
 - Try clearer scan/photo

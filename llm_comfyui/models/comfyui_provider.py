@@ -89,14 +89,14 @@ class LLMProvider(models.Model):
 
         # Store schemas in details field
         model_details = model_record.details or {}
-        model_details.update({
-            "input_schema": input_schema,
-            "output_schema": output_schema,
-        })
-        
-        model_record.write({
-            "details": model_details
-        })
+        model_details.update(
+            {
+                "input_schema": input_schema,
+                "output_schema": output_schema,
+            }
+        )
+
+        model_record.write({"details": model_details})
 
     def comfyui_generate(self, inputs, model_record=None, stream=False):
         """Generate media content using ComfyUI
@@ -145,14 +145,14 @@ class LLMProvider(models.Model):
 
             # Extract output URLs with metadata
             urls = self._comfyui_extract_output_urls_with_metadata(result)
-            
+
             # Create output data
             output_data = {
                 "raw_response": result,
                 "prompt_id": prompt_id,
                 "inputs": inputs,
                 "provider": "comfyui",
-                "workflow_json": prompt
+                "workflow_json": prompt,
             }
 
             # Return results based on streaming mode
@@ -239,7 +239,7 @@ class LLMProvider(models.Model):
         if not outputs:
             raise UserError(_("No outputs found in ComfyUI response"))
         _logger.info(f"ComfyUI: outputs: {outputs}")
-        
+
         # Process each node's outputs
         for node_id, node_output in outputs.items():
             # Check for images in the node output
@@ -265,28 +265,32 @@ class LLMProvider(models.Model):
 
                         # Construct the final URL
                         image_url = f"{base_url}{path_parts[0]}?{'&'.join(query_parts)}"
-                        
+
                         # Create URL metadata
                         url_data = {
-                            'url': image_url,
-                            'filename': filename,
-                            'subfolder': subfolder,
-                            'type': type_folder,
-                            'node_id': node_id
+                            "url": image_url,
+                            "filename": filename,
+                            "subfolder": subfolder,
+                            "type": type_folder,
+                            "node_id": node_id,
                         }
-                        
+
                         # Try to determine content type from filename
-                        if filename.lower().endswith('.png'):
-                            url_data['content_type'] = 'image/png'
-                        elif filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
-                            url_data['content_type'] = 'image/jpeg'
-                        elif filename.lower().endswith('.gif'):
-                            url_data['content_type'] = 'image/gif'
-                        elif filename.lower().endswith('.webp'):
-                            url_data['content_type'] = 'image/webp'
+                        if filename.lower().endswith(".png"):
+                            url_data["content_type"] = "image/png"
+                        elif filename.lower().endswith(
+                            ".jpg"
+                        ) or filename.lower().endswith(".jpeg"):
+                            url_data["content_type"] = "image/jpeg"
+                        elif filename.lower().endswith(".gif"):
+                            url_data["content_type"] = "image/gif"
+                        elif filename.lower().endswith(".webp"):
+                            url_data["content_type"] = "image/webp"
                         else:
-                            url_data['content_type'] = 'image/png'  # Default for ComfyUI
-                        
+                            url_data["content_type"] = (
+                                "image/png"  # Default for ComfyUI
+                            )
+
                         urls.append(url_data)
 
         _logger.info(f"ComfyUI: Extracted {len(urls)} output URLs")

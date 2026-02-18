@@ -249,7 +249,9 @@ class AccountInvoiceImportOCR(models.AbstractModel):
                 json_str = json_match.group(0)
             else:
                 raise UserError(
-                    _("No JSON found in LLM response. The model may have returned an unexpected format.")
+                    _(
+                        "No JSON found in LLM response. The model may have returned an unexpected format."
+                    )
                 )
 
         try:
@@ -375,9 +377,7 @@ class AccountInvoiceImportOCR(models.AbstractModel):
             parsed_inv["lines"] = pivot_lines
         else:
             # If no lines extracted, create a single line with total amount
-            _logger.warning(
-                "No invoice lines extracted by LLM, creating single line"
-            )
+            _logger.warning("No invoice lines extracted by LLM, creating single line")
             parsed_inv["lines"] = [
                 {
                     "name": _("Invoice Line (no details extracted)"),

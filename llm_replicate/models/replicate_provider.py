@@ -1,4 +1,3 @@
-import json
 import logging
 
 import jsonref
@@ -130,18 +129,18 @@ class LLMProvider(models.Model):
 
         # Store schemas in details field
         model_details = model_record.details or {}
-        model_details.update({
-            "input_schema": input_schema if input_schema else None,
-            "output_schema": output_schema if output_schema else None,
-        })
-        
-        model_record.write({
-            "details": model_details
-        })
+        model_details.update(
+            {
+                "input_schema": input_schema if input_schema else None,
+                "output_schema": output_schema if output_schema else None,
+            }
+        )
+
+        model_record.write({"details": model_details})
 
     def replicate_generate(self, inputs, model_record=None, stream=False):
         """Generate content using Replicate
-        
+
         Returns:
             tuple: (output_dict, urls_list) where:
                 - output_dict: Dictionary containing provider-specific output data
@@ -164,13 +163,13 @@ class LLMProvider(models.Model):
 
         # Extract URLs with metadata from the result
         urls = self._replicate_extract_urls_with_metadata(result)
-        
+
         # Create output data
         output_data = {
             "raw_response": result,
             "model_name": model_name,
             "inputs": inputs,
-            "provider": "replicate"
+            "provider": "replicate",
         }
 
         if stream:
@@ -257,53 +256,57 @@ class LLMProvider(models.Model):
             return None
 
         url_data = {
-            'url': None,
-            'content_type': 'application/octet-stream',
-            'filename': 'generated_content'
+            "url": None,
+            "content_type": "application/octet-stream",
+            "filename": "generated_content",
         }
 
         # FileOutput object from Replicate v1.0.0+
         if hasattr(item, "url"):
-            url_data['url'] = item.url
-            
+            url_data["url"] = item.url
+
             # Extract filename from URL
             if item.url:
-                filename = item.url.split('/')[-1]
+                filename = item.url.split("/")[-1]
                 if filename:
-                    url_data['filename'] = filename
-                    
+                    url_data["filename"] = filename
+
                 # Try to determine content type from URL/filename
-                if filename.lower().endswith('.png'):
-                    url_data['content_type'] = 'image/png'
-                elif filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
-                    url_data['content_type'] = 'image/jpeg'
-                elif filename.lower().endswith('.gif'):
-                    url_data['content_type'] = 'image/gif'
-                elif filename.lower().endswith('.mp4'):
-                    url_data['content_type'] = 'video/mp4'
-                elif filename.lower().endswith('.webp'):
-                    url_data['content_type'] = 'image/webp'
-                    
+                if filename.lower().endswith(".png"):
+                    url_data["content_type"] = "image/png"
+                elif filename.lower().endswith(".jpg") or filename.lower().endswith(
+                    ".jpeg"
+                ):
+                    url_data["content_type"] = "image/jpeg"
+                elif filename.lower().endswith(".gif"):
+                    url_data["content_type"] = "image/gif"
+                elif filename.lower().endswith(".mp4"):
+                    url_data["content_type"] = "video/mp4"
+                elif filename.lower().endswith(".webp"):
+                    url_data["content_type"] = "image/webp"
+
         # Direct string URL (older versions or direct URLs)
         elif isinstance(item, str):
-            url_data['url'] = item
-            filename = item.split('/')[-1]
+            url_data["url"] = item
+            filename = item.split("/")[-1]
             if filename:
-                url_data['filename'] = filename
-                
+                url_data["filename"] = filename
+
                 # Try to determine content type from URL/filename
-                if filename.lower().endswith('.png'):
-                    url_data['content_type'] = 'image/png'
-                elif filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
-                    url_data['content_type'] = 'image/jpeg'
-                elif filename.lower().endswith('.gif'):
-                    url_data['content_type'] = 'image/gif'
-                elif filename.lower().endswith('.mp4'):
-                    url_data['content_type'] = 'video/mp4'
-                elif filename.lower().endswith('.webp'):
-                    url_data['content_type'] = 'image/webp'
+                if filename.lower().endswith(".png"):
+                    url_data["content_type"] = "image/png"
+                elif filename.lower().endswith(".jpg") or filename.lower().endswith(
+                    ".jpeg"
+                ):
+                    url_data["content_type"] = "image/jpeg"
+                elif filename.lower().endswith(".gif"):
+                    url_data["content_type"] = "image/gif"
+                elif filename.lower().endswith(".mp4"):
+                    url_data["content_type"] = "video/mp4"
+                elif filename.lower().endswith(".webp"):
+                    url_data["content_type"] = "image/webp"
         else:
             # Convert other types to string as fallback
-            url_data['url'] = str(item)
+            url_data["url"] = str(item)
 
-        return url_data if url_data['url'] else None
+        return url_data if url_data["url"] else None

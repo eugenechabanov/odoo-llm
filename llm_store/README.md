@@ -25,7 +25,7 @@ class LLMStore(models.Model):
     _name = "llm.store"
     _inherit = ["mail.thread"]
     _description = "LLM Vector Store"
-    
+
     def _dispatch(self, method, *args, **kwargs):
         """Dynamic dispatch to service-specific implementation"""
         service_method = f"{self.service}_{method}"
@@ -36,8 +36,9 @@ class LLMStore(models.Model):
 ```
 
 **Supported Vector Store Providers:**
+
 - **ChromaDB** (`llm_chroma`) - HTTP client integration with persistent storage
-- **pgvector** (`llm_pgvector`) - PostgreSQL extension for native SQL vector operations  
+- **pgvector** (`llm_pgvector`) - PostgreSQL extension for native SQL vector operations
 - **Qdrant** (`llm_qdrant`) - High-performance vector search engine
 - **Extensible Architecture** - Easy addition of new vector store providers
 
@@ -49,7 +50,7 @@ class LLMStore(models.Model):
 class LLMStoreCollection(models.Model):
     _name = "llm.store.collection"
     _description = "Vector Store Collection"
-    
+
     name = fields.Char(required=True)
     store_id = fields.Many2one('llm.store', required=True)
     dimension = fields.Integer(required=True)
@@ -58,14 +59,14 @@ class LLMStoreCollection(models.Model):
         ('euclidean', 'Euclidean Distance'),
         ('dot_product', 'Dot Product')
     ], default='cosine')
-    
+
     def create_collection(self):
         """Create collection in vector store"""
-        return self.store_id._dispatch('create_collection', 
+        return self.store_id._dispatch('create_collection',
                                      name=self.name,
                                      dimension=self.dimension,
                                      metric=self.distance_metric)
-    
+
     def insert_vectors(self, vectors, metadata=None, ids=None):
         """Insert vectors with optional metadata"""
         return self.store_id._dispatch('insert_vectors',
@@ -73,11 +74,11 @@ class LLMStoreCollection(models.Model):
                                      vectors=vectors,
                                      metadata=metadata,
                                      ids=ids)
-    
+
     def search_vectors(self, query_vector, limit=10, filter_metadata=None):
         """Search similar vectors"""
         return self.store_id._dispatch('search_vectors',
-                                     collection=self.name, 
+                                     collection=self.name,
                                      query_vector=query_vector,
                                      limit=limit,
                                      filter=filter_metadata)
@@ -99,7 +100,7 @@ collection.insert_vectors(
 collection.insert_vectors(
     vectors=[
         [0.1, 0.2, 0.3, ...],  # Document 1, chunk 1
-        [0.4, 0.5, 0.6, ...],  # Document 1, chunk 2  
+        [0.4, 0.5, 0.6, ...],  # Document 1, chunk 2
         [0.7, 0.8, 0.9, ...]   # Document 2, chunk 1
     ],
     metadata=[
@@ -154,46 +155,46 @@ complex_results = collection.search_vectors(
 
 ```python
 class KnowledgeSearchTool(models.Model):
-    _name = "llm.tool.knowledge.search" 
+    _name = "llm.tool.knowledge.search"
     _inherit = "llm.tool"
-    
+
     def knowledge_search_execute(self, query, collection_id=None, limit=5):
         """Search knowledge base using vector similarity"""
-        
+
         # Get embedding for query
         embedding_model = self.env['llm.model'].search([
             ('model_use', '=', 'embedding'),
             ('default', '=', True)
         ], limit=1)
-        
+
         query_embedding = embedding_model.provider_id.embedding(
             text=query,
             model=embedding_model.name
         )
-        
+
         # Search in vector store
         if collection_id:
             collection = self.env['llm.knowledge.collection'].browse(collection_id)
         else:
             collection = self.env['llm.knowledge.collection'].search([], limit=1)
-        
+
         if not collection or not collection.store_collection_id:
             return {'error': 'No vector collection available'}
-        
+
         # Perform similarity search
         results = collection.store_collection_id.search_vectors(
             query_vector=query_embedding,
             limit=limit,
             filter_metadata={'active': True}
         )
-        
+
         # Format results for LLM consumption
         formatted_results = []
         for result in results:
             chunk = self.env['llm.knowledge.chunk'].search([
                 ('vector_id', '=', result['id'])
             ], limit=1)
-            
+
             if chunk:
                 formatted_results.append({
                     'content': chunk.content,
@@ -201,7 +202,7 @@ class KnowledgeSearchTool(models.Model):
                     'similarity_score': result.get('score', 0),
                     'metadata': result.get('metadata', {})
                 })
-        
+
         return {
             'query': query,
             'results_count': len(formatted_results),
@@ -321,12 +322,12 @@ docs_collection.create_collection()
 ```python
 def optimize_collection_indices(self):
     """Optimize vector store indices for better performance"""
-    
+
     if self.service == 'pgvector':
         # Optimize pgvector indices
         self._optimize_pgvector_indices()
     elif self.service == 'qdrant':
-        # Optimize Qdrant indices  
+        # Optimize Qdrant indices
         self._optimize_qdrant_indices()
     elif self.service == 'chroma':
         # ChromaDB auto-optimization
@@ -337,25 +338,25 @@ def _optimize_pgvector_indices(self):
     collections = self.env['llm.store.collection'].search([
         ('store_id', '=', self.id)
     ])
-    
+
     for collection in collections:
         table_name = f"vectors_{collection.name}"
-        
+
         # Analyze table for statistics
         self.env.cr.execute(f"ANALYZE {table_name};")
-        
+
         # Update index parameters based on data size
         self.env.cr.execute(f"""
             SELECT COUNT(*) FROM {table_name};
         """)
         row_count = self.env.cr.fetchone()[0]
-        
+
         if row_count > 10000:
             # Use IVFFlat with more lists for larger datasets
             lists = min(row_count // 1000, 1000)
             self.env.cr.execute(f"""
                 DROP INDEX IF EXISTS {table_name}_embedding_idx;
-                CREATE INDEX {table_name}_embedding_idx 
+                CREATE INDEX {table_name}_embedding_idx
                 ON {table_name} USING ivfflat (embedding vector_cosine_ops)
                 WITH (lists = {lists});
             """)
@@ -366,31 +367,31 @@ def _optimize_pgvector_indices(self):
 ```python
 def insert_vectors_batch(self, collection, vectors, metadata=None, ids=None, batch_size=1000):
     """Insert vectors in optimized batches"""
-    
+
     total_vectors = len(vectors)
     results = []
-    
+
     for i in range(0, total_vectors, batch_size):
         batch_end = min(i + batch_size, total_vectors)
-        
+
         batch_vectors = vectors[i:batch_end]
         batch_metadata = metadata[i:batch_end] if metadata else None
         batch_ids = ids[i:batch_end] if ids else None
-        
+
         # Insert batch
         batch_result = self._dispatch('insert_vectors',
                                     collection=collection,
                                     vectors=batch_vectors,
-                                    metadata=batch_metadata, 
+                                    metadata=batch_metadata,
                                     ids=batch_ids)
-        
+
         results.append(batch_result)
-        
+
         # Progress tracking
         if hasattr(self, '_notify_progress'):
             progress = (batch_end / total_vectors) * 100
             self._notify_progress(f"Inserted {batch_end}/{total_vectors} vectors ({progress:.1f}%)")
-    
+
     return results
 ```
 
@@ -413,28 +414,28 @@ def insert_vectors_batch(self, collection, vectors, metadata=None, ids=None, bat
 
 ### Supported Vector Stores
 
-| Provider | Module | Description | Best For |
-|----------|--------|-------------|----------|
-| ChromaDB | `llm_chroma` | HTTP-based vector database | Development and small deployments |
-| pgvector | `llm_pgvector` | PostgreSQL extension | Production with existing PostgreSQL |
-| Qdrant | `llm_qdrant` | High-performance vector engine | Large-scale production deployments |
+| Provider | Module         | Description                    | Best For                            |
+| -------- | -------------- | ------------------------------ | ----------------------------------- |
+| ChromaDB | `llm_chroma`   | HTTP-based vector database     | Development and small deployments   |
+| pgvector | `llm_pgvector` | PostgreSQL extension           | Production with existing PostgreSQL |
+| Qdrant   | `llm_qdrant`   | High-performance vector engine | Large-scale production deployments  |
 
 ### Performance Characteristics
 
-| Operation | ChromaDB | pgvector | Qdrant |
-|-----------|----------|----------|--------|
-| Insert Speed | Good | Excellent | Excellent |
-| Search Speed | Good | Very Good | Excellent |
-| Scalability | Limited | Good | Excellent |
-| Memory Usage | Moderate | Low | Moderate |
-| Setup Complexity | Low | Medium | Medium |
+| Operation        | ChromaDB | pgvector  | Qdrant    |
+| ---------------- | -------- | --------- | --------- |
+| Insert Speed     | Good     | Excellent | Excellent |
+| Search Speed     | Good     | Very Good | Excellent |
+| Scalability      | Limited  | Good      | Excellent |
+| Memory Usage     | Moderate | Low       | Moderate  |
+| Setup Complexity | Low      | Medium    | Medium    |
 
 ## Related Modules
 
 - **`llm`**: Base infrastructure and provider framework
 - **`llm_knowledge`**: Knowledge base and RAG integration
 - **`llm_chroma`**: ChromaDB vector store implementation
-- **`llm_pgvector`**: PostgreSQL pgvector implementation  
+- **`llm_pgvector`**: PostgreSQL pgvector implementation
 - **`llm_qdrant`**: Qdrant vector store implementation
 - **`llm_tool_knowledge`**: Knowledge search tool integration
 
@@ -451,4 +452,4 @@ This module is licensed under [LGPL-3](https://www.gnu.org/licenses/lgpl-3.0.htm
 
 ---
 
-*© 2025 Apexive Solutions LLC. All rights reserved.*
+_© 2025 Apexive Solutions LLC. All rights reserved._

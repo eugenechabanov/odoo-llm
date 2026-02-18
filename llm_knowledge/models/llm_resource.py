@@ -82,7 +82,7 @@ class LLMResource(models.Model):
         compute="_compute_kanban_state",
         store=True,
     )
-    
+
     collection_ids = fields.Many2many(
         "llm.knowledge.collection",
         relation="llm_knowledge_resource_collection_rel",

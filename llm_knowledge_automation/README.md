@@ -11,6 +11,7 @@ This module extends `llm_knowledge` with automated synchronization capabilities.
 ### The Problem
 
 Without automation:
+
 - You update a product price → AI still tells customers the old price
 - You publish a new FAQ → Need to manually add it to knowledge base
 - You archive a document → AI might still reference outdated info
@@ -19,6 +20,7 @@ Without automation:
 ### The Solution
 
 With automation enabled:
+
 - Create a record → Automatically added to knowledge base
 - Update a record → Knowledge base updates in real-time
 - Delete a record → Automatically removed from knowledge base
@@ -51,6 +53,7 @@ With automation enabled:
 ## Installation
 
 1. **Install dependencies**:
+
    - `llm_knowledge` module (required)
    - `base_automation` module (required)
 
@@ -88,6 +91,7 @@ With automation enabled:
 **What happens behind the scenes:**
 
 When you enable automation, the system creates 3 automated actions for each domain filter:
+
 - **On creation**: New record created → RAG resource created and added to collection
 - **On update**: Record updated → RAG resource synced; if no longer matches domain, removed from collection
 - **On deletion**: Record deleted → RAG resource removed from collection and cleaned up
@@ -103,6 +107,7 @@ Your knowledge base now updates automatically. Create, update, or delete records
 **Goal**: Keep product catalog in sync with knowledge base
 
 **Setup**:
+
 - Model: `product.product`
 - Domain: `[('is_published', '=', True)]`
 - Automated Sync: ON
@@ -114,6 +119,7 @@ Your knowledge base now updates automatically. Create, update, or delete records
 **Goal**: Keep HR policies current in knowledge base
 
 **Setup**:
+
 - Model: `document.page`
 - Domain: `[('category', '=', 'policy'), ('status', '=', 'active')]`
 - Automated Sync: ON
@@ -125,6 +131,7 @@ Your knowledge base now updates automatically. Create, update, or delete records
 **Goal**: Build knowledge base from resolved tickets
 
 **Setup**:
+
 - Model: `helpdesk.ticket`
 - Domain: `[('state', '=', 'solved'), ('solution_documented', '=', True)]`
 - Automated Sync: ON
@@ -219,12 +226,12 @@ collection.write({
 
 ## Configuration Options
 
-| Field | Description | Default |
-|-------|-------------|---------|
-| `automated_sync` | Enable automatic synchronization | `False` |
-| `auto_process_resources` | Auto-run RAG pipeline for new resources | `True` |
-| `domain_ids` | List of domain filters | `[]` |
-| `automation_ids` | Generated automation rules (read-only) | `[]` |
+| Field                    | Description                             | Default |
+| ------------------------ | --------------------------------------- | ------- |
+| `automated_sync`         | Enable automatic synchronization        | `False` |
+| `auto_process_resources` | Auto-run RAG pipeline for new resources | `True`  |
+| `domain_ids`             | List of domain filters                  | `[]`    |
+| `automation_ids`         | Generated automation rules (read-only)  | `[]`    |
 
 ## Troubleshooting
 
@@ -262,6 +269,7 @@ LGPL-3
 ## Author
 
 **Apexive Solutions LLC**
+
 - Website: https://github.com/apexive/odoo-llm
 - Email: info@apexive.com
 

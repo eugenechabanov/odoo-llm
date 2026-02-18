@@ -39,6 +39,10 @@
                             <field name="active" />
                             <field name="requires_user_consent" />
                             <field
+                name="auto_update"
+                attrs="{'invisible': [('implementation', '!=', 'function')]}"
+              />
+                            <field
                 name="server_action_id"
                 attrs="{'invisible': [('implementation', '!=', 'server_action')],
                                           'required': [('implementation', '=', 'server_action')]}"
@@ -93,6 +97,31 @@
                 >This JSON schema defines the parameters accepted by this tool. If left empty, the schema will be automatically generated from the implementation's execute method signature and type hints.</p>
                                 <p
                 >Use this field when you want to override the automatic schema generation or provide a more detailed schema with examples, enums, or other constraints.</p>
+                            </div>
+                        </page>
+                        <page
+              string="Technical Info"
+              attrs="{'invisible': [('implementation', '!=', 'function')]}"
+            >
+                            <group>
+                                <field name="decorator_model" readonly="1" />
+                                <field name="decorator_method" readonly="1" />
+                            </group>
+                            <div class="alert alert-info" role="alert">
+                                <p><strong
+                  >Function Tool Information:</strong></p>
+                                <p
+                >This tool is automatically linked to a Python method decorated with @llm_tool.</p>
+                                <p>Model: <strong><field
+                      name="decorator_model"
+                      readonly="1"
+                    /></strong></p>
+                                <p>Method: <strong><field
+                      name="decorator_method"
+                      readonly="1"
+                    /></strong></p>
+                                <p
+                >These fields are set during auto-registration and cannot be edited manually.</p>
                             </div>
                         </page>
                     </notebook>

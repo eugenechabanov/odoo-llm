@@ -5,23 +5,27 @@ This module provides a comprehensive generation job management system for LLM pr
 ## Features
 
 ### Generation Job Management
+
 - **Job Lifecycle**: Complete job lifecycle management from creation to completion
 - **Status Tracking**: Real-time job status monitoring (draft, queued, running, completed, failed, cancelled)
 - **Retry Logic**: Automatic and manual retry capabilities for failed jobs
 - **Error Handling**: Comprehensive error tracking and reporting
 
 ### Queue Management
+
 - **Provider-specific Queues**: Each LLM provider has its own dedicated queue
 - **Concurrent Job Control**: Configurable maximum concurrent jobs per provider
 - **Queue Health Monitoring**: Real-time queue health indicators (healthy, warning, critical)
 - **Performance Metrics**: Queue performance analytics and success rates
 
 ### Flexible Generation Options
+
 - **Direct Generation**: Traditional immediate generation (backward compatible)
 - **Queued Generation**: Advanced queue-based generation for better resource management
 - **Auto-detection**: Intelligent choice between direct and queued generation based on provider capabilities
 
 ### Monitoring and Analytics
+
 - **Job Statistics**: Comprehensive job statistics and performance metrics
 - **Queue Analytics**: Queue performance monitoring and capacity planning
 - **Success Rate Tracking**: Success rate monitoring across providers and time periods
@@ -32,28 +36,36 @@ This module provides a comprehensive generation job management system for LLM pr
 ### Models
 
 #### `llm.generation.job`
+
 The main model for managing individual generation jobs:
+
 - **Relationships**: Links to thread, provider, model, and messages
 - **Status Management**: Job state transitions and lifecycle management
 - **Timing**: Queue time, processing time, and completion tracking
 - **Retry Logic**: Configurable retry attempts and error handling
 
 #### `llm.generation.queue`
+
 Provider-specific queue management:
+
 - **Configuration**: Maximum concurrent jobs, auto-retry settings
 - **Monitoring**: Real-time job counts and queue health
 - **Performance**: Success rates and processing time analytics
 - **Actions**: Queue processing, job retries, and maintenance
 
 ### Thread Integration
+
 Extends `llm.thread` with:
+
 - **Generation Options**: `generate_response()` method with `use_queue` parameter
 - **Job Tracking**: Links to all generation jobs for the thread
 - **Status Monitoring**: Real-time generation status and progress
 - **Statistics**: Thread-level generation analytics
 
 ### Provider Integration
+
 Extends `llm.provider` with:
+
 - **Job Creation**: `create_generation_job()` method
 - **Status Checking**: `check_generation_job_status()` method
 - **Job Cancellation**: `cancel_generation_job()` method
@@ -115,13 +127,17 @@ while job.state in ['queued', 'running']:
 ## Configuration
 
 ### Queue Configuration
+
 Each provider queue can be configured with:
+
 - **Max Concurrent Jobs**: Maximum number of simultaneous jobs
 - **Auto Retry**: Automatic retry of failed jobs
 - **Retry Delay**: Time to wait before retrying failed jobs
 
 ### Job Configuration
+
 Jobs support:
+
 - **Max Retries**: Maximum number of retry attempts
 - **Generation Inputs**: Custom inputs for the generation process
 - **Provider Data**: Provider-specific configuration and metadata
@@ -129,13 +145,16 @@ Jobs support:
 ## Monitoring
 
 ### Queue Health
+
 Queues are automatically monitored for:
+
 - **Healthy**: Normal operation
 - **Warning**: High load but functioning
 - **Critical**: Overloaded or failing
 - **Disabled**: Manually disabled
 
 ### Performance Metrics
+
 - **Average Queue Time**: Time jobs spend waiting
 - **Average Processing Time**: Time jobs spend processing
 - **Success Rate**: Percentage of successful jobs
@@ -144,11 +163,13 @@ Queues are automatically monitored for:
 ## Administration
 
 ### Views
+
 - **Generation Jobs**: List and manage all generation jobs
 - **Generation Queues**: Monitor and configure provider queues
 - **Queue Dashboard**: Real-time queue monitoring
 
 ### Cron Jobs
+
 - **Process Queues**: Automatically process pending jobs (every minute)
 - **Check Job Status**: Update running job statuses (every 30 seconds)
 - **Auto-retry Failed Jobs**: Retry eligible failed jobs (every 5 minutes)
@@ -161,18 +182,18 @@ To implement generation job support in a provider:
 ```python
 class MyProvider(models.Model):
     _inherit = 'llm.provider'
-    
+
     def create_generation_job(self, job_record):
         # Create job with external provider
         external_job_id = self.my_api.create_job(
             job_record.generation_inputs
         )
         return external_job_id
-    
+
     def check_generation_job_status(self, job_record):
         # Check job status with external provider
         status = self.my_api.get_job_status(job_record.external_job_id)
-        
+
         if status['completed']:
             # Create result message
             message = job_record.thread_id.message_post(
@@ -191,7 +212,7 @@ class MyProvider(models.Model):
             }
         else:
             return {'state': 'running'}
-    
+
     def cancel_generation_job(self, job_record):
         # Cancel job with external provider
         return self.my_api.cancel_job(job_record.external_job_id)

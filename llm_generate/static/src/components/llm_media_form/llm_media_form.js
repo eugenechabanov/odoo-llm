@@ -8,7 +8,7 @@ const { Component, useState, onWillStart, useEffect, useRef } = owl;
 export class LLMMediaForm extends Component {
   setup() {
     this.attachmentInputRef = useRef("attachmentInput");
-    
+
     this.state = useState({
       formValues: {},
       isLoading: false,
@@ -267,26 +267,33 @@ export class LLMMediaForm extends Component {
    */
   get schemaSource() {
     if (this.state.isLoading) {
-      return { type: 'loading', name: 'Loading...' };
+      return { type: "loading", name: "Loading..." };
     }
 
-    if (this.state.threadConfig.input_schema && 
-        Object.keys(this.state.threadConfig.input_schema).length > 0) {
+    if (
+      this.state.threadConfig.input_schema &&
+      Object.keys(this.state.threadConfig.input_schema).length > 0
+    ) {
       return {
-        type: 'prompt',
-        name: this.thread?.prompt_id?.name || this.llmAssistant?.prompt_id?.name || 'Selected Prompt'
-      };
-    }
-    
-    if (this.llmModel?.inputSchema && 
-        Object.keys(this.llmModel.inputSchema).length > 0) {
-      return {
-        type: 'model',
-        name: this.llmModel?.name || 'Model Default'
+        type: "prompt",
+        name:
+          this.thread?.prompt_id?.name ||
+          this.llmAssistant?.prompt_id?.name ||
+          "Selected Prompt",
       };
     }
 
-    return { type: 'none', name: 'No Schema Available' };
+    if (
+      this.llmModel?.inputSchema &&
+      Object.keys(this.llmModel.inputSchema).length > 0
+    ) {
+      return {
+        type: "model",
+        name: this.llmModel?.name || "Model Default",
+      };
+    }
+
+    return { type: "none", name: "No Schema Available" };
   }
 
   /**
@@ -577,7 +584,10 @@ export class LLMMediaForm extends Component {
       console.log("Attachments:", this.state.attachments);
 
       // Submit through composer - now uses body_json and includes attachments
-      composer.postUserGenerationMessageForLLM(validationResult.values, this.state.attachments);
+      composer.postUserGenerationMessageForLLM(
+        validationResult.values,
+        this.state.attachments
+      );
     } catch (error) {
       console.error("Error submitting generation form:", error);
       this.state.error =
@@ -607,21 +617,23 @@ export class LLMMediaForm extends Component {
       for (const file of files) {
         // Use Odoo's RPC to create attachment record directly
         const fileDataUrl = await this._readFileAsDataURL(file);
-        const base64Data = fileDataUrl.split(',')[1]; // Remove data:mime/type;base64, prefix
-        
+        const base64Data = fileDataUrl.split(",")[1]; // Remove data:mime/type;base64, prefix
+
         const attachment = await this.env.services.rpc("/web/dataset/call_kw", {
-          model: 'ir.attachment',
-          method: 'create',
-          args: [{
-            name: file.name,
-            datas: base64Data,
-            res_model: 'mail.compose.message',
-            res_id: 0, // Temporary attachment
-            mimetype: file.type,
-          }],
-          kwargs: {}
+          model: "ir.attachment",
+          method: "create",
+          args: [
+            {
+              name: file.name,
+              datas: base64Data,
+              res_model: "mail.compose.message",
+              res_id: 0, // Temporary attachment
+              mimetype: file.type,
+            },
+          ],
+          kwargs: {},
         });
-        
+
         if (attachment) {
           this.state.attachments.push({
             id: attachment,
@@ -632,13 +644,13 @@ export class LLMMediaForm extends Component {
         }
       }
     } catch (error) {
-      console.error('Error uploading attachments:', error);
-      this.state.error = 'Failed to upload one or more attachments.';
+      console.error("Error uploading attachments:", error);
+      this.state.error = "Failed to upload one or more attachments.";
     } finally {
       this.state.uploadingFiles = false;
       // Clear the input to allow re-selecting the same files
       if (this.attachmentInputRef.el) {
-        this.attachmentInputRef.el.value = '';
+        this.attachmentInputRef.el.value = "";
       }
     }
   }
@@ -659,7 +671,9 @@ export class LLMMediaForm extends Component {
    * Remove an attachment from the list
    */
   removeAttachment(attachment) {
-    const index = this.state.attachments.findIndex(a => a.id === attachment.id || a.name === attachment.name);
+    const index = this.state.attachments.findIndex(
+      (a) => a.id === attachment.id || a.name === attachment.name
+    );
     if (index !== -1) {
       this.state.attachments.splice(index, 1);
     }
@@ -669,11 +683,11 @@ export class LLMMediaForm extends Component {
    * Format file size for display
    */
   formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
 }
 

@@ -11,6 +11,7 @@ This module extends `llm_knowledge` with Mistral AI's vision capabilities, enabl
 ### The Problem
 
 Without OCR:
+
 - Images are just binary blobs in your knowledge base
 - Handwritten notes can't be searched
 - Scanned documents are dead weight
@@ -20,6 +21,7 @@ Without OCR:
 ### The Solution
 
 With Mistral OCR:
+
 - AI extracts text from any image
 - Handwriting becomes searchable
 - Scanned docs fully indexed
@@ -38,6 +40,7 @@ With Mistral OCR:
 ### OCR Models
 
 Three Mistral OCR models included:
+
 - **mistral-ocr-latest**: Latest OCR model (recommended)
 - **mistral-ocr-2505**: Specific version from May 2025
 - **mistral-ocr-2503**: Specific version from March 2025
@@ -52,10 +55,12 @@ Three Mistral OCR models included:
 ## Installation
 
 1. **Install dependencies**:
+
    - `llm_knowledge` module (required)
    - `llm_mistral` module (required)
 
 2. **Install this module**:
+
    ```bash
    # Via Odoo Apps interface
    Apps → Search "LLM Knowledge Mistral" → Install
@@ -76,6 +81,7 @@ The module comes pre-configured with Mistral's OCR models. View them under **LLM
 ![Mistral OCR Models](static/description/screenshots/mistral_ocr_models.png)
 
 **Available models**:
+
 - `mistral-ocr-latest` - Latest OCR model (recommended)
 - `mistral-ocr-2505` - May 2025 version
 - `mistral-ocr-2503` - March 2025 version
@@ -92,6 +98,7 @@ When creating or editing a knowledge resource:
 ![Mistral Parser Configuration](static/description/screenshots/mistral_parser.png)
 
 **Parser settings**:
+
 - **Parser**: Mistral OCR Parser
 - **Provider**: Mistral AI (auto-selected)
 - **OCR Model**: mistral-ocr-latest or specific version
@@ -110,6 +117,7 @@ Click "Process Resources" to extract text from your images. The extracted text b
 ![Handwritten Grocery List](static/description/screenshots/grocerylist.webp)
 
 **Output**: Extracted text
+
 ```
 - potatoes
 - peas & carrots
@@ -132,6 +140,7 @@ Click "Process Resources" to extract text from your images. The extracted text b
 **Goal**: Track business expenses from receipt photos
 
 **Setup**:
+
 - Upload receipt photos to knowledge collection
 - Use Mistral OCR Parser
 - Process resources
@@ -143,6 +152,7 @@ Click "Process Resources" to extract text from your images. The extracted text b
 **Goal**: Make handwritten meeting notes searchable
 
 **Setup**:
+
 - Scan or photograph handwritten meeting notes
 - Upload to knowledge base
 - Process with Mistral OCR
@@ -154,6 +164,7 @@ Click "Process Resources" to extract text from your images. The extracted text b
 **Goal**: Index product information from label photos
 
 **Setup**:
+
 - Photograph product labels
 - Add to product knowledge collection
 - Process with Mistral OCR
@@ -191,11 +202,11 @@ When you process an image resource with Mistral OCR:
 
 The available OCR models are fetched from Mistral AI when you configure the provider:
 
-| Model | Description | Recommended |
-|-------|-------------|-------------|
-| `mistral-ocr-latest` | Latest OCR model | ✓ Yes |
-| `mistral-ocr-2505` | May 2025 version | - |
-| `mistral-ocr-2503` | March 2025 version | - |
+| Model                | Description        | Recommended |
+| -------------------- | ------------------ | ----------- |
+| `mistral-ocr-latest` | Latest OCR model   | ✓ Yes       |
+| `mistral-ocr-2505`   | May 2025 version   | -           |
+| `mistral-ocr-2503`   | March 2025 version | -           |
 
 **Note**: You must set up the Mistral provider via `llm_mistral` module and click "Fetch Models" to download the available OCR models from Mistral AI.
 
@@ -300,6 +311,7 @@ LGPL-3
 ## Author
 
 **Apexive Solutions LLC**
+
 - Website: https://github.com/apexive/odoo-llm
 - Email: info@apexive.com
 

@@ -25,9 +25,7 @@ registerPatch({
           prevMessage.llmRole !== undefined &&
           message.llmRole !== undefined
         ) {
-          if (
-            prevMessage.llmRole !== message.llmRole
-          ) {
+          if (prevMessage.llmRole !== message.llmRole) {
             return false;
           }
         }

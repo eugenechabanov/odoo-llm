@@ -85,7 +85,9 @@ registerModel({
      * @param {Array} [domain=[]] - Additional domain criteria for filtering
      */
     async loadThreads(additionalFields = [], domain = []) {
-      const defaultDomain = [["create_uid", "=", this.env.services.user.userId]];
+      const defaultDomain = [
+        ["create_uid", "=", this.env.services.user.userId],
+      ];
       const finalDomain = [...defaultDomain, ...domain];
 
       const result = await this.messaging.rpc({
@@ -320,7 +322,11 @@ registerModel({
      * @param {Boolean} [options.forceReload] - Force reload threads (for context switches)
      * @returns {Promise<Object|null>} The active or created thread
      */
-    async ensureThread({ relatedThreadModel, relatedThreadId, forceReload = false } = {}) {
+    async ensureThread({
+      relatedThreadModel,
+      relatedThreadId,
+      forceReload = false,
+    } = {}) {
       await this.ensureDataLoaded();
 
       // Build domain for filtering (if in chatter mode)
@@ -331,15 +337,19 @@ registerModel({
       }
 
       // Check if context changed BEFORE updating
-      const contextChanged = relatedThreadModel &&
+      const contextChanged =
+        relatedThreadModel &&
         (this.relatedThreadModel !== relatedThreadModel ||
-         this.relatedThreadId !== relatedThreadId);
+          this.relatedThreadId !== relatedThreadId);
 
       // Update context if provided
       if (relatedThreadModel !== undefined || relatedThreadId !== undefined) {
         this.update({
           relatedThreadModel: relatedThreadModel || this.relatedThreadModel,
-          relatedThreadId: relatedThreadId !== undefined ? relatedThreadId : this.relatedThreadId,
+          relatedThreadId:
+            relatedThreadId !== undefined
+              ? relatedThreadId
+              : this.relatedThreadId,
         });
       }
 

@@ -86,7 +86,6 @@ class FetchModelsWizard(models.TransientModel):
                 wizard.line_ids.filtered(lambda record: record.status == "modified")
             )
 
-
     def action_confirm(self):
         """Process selected models and create/update records"""
         self.ensure_one()

@@ -103,18 +103,22 @@
                         name="model_id"
                       />: <field name="res_id" /></span></div>
                                     <div
-                      class="text-muted"
-                      t-if="record.chunk_count.raw_value > 0"
-                    >
-                                        <i class="fa fa-puzzle-piece" title="Chunks" /> <field
-                      name="chunk_count"
-                    /> chunks
+                    class="text-muted"
+                    t-if="record.chunk_count.raw_value > 0"
+                  >
+                                        <i
+                      class="fa fa-puzzle-piece"
+                      title="Chunks"
+                    /> <field name="chunk_count" /> chunks
                                     </div>
                                     <div
-                      t-if="record.collection_ids.raw_value.length > 0"
-                      class="mt-2"
-                    >
-                                        <field name="collection_ids" widget="many2many_tags" />
+                    t-if="record.collection_ids.raw_value.length > 0"
+                    class="mt-2"
+                  >
+                                        <field
+                      name="collection_ids"
+                      widget="many2many_tags"
+                    />
                                     </div>
                                 </div>
                                 <div class="o_kanban_record_bottom">
@@ -198,17 +202,17 @@
                     <div class="oe_button_box" name="button_box">
                         <field name="chunk_count" invisible="1" />
                         <button
-            name="action_view_chunks"
-            type="object"
-            class="oe_stat_button"
-            icon="fa-puzzle-piece"
-            attrs="{'invisible': [('chunk_count', '=', 0)]}"
-          >
+              name="action_view_chunks"
+              type="object"
+              class="oe_stat_button"
+              icon="fa-puzzle-piece"
+              attrs="{'invisible': [('chunk_count', '=', 0)]}"
+            >
                             <field
-              name="chunk_count"
-              widget="statinfo"
-              string="Chunks"
-            />
+                name="chunk_count"
+                widget="statinfo"
+                string="Chunks"
+              />
                         </button>
                     </div>
                     <div class="oe_title">
@@ -233,7 +237,10 @@
               />
                         </group>
                         <group name="group_right">
-                            <field name="collection_ids" widget="many2many_tags" />
+                            <field
+                name="collection_ids"
+                widget="many2many_tags"
+              />
                             <field
                 name="retriever"
                 attrs="{'readonly': [('state', '!=', 'draft')]}"
@@ -258,7 +265,10 @@
                 name="kanban_state"
                 widget="state_selection"
               />
-                            <label for="action_reset_chunk_settings" colspan="2" />
+                            <label
+                for="action_reset_chunk_settings"
+                colspan="2"
+              />
                             <button
                 name="action_reset_chunk_settings"
                 string="RESET CHUNK SETTINGS"

@@ -146,7 +146,11 @@ registerModel({
       methodName: "_onLLMChatActiveThreadChanged",
     },
     {
-      dependencies: ["llmChat.isChatterMode", "llmChat.relatedThreadModel", "llmChat.relatedThreadId"],
+      dependencies: [
+        "llmChat.isChatterMode",
+        "llmChat.relatedThreadModel",
+        "llmChat.relatedThreadId",
+      ],
       methodName: "_onContextChanged",
     },
   ],

@@ -202,7 +202,9 @@ class LLMThread(models.Model):
                 last_message = self.get_latest_llm_message()
             except UserError:
                 # No DB messages found - check if prepended messages have a user message
-                user_msg = next((msg for msg in prepend_messages if msg.get("role") == "user"), None)
+                user_msg = next(
+                    (msg for msg in prepend_messages if msg.get("role") == "user"), None
+                )
 
                 if user_msg:
                     # Extract content from prepended user message
@@ -229,11 +231,10 @@ class LLMThread(models.Model):
                     last_message = yield from self._generate_response(last_message)
                 else:
                     # Generate assistant response
-                    last_message = yield from self._generate_assistant_response(prepend_messages)
-            elif (
-                last_message.llm_role == "assistant"
-                and last_message.has_tool_calls()
-            ):
+                    last_message = yield from self._generate_assistant_response(
+                        prepend_messages
+                    )
+            elif last_message.llm_role == "assistant" and last_message.has_tool_calls():
                 # Execute ALL tool calls from assistant message
                 tool_calls = last_message.get_tool_calls()
                 for tool_call in tool_calls:
@@ -287,70 +288,65 @@ class LLMThread(models.Model):
 
     def get_llm_messages(self, limit=25):
         """Get the most recent LLM messages in chronological order.
-        
+
         This method is optimized for LLM context preparation:
         - Always returns messages in chronological order (ASC)
         - Limits to the most recent N messages for context window management
         - Uses efficient database queries with proper indexing
-        
+
         Args:
             limit (int): Maximum number of recent messages to retrieve (default: 25)
-        
+
         Returns:
             mail.message recordset: Recent LLM messages in chronological order
         """
         self.ensure_one()
-        
+
         # Domain for filtering LLM messages only
         domain = [
             ("model", "=", self._name),
             ("res_id", "=", self.id),
             ("llm_role", "!=", False),  # Only messages with LLM roles
         ]
-        
+
         if limit:
             # Two-step approach for efficiency:
             # 1. Get the N most recent messages (DESC order)
             recent_messages = self.env["mail.message"].search(
-                domain, 
-                order="create_date DESC, write_date DESC, id DESC", 
-                limit=limit
+                domain, order="create_date DESC, write_date DESC, id DESC", limit=limit
             )
             # 2. Sort them chronologically for LLM context (ASC order)
             return recent_messages.sorted(lambda m: (m.create_date, m.write_date, m.id))
         else:
             # If no limit, get all messages in chronological order
             return self.env["mail.message"].search(
-                domain, 
-                order="create_date ASC, write_date ASC, id ASC"
+                domain, order="create_date ASC, write_date ASC, id ASC"
             )
 
     def get_latest_llm_message(self):
         """Get the most recent LLM message for flow control.
-        
+
         Returns:
             mail.message: The latest LLM message
-            
+
         Raises:
             UserError: If no LLM messages exist
         """
         self.ensure_one()
-        
+
         domain = [
             ("model", "=", self._name),
             ("res_id", "=", self.id),
             ("llm_role", "!=", False),
         ]
-        
+
         result = self.env["mail.message"].search(
-            domain, 
-            order="create_date DESC, write_date DESC, id DESC", 
-            limit=1
+            domain, order="create_date DESC, write_date DESC, id DESC", limit=1
         )
-        
+
         if not result:
             raise UserError("No LLM messages found in this thread.")
-        
+
         return result[0]
 
     def _should_continue(self, last_message):

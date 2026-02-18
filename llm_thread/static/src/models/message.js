@@ -42,14 +42,13 @@ registerPatch({
       }
       return data2;
     },
-    
   },
   fields: {
     // So that assisstant messages with tool_calls but no body does not missed from ui rendering
     isEmpty: {
-      compute(){
+      compute() {
         return this._super() && !this.bodyJson;
-      }
+      },
     },
     user_vote: attr({
       default: 0,
@@ -75,7 +74,9 @@ registerPatch({
      */
     toolData: attr({
       compute() {
-        return ['tool', 'assistant'].includes(this.llmRole) && this.bodyJson ? this.bodyJson : null;
+        return ["tool", "assistant"].includes(this.llmRole) && this.bodyJson
+          ? this.bodyJson
+          : null;
       },
     }),
 

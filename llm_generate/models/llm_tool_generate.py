@@ -29,17 +29,20 @@ class LLMToolGenerate(models.Model):
             output_data, urls = model.generate(inputs)
 
             # Get the existing tool message from context
-            tool_message = self.env.context.get('message')
-            
+            tool_message = self.env.context.get("message")
+
             # Use message method to process URLs and create attachments
             markdown_content, attachments = tool_message.process_generation_urls(urls)
 
             return {
                 "success": True,
                 "output_data": output_data,
-                "urls": [{"url": att.url, "content_type": att.mimetype} for att in attachments],
+                "urls": [
+                    {"url": att.url, "content_type": att.mimetype}
+                    for att in attachments
+                ],
                 "markdown": markdown_content,
-                "content_count": len(urls)
+                "content_count": len(urls),
             }
 
         except Exception as e:

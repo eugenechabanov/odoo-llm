@@ -45,12 +45,14 @@ External AI tools can search your Odoo knowledge base securely.
 ## Installation
 
 1. **Install dependencies**:
+
    - `llm_knowledge` module (required)
    - `llm_tool` module (required)
    - `llm_assistant` module (required)
    - `llm_mcp_server` module (optional - for external MCP clients)
 
 2. **Install this module**:
+
    ```bash
    # Via Odoo Apps interface
    Apps → Search "LLM Tool Knowledge" → Install
@@ -80,10 +82,12 @@ External AI tools can search your Odoo knowledge base securely.
 ### Example 1: Odoo Assistant with Knowledge Access
 
 **Setup**:
+
 - Create knowledge collection with company policies
 - Enable knowledge_retriever tool on support assistant
 
 **Result**:
+
 ```
 User: "What's the warranty period for laptops?"
 Assistant: [Searches policies collection]
@@ -94,11 +98,13 @@ hardware defects. (Source: Electronics Warranty Policy, updated Jan 2024)"
 ### Example 2: Claude Desktop Accessing Odoo Knowledge
 
 **Setup**:
+
 - Configure llm_mcp_server with your Odoo instance
 - Add server to Claude Desktop MCP settings
 - Index product documentation in Odoo knowledge
 
 **Result**:
+
 ```
 Claude Desktop → uses knowledge_retriever tool → searches Odoo docs
 Returns: Relevant product specs with source citations from your knowledge base
@@ -107,6 +113,7 @@ Returns: Relevant product specs with source citations from your knowledge base
 ### Example 3: Continue.dev with Company Codebase
 
 **Setup**:
+
 - Index code documentation in Odoo knowledge collection
 - Expose via MCP server
 - Configure Continue.dev to use Odoo MCP server
@@ -160,7 +167,9 @@ Defined in `data/llm_tool_data.xml`:
 ```xml
 <record id="llm_tool_knowledge_retriever" model="llm.tool">
     <field name="name">knowledge_retriever</field>
-    <field name="description">Retrieves relevant knowledge from document database
+    <field
+    name="description"
+  >Retrieves relevant knowledge from document database
     using semantic search...</field>
     <field name="implementation">knowledge_retriever</field>
     <field name="active" eval="True" />
@@ -266,6 +275,7 @@ LGPL-3
 ## Author
 
 **Apexive Solutions LLC**
+
 - Website: https://github.com/apexive/odoo-llm
 - Email: info@apexive.com
 

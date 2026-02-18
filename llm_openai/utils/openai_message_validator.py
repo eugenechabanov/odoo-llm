@@ -133,7 +133,7 @@ class OpenAIMessageValidator:
         This ensures that every tool message corresponds to a valid tool call from an assistant.
         """
         seen_tool_call_ids = set()
-        
+
         for i, msg in enumerate(self.messages):
             if not msg:
                 continue
@@ -173,7 +173,9 @@ class OpenAIMessageValidator:
                     self.messages[i] = None
                 else:
                     # Check if tool message comes after its assistant message
-                    assistant_index = self.tool_call_map.get(tool_call_id, {}).get('index', -1)
+                    assistant_index = self.tool_call_map.get(tool_call_id, {}).get(
+                        "index", -1
+                    )
                     if assistant_index >= 0 and i < assistant_index:
                         self.logger.warning(
                             f"Removing tool message at index {i} with ID {tool_call_id} because it appears "

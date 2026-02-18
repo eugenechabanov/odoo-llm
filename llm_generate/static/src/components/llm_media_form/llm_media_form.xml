@@ -11,9 +11,18 @@
                         <small class="text-muted" t-if="!state.isLoading">
                             <i class="fa fa-info-circle me-1" />
                             Schema source: <t t-esc="schemaSource.name" />
-                            <span t-if="schemaSource.type === 'prompt'" class="badge badge-primary ms-1">Prompt</span>
-                            <span t-elif="schemaSource.type === 'model'" class="badge badge-secondary ms-1">Model</span>
-                            <span t-elif="schemaSource.type === 'none'" class="badge badge-warning ms-1">None</span>
+                            <span
+                t-if="schemaSource.type === 'prompt'"
+                class="badge badge-primary ms-1"
+              >Prompt</span>
+                            <span
+                t-elif="schemaSource.type === 'model'"
+                class="badge badge-secondary ms-1"
+              >Model</span>
+                            <span
+                t-elif="schemaSource.type === 'none'"
+                class="badge badge-warning ms-1"
+              >None</span>
                         </small>
                     </div>
                     <div class="btn-group btn-group-sm" role="group">
@@ -127,36 +136,59 @@
                     <!-- Attachment Upload Section -->
                     <div class="mb-3">
                         <label class="form-label">
-                            <i class="fa fa-paperclip me-1"></i>
+                            <i class="fa fa-paperclip me-1" />
                             Attachments
-                            <small class="text-muted">(Optional - for image-to-image generation)</small>
+                            <small
+                class="text-muted"
+              >(Optional - for image-to-image generation)</small>
                         </label>
                         <div class="attachment-upload-section">
-                            <input 
-                                type="file" 
-                                class="form-control"
-                                multiple="true"
-                                accept="image/*,application/pdf,.txt,.doc,.docx"
-                                t-on-change="onAttachmentChange"
-                                t-ref="attachmentInputRef"
-                            />
-                            <div t-if="state.attachments.length > 0" class="mt-2">
+                            <input
+                type="file"
+                class="form-control"
+                multiple="true"
+                accept="image/*,application/pdf,.txt,.doc,.docx"
+                t-on-change="onAttachmentChange"
+                t-ref="attachmentInputRef"
+              />
+                            <div
+                t-if="state.attachments.length > 0"
+                class="mt-2"
+              >
                                 <div class="uploaded-attachments">
-                                    <t t-foreach="state.attachments" t-as="attachment" t-key="attachment.id || attachment.name">
-                                        <div class="d-flex align-items-center justify-content-between border rounded p-2 mb-1">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fa fa-file me-2 text-muted"></i>
-                                                <span class="small" t-esc="attachment.name"></span>
-                                                <span t-if="attachment.size" class="text-muted small ms-2">
-                                                    (<t t-esc="formatFileSize(attachment.size)"/>)
+                                    <t
+                    t-foreach="state.attachments"
+                    t-as="attachment"
+                    t-key="attachment.id || attachment.name"
+                  >
+                                        <div
+                      class="d-flex align-items-center justify-content-between border rounded p-2 mb-1"
+                    >
+                                            <div
+                        class="d-flex align-items-center"
+                      >
+                                                <i
+                          class="fa fa-file me-2 text-muted"
+                        />
+                                                <span
+                          class="small"
+                          t-esc="attachment.name"
+                        />
+                                                <span
+                          t-if="attachment.size"
+                          class="text-muted small ms-2"
+                        >
+                                                    (<t
+                            t-esc="formatFileSize(attachment.size)"
+                          />)
                                                 </span>
                                             </div>
-                                            <button 
-                                                type="button" 
-                                                class="btn btn-sm btn-outline-danger"
-                                                t-on-click="() => this.removeAttachment(attachment)"
-                                            >
-                                                <i class="fa fa-times"></i>
+                                            <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger"
+                        t-on-click="() => this.removeAttachment(attachment)"
+                      >
+                                                <i class="fa fa-times" />
                                             </button>
                                         </div>
                                     </t>

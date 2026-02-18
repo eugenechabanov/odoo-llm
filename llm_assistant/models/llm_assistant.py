@@ -50,18 +50,18 @@ class LLMAssistant(models.Model):
         string="Allowed Groups",
         help="Groups that can access this assistant. If empty and not public, only internal users can access it.",
     )
-    
+
     code = fields.Char(
         string="Code",
         help="Unique code identifier for the assistant (e.g., roleplay, avatar_generation)",
         index=True,
     )
-    
+
     res_model = fields.Char(
         string="Related Model",
         help="Model that this assistant is associated with (e.g., fleek.character)",
     )
-    
+
     is_default = fields.Boolean(
         string="Is Default",
         default=False,
@@ -163,7 +163,7 @@ class LLMAssistant(models.Model):
     )
 
     _sql_constraints = [
-        ('unique_code', 'UNIQUE(code)', 'Assistant code must be unique.'),
+        ("unique_code", "UNIQUE(code)", "Assistant code must be unique."),
     ]
 
     @api.depends("prompt_id", "default_values")
@@ -543,4 +543,4 @@ class LLMAssistant(models.Model):
     @api.model
     def get_assistant_by_code(self, code):
         """Get assistant by code"""
-        return self.search([('code', '=', code)], limit=1)
+        return self.search([("code", "=", code)], limit=1)

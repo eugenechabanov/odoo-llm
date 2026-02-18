@@ -26,11 +26,13 @@ This enables LLMs to answer questions about your specific data with source citat
 ### Install Steps
 
 1. **Install Python dependencies:**
+
    ```bash
    pip install requests markdownify PyMuPDF numpy
    ```
 
 2. **Install required Odoo modules:**
+
    ```bash
    # Install base modules first
    odoo-bin -d your_database -i llm,llm_store
@@ -192,40 +194,46 @@ thread.generate_response("How do I configure the API endpoint?")
 Visual step-by-step guide showing the complete RAG setup:
 
 ### 1. Setup Vector Store
+
 ![Vector Store List](static/description/screenshots/vector_store_list.png)
-*Navigate to LLM → Stores to configure Qdrant, pgvector, or Chroma*
+_Navigate to LLM → Stores to configure Qdrant, pgvector, or Chroma_
 
 ![Qdrant Configuration](static/description/screenshots/qdrant_config.png)
-*Configure connection: host, port, API key*
+_Configure connection: host, port, API key_
 
 ### 2. Configure Embedding Model
+
 ![OpenAI Model](static/description/screenshots/openai_model.png)
-*Select text-embedding-3-small or other embedding model*
+_Select text-embedding-3-small or other embedding model_
 
 ### 3. Create Collection
+
 ![Collection Creation](static/description/screenshots/collection_create.png)
-*Link vector store and embedding model*
+_Link vector store and embedding model_
 
 ### 4. Upload & Process Documents
+
 ![Upload Wizard](static/description/screenshots/upload_wizard.png)
-*Upload files, provide URLs, or fetch from web pages*
+_Upload files, provide URLs, or fetch from web pages_
 
 ![Resources List](static/description/screenshots/resources_list_and_process.png)
-*View uploaded documents and trigger processing*
+_View uploaded documents and trigger processing_
 
 ![Processing Pipeline](static/description/screenshots/processing_pipeline.png)
-*Watch the pipeline: Parse → Chunk → Embed*
+_Watch the pipeline: Parse → Chunk → Embed_
 
 ![Chunks View](static/description/screenshots/chunks_view.png)
-*Inspect generated chunks with embeddings*
+_Inspect generated chunks with embeddings_
 
 ### 5. Query with Assistant
+
 ![LLM Assistant Chat](static/description/screenshots/llm_assistant_chat.png)
-*Chat with knowledge-enhanced assistant*
+_Chat with knowledge-enhanced assistant_
 
 ### 6. Use with External Apps
+
 ![Claude Desktop Usage](static/description/screenshots/claude_desktop_usage.png)
-*Query from Claude Desktop, Cursor, or other MCP-compatible apps*
+_Query from Claude Desktop, Cursor, or other MCP-compatible apps_
 
 ---
 
@@ -245,13 +253,13 @@ collection.store_id = vector_store                # Which vector store
 
 ### Processing Pipeline States
 
-| State | Description | Next Action |
-|-------|-------------|-------------|
-| `draft` | Initial state | `retrieve()` |
-| `retrieved` | Content fetched | `parse()` |
-| `parsed` | Converted to markdown | `chunk()` |
-| `chunked` | Split into segments | `embed()` |
-| `ready` | Embeddings stored | Search/Query |
+| State       | Description           | Next Action  |
+| ----------- | --------------------- | ------------ |
+| `draft`     | Initial state         | `retrieve()` |
+| `retrieved` | Content fetched       | `parse()`    |
+| `parsed`    | Converted to markdown | `chunk()`    |
+| `chunked`   | Split into segments   | `embed()`    |
+| `ready`     | Embeddings stored     | Search/Query |
 
 ### Environment Variables
 
@@ -271,6 +279,7 @@ ODOO_LLM_DEFAULT_EMBEDDING_MODEL=text-embedding-3-small
 **Responsibility:** Manages knowledge collections, coordinates document processing, and handles vector store integration.
 
 **Key Methods:**
+
 - `create_vector_collection()` - Create corresponding collection in vector store
 - `process_all_resources()` - Process all documents in collection
 - `search_content(query, limit=10)` - Search collection with semantic query
@@ -283,6 +292,7 @@ ODOO_LLM_DEFAULT_EMBEDDING_MODEL=text-embedding-3-small
 **Responsibility:** Handles document retrieval, parsing, state management, and content extraction from various sources.
 
 **Key Methods:**
+
 - `process_resource()` - Run complete pipeline (retrieve → parse → chunk → embed)
 - `retrieve()` - Fetch content from source (URL, attachment, text)
 - `parse()` - Convert raw content to markdown
@@ -293,6 +303,7 @@ ODOO_LLM_DEFAULT_EMBEDDING_MODEL=text-embedding-3-small
 - `unlock_resource()` - Unlock resource after processing
 
 **Fields:**
+
 - `state` - Processing state (draft/retrieved/parsed/chunked/ready)
 - `resource_type` - Source type (url/attachment/text)
 - `content` - Raw retrieved content
@@ -304,10 +315,12 @@ ODOO_LLM_DEFAULT_EMBEDDING_MODEL=text-embedding-3-small
 **Responsibility:** Represents individual text chunks with embeddings and metadata for vector search.
 
 **Key Methods:**
+
 - `generate_embedding()` - Generate and store embedding for chunk
 - `search(query, limit, collection_id)` - Semantic search (overridden search method)
 
 **Fields:**
+
 - `content` - Chunk text content
 - `chunk_index` - Position in original document
 - `vector_id` - ID in vector store
@@ -320,6 +333,7 @@ ODOO_LLM_DEFAULT_EMBEDDING_MODEL=text-embedding-3-small
 **Responsibility:** Converts various document formats (PDF, HTML, DOCX) to clean markdown.
 
 **Key Methods:**
+
 - `parse_to_markdown(content, content_type)` - Main parsing entry point
 - `parse_pdf(pdf_bytes)` - Extract and parse PDF content
 - `parse_html(html_content)` - Convert HTML to markdown
@@ -330,6 +344,7 @@ ODOO_LLM_DEFAULT_EMBEDDING_MODEL=text-embedding-3-small
 **Responsibility:** Handles semantic search and context retrieval for RAG operations.
 
 **Key Methods:**
+
 - `search_knowledge(query, collection_ids, limit, min_score)` - Search across collections
 - `get_relevant_context(query, max_tokens)` - Get context for RAG generation
 - `rank_results(results)` - Re-rank search results
@@ -339,6 +354,7 @@ ODOO_LLM_DEFAULT_EMBEDDING_MODEL=text-embedding-3-small
 ## Optional Extensions
 
 ### Image Parsing with Mistral OCR
+
 Install `llm_knowledge_mistral` to extract text from images, receipts, and handwritten notes:
 
 ```bash
@@ -346,6 +362,7 @@ odoo-bin -d your_database -i llm_knowledge_mistral
 ```
 
 **Capabilities:**
+
 - Handwritten notes
 - Receipts and invoices
 - Screenshots
@@ -353,6 +370,7 @@ odoo-bin -d your_database -i llm_knowledge_mistral
 - Product labels
 
 ### Automated Knowledge Sync
+
 Install `llm_knowledge_automation` for automatic document updates:
 
 ```bash
@@ -360,6 +378,7 @@ odoo-bin -d your_database -i llm_knowledge_automation
 ```
 
 ### Alternative Vector Stores
+
 - **llm_pgvector** - PostgreSQL with pgvector extension (SQL-based)
 - **llm_chroma** - Lightweight embedded vector database
 - **llm_qdrant** - High-performance vector search engine

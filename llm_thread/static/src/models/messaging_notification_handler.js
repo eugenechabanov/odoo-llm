@@ -107,7 +107,9 @@ registerPatch({
         }
 
         if (!thread) {
-          throw new Error("Could not load the conversation thread. Please try again.");
+          throw new Error(
+            "Could not load the conversation thread. Please try again."
+          );
         }
 
         // Use the unified Odoo pattern to open the thread

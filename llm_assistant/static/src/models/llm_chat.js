@@ -125,7 +125,10 @@ registerPatch({
      */
     async loadThreads(additionalFields = [], domain = []) {
       // Call the super method with our additional fields and domain
-      return this._super([...additionalFields, ...ASSISTANT_THREAD_FIELDS], domain);
+      return this._super(
+        [...additionalFields, ...ASSISTANT_THREAD_FIELDS],
+        domain
+      );
     },
 
     /**

@@ -4,15 +4,12 @@ import logging
 
 import emoji
 import markdown2
+from psycopg2 import OperationalError
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
-from psycopg2 import OperationalError
 
 _logger = logging.getLogger(__name__)
-
-
-
 
 
 class RelatedRecordProxy:
@@ -136,27 +133,25 @@ class LLMThread(models.Model):
         help="ID of the related record",
     )
 
-
-
     tool_ids = fields.Many2many(
         "llm.tool",
         string="Available Tools",
         help="Tools that can be used by the LLM in this thread",
     )
-    
+
     attachment_ids = fields.Many2many(
-        'ir.attachment',
-        string='All Thread Attachments',
-        compute='_compute_attachment_ids',
+        "ir.attachment",
+        string="All Thread Attachments",
+        compute="_compute_attachment_ids",
         store=True,
-        help='All attachments from all messages in this thread'
+        help="All attachments from all messages in this thread",
     )
-    
+
     attachment_count = fields.Integer(
-        string='Attachment Count',
-        compute='_compute_attachment_count',
+        string="Attachment Count",
+        compute="_compute_attachment_count",
         store=True,
-        help='Total number of attachments in this thread'
+        help="Total number of attachments in this thread",
     )
 
     @api.model_create_multi
@@ -194,15 +189,15 @@ class LLMThread(models.Model):
 
         return records
 
-    @api.depends('message_ids.attachment_ids')
+    @api.depends("message_ids.attachment_ids")
     def _compute_attachment_ids(self):
         """Compute all attachments from all messages in this thread."""
         for thread in self:
             # Get all attachments from all messages in this thread
-            all_attachments = thread.message_ids.mapped('attachment_ids')
+            all_attachments = thread.message_ids.mapped("attachment_ids")
             thread.attachment_ids = [(6, 0, all_attachments.ids)]
-    
-    @api.depends('attachment_ids')
+
+    @api.depends("attachment_ids")
     def _compute_attachment_count(self):
         """Compute the total number of attachments in this thread."""
         for thread in self:
@@ -316,7 +311,7 @@ class LLMThread(models.Model):
     def generate(self, user_message_body, **kwargs):
         """Main generation method with PostgreSQL advisory locking."""
         self.ensure_one()
-        
+
         with self._generation_lock():
             last_message = False
             # Post user message if provided
@@ -432,7 +427,6 @@ class LLMThread(models.Model):
                 _logger.info(f"Finished locked generation for thread {self.id}")
             else:
                 _logger.warning(f"Lock release failed for thread {self.id}")
-
 
     # ============================================================================
     # ODOO HOOKS AND CLEANUP

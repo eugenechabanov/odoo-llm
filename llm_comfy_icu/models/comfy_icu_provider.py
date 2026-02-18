@@ -134,14 +134,14 @@ class LLMProvider(models.Model):
 
         # Store schemas in details field
         model_details = model_record.details or {}
-        model_details.update({
-            "input_schema": input_schema,
-            "output_schema": output_schema,
-        })
-        
-        model_record.write({
-            "details": model_details
-        })
+        model_details.update(
+            {
+                "input_schema": input_schema,
+                "output_schema": output_schema,
+            }
+        )
+
+        model_record.write({"details": model_details})
 
     def comfy_icu_generate(self, inputs, model_record=None, stream=False):
         """Generate media content using ComfyICU
@@ -198,14 +198,14 @@ class LLMProvider(models.Model):
 
             # Extract output URLs with metadata
             urls = self._comfy_icu_extract_output_urls_with_metadata(result)
-            
+
             # Create output data
             output_data = {
                 "raw_response": result,
                 "run_id": run_id,
                 "workflow_id": workflow_id,
                 "inputs": inputs,
-                "provider": "comfy_icu"
+                "provider": "comfy_icu",
             }
 
             # Return results based on streaming mode
@@ -320,9 +320,11 @@ class LLMProvider(models.Model):
             for item in output_list:
                 if isinstance(item, dict) and "url" in item:
                     url_data = {
-                        'url': item["url"],
-                        'content_type': 'image/png',  # Default for ComfyICU
-                        'filename': item["url"].split('/')[-1] if item["url"] else 'generated_content'
+                        "url": item["url"],
+                        "content_type": "image/png",  # Default for ComfyICU
+                        "filename": item["url"].split("/")[-1]
+                        if item["url"]
+                        else "generated_content",
                     }
                     urls.append(url_data)
 
@@ -333,10 +335,12 @@ class LLMProvider(models.Model):
                 for path, url in outputs.items():
                     if path.startswith("/output/"):
                         url_data = {
-                            'url': url,
-                            'content_type': 'image/png',  # Default for ComfyICU
-                            'filename': url.split('/')[-1] if url else 'generated_content',
-                            'path': path
+                            "url": url,
+                            "content_type": "image/png",  # Default for ComfyICU
+                            "filename": url.split("/")[-1]
+                            if url
+                            else "generated_content",
+                            "path": path,
                         }
                         urls.append(url_data)
 

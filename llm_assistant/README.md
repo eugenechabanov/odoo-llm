@@ -22,7 +22,7 @@ The LLM Assistant module provides sophisticated AI assistant management that goe
 **Version 16.0.1.4.0** consolidates functionality from the former `llm_prompt` module:
 
 - ✅ **Prompt templates integrated** into assistant management
-- ✅ **Enhanced testing wizard** with context simulation  
+- ✅ **Enhanced testing wizard** with context simulation
 - ✅ **Streamlined UI** with unified assistant and prompt selection
 - ✅ **Auto-argument detection** for template variables
 - ✅ **Schema synchronization** between templates and forms
@@ -30,7 +30,9 @@ The LLM Assistant module provides sophisticated AI assistant management that goe
 ### Assistant Types & Use Cases
 
 #### 1. Chat Assistants
+
 Configure conversational AI with specific personas:
+
 ```python
 # Customer service assistant
 assistant = env['llm.assistant'].create({
@@ -49,7 +51,9 @@ assistant = env['llm.assistant'].create({
 ```
 
 #### 2. Content Generation Assistants
+
 Configure specialized content creation workflows:
+
 ```python
 # Marketing content generator
 assistant = env['llm.assistant'].create({
@@ -65,12 +69,14 @@ assistant = env['llm.assistant'].create({
 ```
 
 #### 3. Analysis Assistants
+
 Configure data analysis and insights:
+
 ```python
 # Business intelligence assistant
 assistant = env['llm.assistant'].create({
     'name': 'BI Analyst',
-    'role': 'Business Intelligence Analyst', 
+    'role': 'Business Intelligence Analyst',
     'goal': 'Analyze business data and provide actionable insights',
     'tool_ids': [(6, 0, [reporting_tool.id, analytics_tool.id])]
 })
@@ -79,13 +85,14 @@ assistant = env['llm.assistant'].create({
 ### Integrated Prompt Template System
 
 #### Template Management
+
 ```python
 # Create prompt template with auto-detection
 prompt = env['llm.prompt'].create({
     'name': 'Sales Email Generator',
     'template': '''
-Generate a personalized sales email for {{customer_name}} 
-regarding {{product_name}}. 
+Generate a personalized sales email for {{customer_name}}
+regarding {{product_name}}.
 
 Customer Context:
 - Company: {{customer_company}}
@@ -105,18 +112,20 @@ prompt.auto_detect_arguments()
 #### Advanced Template Formats
 
 **YAML Format** for structured conversations:
+
 ```yaml
 messages:
   - type: system
     content: |
       You are {{role}}. Your goal is {{goal}}.
       Customer: {{customer_name}} ({{customer_company}})
-  - type: user  
+  - type: user
     content: |
       {{user_request}}
 ```
 
 **JSON Format** for direct API compatibility:
+
 ```json
 {
   "messages": [
@@ -125,7 +134,7 @@ messages:
       "content": "You are {{role}} helping {{customer_name}}"
     },
     {
-      "type": "user", 
+      "type": "user",
       "content": "{{user_input}}"
     }
   ],
@@ -174,7 +183,7 @@ wizard.run_test_scenarios([
 def prepare_context(self, record=None, user_input=None):
     """Transform Odoo data into LLM-compatible context"""
     context = {}
-    
+
     if record and record._name == 'sale.order':
         context.update({
             'customer_name': record.partner_id.name,
@@ -182,11 +191,11 @@ def prepare_context(self, record=None, user_input=None):
             'order_date': record.date_order,
             'sales_person': record.user_id.name
         })
-    
+
     # Add user input and system context
     context['user_input'] = user_input
     context['current_date'] = fields.Date.today()
-    
+
     return context
 ```
 
@@ -214,7 +223,7 @@ assistant = env['llm.assistant'].create({
     'instructions': '''
         Key behaviors:
         - Always qualify leads before pitching
-        - Use customer data to personalize responses  
+        - Use customer data to personalize responses
         - Focus on value propositions
         - Suggest appropriate products based on needs
     ''',
@@ -235,7 +244,7 @@ You are {{role}} working with {{customer_name}} from {{customer_company}}.
 
 Customer Profile:
 - Industry: {{industry}}
-- Size: {{company_size}}  
+- Size: {{company_size}}
 - Budget Range: {{budget_range}}
 - Key Pain Points: {{pain_points}}
 
@@ -318,7 +327,7 @@ is_valid, errors = prompt.validate_template()
 ```python
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
-    
+
     def create_ai_assistant_thread(self):
         """Create AI assistant thread for this sale order"""
         thread = self.env['llm.thread'].create({
@@ -327,20 +336,20 @@ class SaleOrder(models.Model):
             'res_id': self.id,
             'assistant_id': self.env.ref('my_module.sales_assistant').id
         })
-        
+
         # Initialize with order context
         context = {
             'customer_name': self.partner_id.name,
             'order_total': self.amount_total,
             'products': [line.product_id.name for line in self.order_line]
         }
-        
+
         thread.message_post(
             body=f"AI Assistant ready to help with {self.name}",
             llm_role="system",
             body_json={'context': context}
         )
-        
+
         return thread
 ```
 
@@ -349,22 +358,22 @@ class SaleOrder(models.Model):
 ```python
 class ProjectTask(models.Model):
     _inherit = 'project.task'
-    
+
     def get_ai_assistance(self, query):
         """Get AI assistance for project tasks"""
         assistant = self.env.ref('my_module.project_assistant')
-        
+
         context = assistant.prepare_context(
             record=self,
             user_input=query
         )
-        
+
         # Generate AI response with project context
         response = assistant.generate_response(
             context=context,
             tools=['project_search', 'time_tracking', 'resource_planning']
         )
-        
+
         return response
 ```
 
@@ -373,12 +382,14 @@ class ProjectTask(models.Model):
 ### From llm_prompt Module
 
 **Automatic Migration** (Version 16.0.1.4.0):
+
 - All existing prompts automatically migrated to assistant module
 - Template functionality seamlessly integrated
 - Enhanced testing capabilities added
 - No data loss or configuration changes required
 
 **New Features Added**:
+
 - Auto-argument detection for existing templates
 - Enhanced testing wizard with context simulation
 - Improved UI with unified assistant/prompt management
@@ -402,7 +413,7 @@ None - this is a consolidation update with full backward compatibility.
 ### Key Models
 
 - **`llm.assistant`**: Main assistant configuration
-- **`llm.prompt`**: Integrated prompt template management  
+- **`llm.prompt`**: Integrated prompt template management
 - **`llm.prompt.category`**: Template categorization
 - **`llm.assistant.test.wizard`**: Testing and validation
 
@@ -441,4 +452,4 @@ This module is licensed under [LGPL-3](https://www.gnu.org/licenses/lgpl-3.0.htm
 
 ---
 
-*© 2025 Apexive Solutions LLC. All rights reserved.*
+_© 2025 Apexive Solutions LLC. All rights reserved._

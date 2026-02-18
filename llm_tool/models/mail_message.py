@@ -123,8 +123,8 @@ class MailMessage(models.Model):
                 "tool_call_id": tool_data.get("tool_call_id"),
                 "tool_name": name,
                 "arguments": self._parse_tool_arguments(args) if args else {},
-                "status": "executing"
-            }
+                "status": "executing",
+            },
         }
 
         # Update status to executing
@@ -152,8 +152,8 @@ class MailMessage(models.Model):
                         "tool_name": name,
                         "arguments": self._parse_tool_arguments(args) if args else {},
                         "status": "completed",
-                        "result": result
-                    }
+                        "result": result,
+                    },
                 }
 
         except Exception as e:
@@ -162,7 +162,7 @@ class MailMessage(models.Model):
             tool_data["status"] = "error"
             tool_data["error"] = str(e)
             self.write({"body_json": tool_data})
-            
+
             # Emit tool_failed event
             yield {
                 "type": "tool_failed",
@@ -171,10 +171,10 @@ class MailMessage(models.Model):
                     "tool_name": name,
                     "arguments": self._parse_tool_arguments(args) if args else {},
                     "status": "error",
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             }
-            
+
         yield {"type": "message_update", "message": self.message_format()[0]}
         return self
 
