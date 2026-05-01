@@ -84,8 +84,12 @@ class AccountToolMixin(models.AbstractModel):
         Returns:
             account.account recordset
         """
-        Account = self.env["account.account"]
-        base_domain = [('deprecated', '=', False)]
+        company = self.env.company
+        Account = self.env["account.account"].with_company(company)
+        base_domain = [
+            *self.env['account.account']._check_company_domain(company),
+            ('deprecated', '=', False)
+        ]
 
         if not identifier or identifier == "all":
             return Account.search(base_domain)
@@ -140,15 +144,25 @@ class AccountToolMixin(models.AbstractModel):
             account.journal record (single)
         """
         Journal = self.env["account.journal"]
+        company = self.env.company
 
         # Try code first (case-insensitive)
-        journal = Journal.search([("code", "=ilike", identifier)], limit=1)
+        journal = Journal.search([
+            *self.env["account.journal"]._check_company_domain(company),
+            ("code", "=ilike", identifier)
+        ], limit=1)
         if not journal:
-            journal = Journal.search([("name", "ilike", identifier)], limit=1)
+            journal = Journal.search([
+                *self.env["account.journal"]._check_company_domain(company),
+                ("name", "ilike", identifier)
+            ], limit=1)
         if not journal:
             valid_types = ("sale", "purchase", "cash", "bank", "general")
             if identifier.lower() in valid_types:
-                journal = Journal.search([("type", "=", identifier.lower())], limit=1)
+                journal = Journal.search([
+                    *self.env["account.journal"]._check_company_domain(company),
+                    ("type", "=", identifier.lower())
+                ], limit=1)
         if not journal:
             raise UserError(_("Journal '%s' not found") % identifier)
         return journal
@@ -162,7 +176,10 @@ class AccountToolMixin(models.AbstractModel):
         Returns:
             account.tax record (single)
         """
-        tax = self.env["account.tax"].search([("name", "ilike", identifier)], limit=1)
+        tax = self.env["account.tax"].search([
+            *self.env["account.tax"]._check_company_domain(self.env.company),
+            ("name", "ilike", identifier)
+        ], limit=1)
         if not tax:
             raise UserError(_("Tax '%s' not found") % identifier)
         return tax
@@ -176,7 +193,10 @@ class AccountToolMixin(models.AbstractModel):
         Returns:
             account.move record (single)
         """
-        move = self.env["account.move"].search([("name", "=", reference)], limit=1)
+        move = self.env["account.move"].search([
+            *self.env["account.move"]._check_company_domain(self.env.company),
+            ("name", "=", reference)
+        ], limit=1)
         if not move:
             raise UserError(_("Move '%s' not found") % reference)
         return move
@@ -192,7 +212,7 @@ class AccountToolMixin(models.AbstractModel):
         Returns:
             list of domain tuples
         """
-        domain = []
+        domain = [*self.env["account.move.line"]._check_company_domain(self.env.company)]
         if target_move == "posted":
             domain.append(("parent_state", "=", "posted"))
         elif target_move == "all":
