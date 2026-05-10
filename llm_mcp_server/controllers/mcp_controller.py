@@ -188,8 +188,9 @@ class MCPController(http.Controller):
         """Handle ping method"""
         return {}
 
+    @requires_bearer_auth
     def _mcp_tools_list(self, params, request_id):
-        """Handle tools/list method"""
+        """Handle tools/list method - requires authentication for Record Rules to work"""
         return request.env["llm.tool"].get_mcp_tools_list(params=params)
 
     @requires_bearer_auth

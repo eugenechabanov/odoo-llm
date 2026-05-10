@@ -80,58 +80,62 @@ odoo-bin -d your_db -i llm_mcp_server
 odoo-bin -d your_db -i llm_mcp_server
 ```
 
-### 2. Generate Your MCP Key
+### 2. Get API Key
 
-Each user generates their own API key from their profile. The key determines which Odoo permissions the AI client will have.
+**Option A (Recommended):** Use the "New MCP Key" button:
 
-1. Click your **avatar** (top-right) → **My Profile** (or **Preferences**)
-2. Scroll down to the **Account Security** section
-3. Click the **"New MCP Key"** button (next to "New API Key")
-4. Enter a description (e.g. "Claude Desktop") and confirm your password
-5. Done! The wizard shows your API key **and** ready-to-paste configurations for Claude Desktop, Claude Code, and Codex CLI
+- User Preferences → Account Security → **New MCP Key**, or
+- LLM → Configuration → MCP Server → **New MCP Key**
 
-> **Important:** Copy the key and configuration immediately — the key cannot be retrieved later. You can always generate a new one if needed.
+This generates an API key with ready-to-copy client configurations.
 
-You can also access this from **LLM → Configuration → MCP Server → New MCP Key**.
+**Option B:** Create a standard API key:
 
-### 3. Configure Your AI Client
+- User Preferences → Account Security → API Keys → New
 
-After clicking **"New MCP Key"**, the wizard provides ready-to-copy configuration for each client. Just paste it into the right place:
+### 3. Configure Client
 
-**Claude Desktop** — paste into `~/.config/claude_desktop/claude_desktop_config.json` (Linux/macOS) or `%APPDATA%/Claude/claude_desktop_config.json` (Windows):
+**Claude Desktop** (`~/.config/claude_desktop/claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "odoo-llm-mcp-server": {
-      "type": "stdio",
       "command": "npx",
       "args": [
         "-y",
         "mcp-remote",
         "http://localhost:8069/mcp",
         "--header",
-        "Authorization: Bearer YOUR_API_KEY"
+        "Authorization:${AUTH_HEADER}"
       ],
-      "env": { "MCP_TRANSPORT": "streamable-http" }
+      "env": {
+        "AUTH_HEADER": "Bearer YOUR_API_KEY"
+      }
     }
   }
 }
 ```
 
-**Claude Code** — run in your terminal:
+**Claude Code**:
 
 ```bash
 claude mcp add-json odoo-llm-mcp-server '{
-  "type": "stdio",
   "command": "npx",
-  "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
-           "--header", "Authorization: Bearer YOUR_API_KEY"],
-  "env": {"MCP_TRANSPORT": "streamable-http"}
+  "args": [
+    "-y",
+    "mcp-remote",
+    "http://localhost:8069/mcp",
+    "--header",
+    "Authorization:${AUTH_HEADER}"
+  ],
+  "env": {
+    "AUTH_HEADER": "Bearer YOUR_API_KEY"
+  }
 }'
 ```
 
-**Codex CLI** — add to `~/.codex/config.toml`:
+**Codex CLI** (`~/.codex/config.toml`):
 
 ```toml
 experimental_use_rmcp_client = true
@@ -141,20 +145,11 @@ url = "http://localhost:8069/mcp"
 http_headers.Authorization = "Bearer YOUR_API_KEY"
 ```
 
-**Other MCP clients**: Connect to `http://localhost:8069/mcp` with `Authorization: Bearer YOUR_API_KEY` header.
+**Other clients**: Connect to `http://localhost:8069/mcp` with Bearer auth
 
 ### 4. Restart & Test
 
-Restart your AI client, then ask: "What tools do you have?"
-
-### Adding More Users
-
-Every Odoo user can connect their own AI client independently:
-
-1. Each user goes to **My Profile → Account Security → New MCP Key**
-2. They get their own API key tied to their Odoo permissions
-3. They paste the configuration into their AI client
-4. The AI can only access data that user is allowed to see in Odoo
+Restart your client → Ask "What tools do you have?"
 
 ## Architecture
 

@@ -125,11 +125,17 @@ This generates an API key with ready-to-copy client configurations.
    {
      "mcpServers": {
        "odoo-llm-mcp-server": {
-         "type": "stdio",
          "command": "npx",
-         "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
-                  "--header", "Authorization: Bearer YOUR_API_KEY"],
-         "env": { "MCP_TRANSPORT": "streamable-http" }
+         "args": [
+           "-y",
+           "mcp-remote",
+           "http://localhost:8069/mcp",
+           "--header",
+           "Authorization:${AUTH_HEADER}"
+         ],
+         "env": {
+           "AUTH_HEADER": "Bearer YOUR_API_KEY"
+         }
        }
      }
    }
@@ -139,11 +145,17 @@ This generates an API key with ready-to-copy client configurations.
 .. code-block:: bash
 
    claude mcp add-json odoo-llm-mcp-server '{
-     "type": "stdio",
      "command": "npx",
-     "args": ["-y", "mcp-remote", "http://localhost:8069/mcp",
-              "--header", "Authorization: Bearer YOUR_API_KEY"],
-     "env": {"MCP_TRANSPORT": "streamable-http"}
+     "args": [
+       "-y",
+       "mcp-remote",
+       "http://localhost:8069/mcp",
+       "--header",
+       "Authorization:${AUTH_HEADER}"
+     ],
+     "env": {
+       "AUTH_HEADER": "Bearer YOUR_API_KEY"
+     }
    }'
 
 **Codex CLI** (``~/.codex/config.toml``):

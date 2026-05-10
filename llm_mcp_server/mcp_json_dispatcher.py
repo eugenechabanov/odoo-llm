@@ -168,12 +168,16 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
 
     def _response(self, result=None, error=None):
         """
-        Override to add MCP-specific headers to responses
+        Override to add MCP-specific headers to responses.
+        
+        Note: Streaming/keep-alive is handled by the production HTTP server
+        (nginx/Gunicorn). The Werkzeug development server does not support
+        HTTP keep-alive, so MCP clients may not work in local development.
         """
         # Use parent's _response for JSON-RPC structure
         response = super()._response(result, error)
 
-        # Add MCP headers
+        # Add MCP session header if present
         if hasattr(request, "mcp_session_id"):
             response.headers[MCP_SESSION_ID_HEADER] = request.mcp_session_id
 

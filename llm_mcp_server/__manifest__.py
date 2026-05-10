@@ -1,6 +1,6 @@
 {
     "name": "LLM MCP Server",
-    "version": "18.0.1.3.2",
+    "version": "19.0.1.0.0",
     "category": "Technical",
     "summary": "MCP server exposing Odoo LLM tools to Claude Desktop and other MCP hosts",
     "description": """
@@ -27,7 +27,7 @@
     "author": "Apexive Solutions LLC",
     "website": "https://github.com/apexive/odoo-llm",
     "license": "LGPL-3",
-    "depends": ["base", "llm", "llm_tool", "web_json_editor"],
+    "depends": ["base", "llm", "llm_tool"],
     "external_dependencies": {
         "python": ["mcp"],
     },
@@ -48,7 +48,6 @@
         "static/description/client_windsurf.png",
         "static/description/client_vscode.png",
         "static/description/client_codex.png",
-        "static/description/client_claude_cowork.png",
     ],
     "auto_install": False,
     "application": False,
