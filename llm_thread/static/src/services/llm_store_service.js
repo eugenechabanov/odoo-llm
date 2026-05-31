@@ -21,6 +21,8 @@ export const llmStoreService = {
       llmProviders: new Map(),
       // Map<id, LLMTool>
       llmTools: new Map(),
+      // Map<id, LLMAssistant>
+      llmAssistants: new Map(),
       // Set<threadId> currently streaming
       streamingThreads: new Set(),
       // Map<threadId, EventSource>
@@ -69,6 +71,46 @@ export const llmStoreService = {
         return null;
       },
 
+      /**
+       * Get current page context for the AI (sent as hidden metadata, not in message text)
+       */
+      getCurrentPageContext() {
+        const path = window.location.pathname;
+        const parts = [];
+
+        // Get breadcrumb trail (shows the full navigation path)
+        const breadcrumbs = document.querySelectorAll(".o_breadcrumb .o_back_button, .o_breadcrumb .active");
+        if (breadcrumbs.length > 0) {
+          const trail = Array.from(breadcrumbs).map(el => el.textContent.trim()).filter(Boolean);
+          parts.push("Page: " + trail.join(" > "));
+        }
+
+        // Get the current menu app name
+        const menuItem = document.querySelector(".o_menu_brand")?.textContent?.trim();
+        if (menuItem) {
+          parts.push("App: " + menuItem);
+        }
+
+        // Try to extract record info from the form view
+        const formView = document.querySelector(".o_form_view");
+        if (formView) {
+          // Get the record title (display_name) from the form
+          const title = document.querySelector(".o_form_view .oe_title input, .o_form_view .oe_title span.o_field_widget")?.textContent?.trim()
+            || document.querySelector(".o_form_view .oe_title textarea")?.value?.trim();
+          if (title) {
+            parts.push("Record name: " + title);
+          }
+        }
+
+        // Get the model and ID from the URL path
+        const urlMatch = path.match(/\/odoo\/([^/]+?)(?:\/(\d+))?(?:\?|$)/);
+        if (urlMatch) {
+          parts.push("URL: " + path);
+        }
+
+        return parts.join(". ") || path;
+      },
+
       async sendLLMMessage(threadId, content, attachmentIds = []) {
         if (!threadId || (!content?.trim() && attachmentIds.length === 0)) {
           return;
@@ -96,6 +138,11 @@ export const llmStoreService = {
           let url = `/llm/thread/generate?thread_id=${threadId}`;
           if (message) {
             url += `&message=${encodeURIComponent(message)}`;
+          }
+          // Send current page context as hidden metadata
+          const pageContext = this.getCurrentPageContext();
+          if (pageContext) {
+            url += `&page_context=${encodeURIComponent(pageContext)}`;
           }
           if (attachmentIds.length > 0) {
             url += `&attachment_ids=${attachmentIds.join(",")}`;
@@ -247,6 +294,28 @@ export const llmStoreService = {
         }
       },
 
+      async loadLLMAssistants() {
+        try {
+          const assistants = await orm.searchRead(
+            "llm.assistant",
+            [],
+            ["id", "name", "provider_id", "model_id"]
+          );
+          assistants.forEach((assistant) => {
+            this.llmAssistants.set(assistant.id, assistant);
+          });
+        } catch (error) {
+          console.warn("LLM assistants not available:", error.message);
+        }
+      },
+
+      getFirstAvailableAssistant() {
+        const assistants = Array.from(this.llmAssistants.values());
+        if (assistants.length === 0) return null;
+        // Prefer the assistant with the highest ID (most recently created)
+        return assistants.reduce((best, a) => (a.id > best.id ? a : best), assistants[0]);
+      },
+
       async loadLLMTools() {
         // Load available tools with minimal fields
         const tools = await orm.searchRead(
@@ -309,14 +378,19 @@ export const llmStoreService = {
           return;
         }
 
-        // Create thread with auto-generated name
+        // Create thread with auto-generated name and default assistant
         const threadName = `Chat ${new Date().toLocaleString()}`;
+        const firstAssistant = this.getFirstAvailableAssistant();
 
         const threadData = {
           name: threadName,
           provider_id: firstProvider.id,
           model_id: firstModel.id,
         };
+
+        if (firstAssistant) {
+          threadData.assistant_id = firstAssistant.id;
+        }
 
         // Auto-link to record if context provided (e.g., from chatter)
         if (recordModel && recordId) {
@@ -325,6 +399,11 @@ export const llmStoreService = {
         }
 
         const threadId = await orm.call("llm.thread", "create", [threadData]);
+
+        // Use set_assistant to copy tools and prompt from assistant to thread
+        if (firstAssistant) {
+          await orm.call("llm.thread", "set_assistant", [threadId, firstAssistant.id]);
+        }
 
         // Reload user threads and select the new one
         await this.refreshThreadsAndSelect(threadId);
@@ -465,7 +544,7 @@ export const llmStoreService = {
 
       // Get list of data loaders - can be extended by patches
       getDataLoaders() {
-        return [this.loadLLMProviders, this.loadLLMModels, this.loadLLMTools];
+        return [this.loadLLMProviders, this.loadLLMModels, this.loadLLMTools, this.loadLLMAssistants];
       },
 
       // Initialize LLM store - threads now loaded via standard init_messaging

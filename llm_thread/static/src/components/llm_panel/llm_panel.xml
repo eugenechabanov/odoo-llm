@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="llm_thread.LLMPanel">
+        <!-- Side panel - toggled via class for slide animation -->
+        <div
+            t-ref="panel"
+            class="o-llm-panel"
+            t-att-class="{ 'o-open': isOpen }"
+            t-att-style="'width:' + state.width + 'px;'"
+        >
+            <!-- Resize handle on left edge -->
+            <div
+                class="o-llm-panel-resize"
+                t-on-mousedown="onResizeStart"
+            />
+            <!-- Header: title + close -->
+            <div class="o-llm-panel-header d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                <span class="fw-bold">AI Chat</span>
+                <button
+                    class="btn btn-sm btn-close"
+                    t-on-click="closePanel"
+                    title="Close"
+                />
+            </div>
+            <!-- Chat body - renders in narrow mode via inLLMPanel env -->
+            <div class="o-llm-panel-body" t-if="isOpen">
+                <LLMChatContainer />
+            </div>
+        </div>
+    </t>
+</templates>

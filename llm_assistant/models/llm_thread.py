@@ -330,11 +330,32 @@ class LLMThread(models.Model):
 
     def _prepare_chat_kwargs(self, message_history, use_streaming):
         """Prepare chat kwargs for provider. Can be overridden by extensions."""
+        prepend = self.get_prepend_messages()
+        # Inject page context into the existing system message
+        page_context = self.env.context.get("llm_page_context")
+        if page_context:
+            page_info = f"\n\nCURRENT PAGE CONTEXT: The user is currently viewing: {page_context}"
+            prepend = list(prepend)
+            # Find and extend the existing system message
+            found = False
+            for i, msg in enumerate(prepend):
+                if msg.get("role") == "system":
+                    content = msg.get("content", "")
+                    if isinstance(content, str):
+                        prepend[i] = {**msg, "content": content + page_info}
+                    elif isinstance(content, list):
+                        # Content is a list of content blocks
+                        prepend[i] = {**msg, "content": content + [{"type": "text", "text": page_info}]}
+                    found = True
+                    break
+            if not found:
+                # No system message exists, create one
+                prepend.insert(0, {"role": "system", "content": page_info.strip()})
         return {
             "messages": message_history,
             "tools": self.tool_ids,
             "stream": use_streaming,
-            "prepend_messages": self.get_prepend_messages(),
+            "prepend_messages": prepend,
         }
 
     def get_llm_messages(self, limit=25):

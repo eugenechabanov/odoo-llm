@@ -89,6 +89,7 @@ class LLMThreadController(http.Controller):
         thread_id,
         message=None,
         attachment_ids=None,
+        page_context=None,
         **kwargs,
     ):
         headers = {
@@ -101,6 +102,7 @@ class LLMThreadController(http.Controller):
             parsed_attachment_ids = [
                 int(x) for x in attachment_ids.split(",") if x.strip().isdigit()
             ]
+        _logger.info("=== LLM GENERATE: thread_id=%s, page_context=%s, message=%s ===", thread_id, page_context, message[:50] if message else None)
         return Response(
             self._llm_thread_generate(
                 request.cr.dbname,
@@ -108,6 +110,7 @@ class LLMThreadController(http.Controller):
                 thread_id,
                 message,
                 attachment_ids=parsed_attachment_ids,
+                page_context=page_context,
                 **kwargs,
             ),
             direct_passthrough=True,

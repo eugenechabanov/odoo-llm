@@ -79,6 +79,17 @@ Contact: support@apexive.com
             # Client Actions - Following Odoo 18.0 patterns
             "llm_thread/static/src/client_actions/llm_chat_client_action.js",
             "llm_thread/static/src/client_actions/open_chatter_action.js",
+            # Panel service - persistent state for side panel
+            "llm_thread/static/src/services/llm_panel_service.js",
+            # Systray button - AI icon in top navigation bar
+            "llm_thread/static/src/components/llm_systray/llm_systray.js",
+            "llm_thread/static/src/components/llm_systray/llm_systray.xml",
+            "llm_thread/static/src/components/llm_systray/llm_systray.scss",
+            # Side panel - persistent chat panel at WebClient root
+            "llm_thread/static/src/components/llm_panel/llm_panel.js",
+            "llm_thread/static/src/components/llm_panel/llm_panel.xml",
+            "llm_thread/static/src/components/llm_panel/llm_panel.scss",
+            "llm_thread/static/src/components/llm_panel/llm_panel_registration.js",
         ],
     },
     "images": [

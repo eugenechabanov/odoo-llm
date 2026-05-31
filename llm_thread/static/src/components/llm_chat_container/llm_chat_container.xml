@@ -68,8 +68,8 @@
                   />
                                     <div class="text-muted small mt-1">
                                         <span
-                      t-if="thread.write_date"
-                      t-esc="formatDate(thread.write_date)"
+                      t-if="thread.write_date || thread.create_date"
+                      t-esc="formatDate(thread.create_date || thread.write_date)"
                     />
                                     </div>
                                 </div>
@@ -168,8 +168,8 @@
                   />
                                     <div class="text-muted small mt-1">
                                         <span
-                      t-if="thread.write_date"
-                      t-esc="formatDate(thread.write_date)"
+                      t-if="thread.write_date || thread.create_date"
+                      t-esc="formatDate(thread.create_date || thread.write_date)"
                     />
                                     </div>
                                 </div>

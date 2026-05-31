@@ -1,0 +1,18 @@
+.o-llm-systray-btn {
+    color: white;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.3);
+        color: white;
+    }
+
+    &.o-active {
+        background: rgba(255, 255, 255, 0.35);
+        color: white;
+    }
+}

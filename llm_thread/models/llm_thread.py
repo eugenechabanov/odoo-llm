@@ -355,8 +355,14 @@ class LLMThread(models.Model):
             user_message_body: Optional message body. If not provided, will use
                               the latest message in the thread to start generation.
             attachment_ids: Optional list of ir.attachment IDs to attach to user message.
+            page_context: Optional string with the user's current page context.
         """
         self.ensure_one()
+        # Store page context for use in _prepare_chat_kwargs
+        page_context = kwargs.pop("page_context", None)
+        _logger.info("LLM generate called. page_context=%s, kwargs_keys=%s", page_context, list(kwargs.keys()))
+        if page_context:
+            self = self.with_context(llm_page_context=page_context)
 
         with self._generation_lock():
             last_message = False

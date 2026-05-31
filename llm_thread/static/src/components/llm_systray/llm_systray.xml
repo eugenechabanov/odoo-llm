@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<templates xml:space="preserve">
+    <t t-name="llm_thread.LLMSystray">
+        <div class="o_LLMSystray d-flex align-items-center mx-1">
+            <button
+                class="o-llm-systray-btn btn border-0 px-2 py-1 fw-bold"
+                t-att-class="{ 'o-active': isOpen }"
+                t-on-click.stop="togglePanel"
+                title="AI Chat"
+            >AI</button>
+        </div>
+    </t>
+</templates>

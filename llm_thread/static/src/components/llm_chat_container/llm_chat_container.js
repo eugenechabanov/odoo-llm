@@ -135,7 +135,9 @@ export class LLMChatContainer extends Component {
    */
   formatDate(dateString) {
     if (!dateString) return "";
-    const date = new Date(dateString);
+    // Odoo sends dates as naive UTC strings — append Z to parse as UTC
+    const utcString = dateString.endsWith("Z") ? dateString : dateString.replace(" ", "T") + "Z";
+    const date = new Date(utcString);
     const now = new Date();
     const diffMs = now - date;
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
