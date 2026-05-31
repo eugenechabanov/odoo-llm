@@ -400,8 +400,10 @@ export const llmStoreService = {
           return;
         }
 
-        // Create thread with auto-generated name and default assistant
-        const threadName = `Chat ${new Date().toLocaleString()}`;
+        // Name thread based on current page context
+        const breadcrumb = document.querySelector(".o_breadcrumb .active")?.textContent?.trim();
+        const pageLabel = breadcrumb || document.querySelector(".o_menu_brand")?.textContent?.trim() || "Chat";
+        const threadName = `${pageLabel} ${new Date().toLocaleString()}`;
         const firstAssistant = this.getFirstAvailableAssistant();
 
         const threadData = {
