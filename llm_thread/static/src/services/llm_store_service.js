@@ -94,7 +94,6 @@ export const llmStoreService = {
         // Try to extract record info from the form view
         const formView = document.querySelector(".o_form_view");
         if (formView) {
-          // Get the record title (display_name) from the form
           const title = document.querySelector(".o_form_view .oe_title input, .o_form_view .oe_title span.o_field_widget")?.textContent?.trim()
             || document.querySelector(".o_form_view .oe_title textarea")?.value?.trim();
           if (title) {
@@ -102,11 +101,22 @@ export const llmStoreService = {
           }
         }
 
-        // Get the model and ID from the URL path
-        const urlMatch = path.match(/\/odoo\/([^/]+?)(?:\/(\d+))?(?:\?|$)/);
-        if (urlMatch) {
-          parts.push("URL: " + path);
+        // Extract the record ID from URL — handle doubled paths like /odoo/action-613/action-613/303
+        const idMatch = path.match(/\/(\d+)(?:\?|$)/);
+        if (idMatch) {
+          parts.push("Record ID: " + idMatch[1]);
         }
+
+        // Try to get the model from the current controller
+        try {
+          const actionEl = document.querySelector(".o_action_manager .o_action");
+          const model = actionEl?.dataset?.resModel || actionEl?.closest("[data-res-model]")?.dataset?.resModel;
+          if (model) {
+            parts.push("Model: " + model);
+          }
+        } catch (e) { /* ignore */ }
+
+        parts.push("URL: " + path);
 
         return parts.join(". ") || path;
       },
