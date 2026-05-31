@@ -406,7 +406,8 @@ export const llmStoreService = {
         const now = new Date();
         const monthDay = now.toLocaleDateString("en-US", { month: "short", day: "numeric" });
         const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-        const threadName = `[${pageLabel}] ${monthDay}, ${time}`;
+        const label = pageLabel.length > 20 ? pageLabel.substring(0, 20) + "..." : pageLabel;
+        const threadName = `[${label}] ${monthDay}, ${time}`;
         const firstAssistant = this.getFirstAvailableAssistant();
 
         const threadData = {
