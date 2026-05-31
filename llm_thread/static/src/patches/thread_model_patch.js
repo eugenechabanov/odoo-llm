@@ -55,25 +55,13 @@ patch(Thread.prototype, {
    * Override setActiveURL to handle llm.thread model
    */
   setActiveURL() {
-    // Handle llm.thread model specifically
+    // For llm.thread: do NOT modify the URL.
+    // The AI panel is an overlay — changing the URL corrupts the main page's path
+    // (e.g. /odoo/action-613/303 becomes /odoo/action-613/action-613/303)
     if (this.model === "llm.thread") {
-      try {
-        const activeId = `llm.thread_${this.id}`;
-
-        // Safely update router state
-        if (router && router.pushState) {
-          router.pushState({ active_id: activeId });
-        }
-
-        // Update action context if available
-        this._updateActionContext(activeId);
-      } catch (error) {
-        console.warn("Error updating URL for LLM thread:", error);
-        // Continue without failing
-      }
-    } else {
-      // For all other models, use the original implementation
-      super.setActiveURL();
+      return;
     }
+    // For all other models, use the original implementation
+    super.setActiveURL();
   },
 });
