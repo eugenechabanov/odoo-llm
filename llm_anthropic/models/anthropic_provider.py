@@ -23,7 +23,10 @@ class LLMProvider(models.Model):
         self.ensure_one()
         if not self.api_key:
             raise UserError(_("API key is required for Anthropic provider"))
-        return Anthropic(api_key=self.api_key)
+        kwargs = {"api_key": self.api_key}
+        if self.api_base:
+            kwargs["base_url"] = self.api_base
+        return Anthropic(**kwargs)
 
     def anthropic_normalize_prepend_messages(self, prepend_messages):
         """Normalize prepend messages for Anthropic format.
