@@ -403,7 +403,10 @@ export const llmStoreService = {
         // Name thread based on current page context
         const breadcrumb = document.querySelector(".o_breadcrumb .active")?.textContent?.trim();
         const pageLabel = breadcrumb || document.querySelector(".o_menu_brand")?.textContent?.trim() || "Chat";
-        const threadName = `${pageLabel} ${new Date().toLocaleString()}`;
+        const now = new Date();
+        const monthDay = now.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+        const threadName = `${pageLabel} ${monthDay}, ${time}`;
         const firstAssistant = this.getFirstAvailableAssistant();
 
         const threadData = {
