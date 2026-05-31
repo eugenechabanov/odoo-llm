@@ -10,9 +10,9 @@ import { registry } from "@web/core/registry";
  * Provides LLM-specific functionality without breaking mail components
  */
 export const llmStoreService = {
-  dependencies: ["orm", "mail.store", "notification"],
+  dependencies: ["orm", "mail.store", "notification", "action"],
 
-  start(env, { orm, "mail.store": mailStore, notification }) {
+  start(env, { orm, "mail.store": mailStore, notification, action: actionService }) {
     const llmStore = reactive({
       // NOTE: Threads are now loaded via standard mail.store, no need for separate Map
       // Map<id, LLMModel>
@@ -107,14 +107,26 @@ export const llmStoreService = {
           parts.push("Record ID: " + idMatch[1]);
         }
 
-        // Try to get the model from the current controller
+        // Get the model and record ID from the current Odoo action
         try {
-          const actionEl = document.querySelector(".o_action_manager .o_action");
-          const model = actionEl?.dataset?.resModel || actionEl?.closest("[data-res-model]")?.dataset?.resModel;
-          if (model) {
-            parts.push("Model: " + model);
+          const currentAction = actionService?.currentController?.action;
+          if (currentAction?.res_model) {
+            parts.push("Model: " + currentAction.res_model);
+          }
+          // Get res_id from the controller's props (form view specific record)
+          const resId = actionService?.currentController?.props?.resId;
+          if (resId) {
+            parts.push("Record ID: " + resId);
           }
         } catch (e) { /* ignore */ }
+
+        // Fallback: extract record ID from URL if not found above
+        if (!parts.some(p => p.startsWith("Record ID:"))) {
+          const idMatch = path.match(/\/(\d+)(?:\?|$)/);
+          if (idMatch) {
+            parts.push("Record ID: " + idMatch[1]);
+          }
+        }
 
         parts.push("URL: " + path);
 
