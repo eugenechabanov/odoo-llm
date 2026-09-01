@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Union
+from typing import Any
 
 from odoo import api, models
 
@@ -18,7 +18,7 @@ class LLMToolRecordRetriever(models.Model):
     def odoo_record_retriever_execute(
         self,
         model: str,
-        domain: list[list[Union[str, int, bool, float, None]]] = [],  # noqa: B006
+        domain: list[Any] = [],  # noqa: B006
         fields: list[str] = [],  # noqa: B006
         limit: int = 100,
     ) -> dict[str, Any]:
@@ -27,7 +27,11 @@ class LLMToolRecordRetriever(models.Model):
 
         Parameters:
             model: The Odoo model to retrieve records from
-            domain: Domain to filter records (list of lists/tuples like ['field', 'op', 'value'])
+            domain: Odoo search domain: a list of ``[field, operator, value]`` criteria.
+                ``value`` may itself be a list for the ``in`` / ``not in``
+                operators, and the logical operators ``&``, ``|`` and ``!``
+                appear as bare strings in the same list.
+                Example: ``["|", ["id", "in", [1, 2, 3]], ["name", "=", "Bike"]]``
             fields: List of field names to retrieve
             limit: Maximum number of records to retrieve
         """

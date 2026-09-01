@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Union
+from typing import Any
 
 from odoo import api, models
 
@@ -17,7 +17,7 @@ class LLMToolRecordUnlinker(models.Model):
     def odoo_record_unlinker_execute(
         self,
         model: str,
-        domain: list[list[Union[str, int, bool, float, None]]],
+        domain: list[Any],
         limit: int = 1,
     ) -> dict[str, Any]:
         """
@@ -25,7 +25,11 @@ class LLMToolRecordUnlinker(models.Model):
 
         Parameters:
             model: The Odoo model to delete records from
-            domain: Domain to identify records to delete
+            domain: Odoo search domain: a list of ``[field, operator, value]`` criteria.
+                ``value`` may itself be a list for the ``in`` / ``not in``
+                operators, and the logical operators ``&``, ``|`` and ``!``
+                appear as bare strings in the same list.
+                Example: ``["|", ["id", "in", [1, 2, 3]], ["name", "=", "Bike"]]``
             limit: Maximum number of records to delete (default: 1 for safety)
         """
         _logger.info(
