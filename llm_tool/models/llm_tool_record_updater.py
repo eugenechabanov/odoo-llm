@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Union
+from typing import Any
 
 from odoo import api, models
 
@@ -17,7 +17,7 @@ class LLMToolRecordUpdater(models.Model):
     def odoo_record_updater_execute(
         self,
         model: str,
-        domain: list[list[Union[str, int, bool, float, None]]],
+        domain: list[Any],
         values: dict[str, Any],
         limit: int = 1,
     ) -> dict[str, Any]:
@@ -26,7 +26,11 @@ class LLMToolRecordUpdater(models.Model):
 
         Parameters:
             model: The Odoo model to update records in
-            domain: Domain to identify records to update
+            domain: Odoo search domain: a list of ``[field, operator, value]`` criteria.
+                ``value`` may itself be a list for the ``in`` / ``not in``
+                operators, and the logical operators ``&``, ``|`` and ``!``
+                appear as bare strings in the same list.
+                Example: ``["|", ["id", "in", [1, 2, 3]], ["name", "=", "Bike"]]``
             values: Dictionary of field values to update
             limit: Maximum number of records to update (default: 1 for safety)
         """
