@@ -154,7 +154,14 @@ class LLMProvider(models.Model):
         Yields:
             dict: {"content": str} or {"tool_calls": list} or {"thinking": str}
         """
-        with self.client.messages.stream(**params) as stream:
+        # NOTE: deliberately use messages.create(stream=True) (raw events) rather
+        # than messages.stream() (the accumulating helper). The helper re-parses the
+        # whole accumulated tool-input buffer on every input_json_delta with
+        # jiter.from_json(..., partial_mode=True); when that speculative parse fails
+        # it raises straight out of this loop and kills the entire response
+        # (Sentry SPIN11_PROD-5P). We keep our own buffer below and parse it once at
+        # content_block_stop, so the helper's snapshot is pure downside for us.
+        with self.client.messages.create(**params, stream=True) as stream:
             tool_calls = {}
             current_thinking = ""
 
