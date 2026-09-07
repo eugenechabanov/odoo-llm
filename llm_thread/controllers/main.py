@@ -2,11 +2,15 @@ import json
 import logging
 
 from odoo import _, api, http
-from odoo.exceptions import MissingError
+from odoo.exceptions import MissingError, UserError
 from odoo.http import Response, request
 from odoo.modules.registry import Registry
 
 _logger = logging.getLogger(__name__)
+
+# Dictation clips are short by nature; anything larger is a mistake, and we
+# should not ship it to the transcription service.
+MAX_TRANSCRIBE_BYTES = 10 * 1024 * 1024
 
 
 class LLMThreadController(http.Controller):
@@ -116,3 +120,59 @@ class LLMThreadController(http.Controller):
             direct_passthrough=True,
             headers=headers,
         )
+
+    @http.route(
+        "/llm/thread/<int:thread_id>/transcribe",
+        type="http",
+        auth="user",
+        methods=["POST"],
+        csrf=True,
+    )
+    def llm_thread_transcribe(self, thread_id, audio=None, **kwargs):
+        """Turn a recorded dictation into text for the composer.
+
+        Nothing is posted to the thread: the text goes back to the browser so
+        the user can read and correct it before deciding to send.
+        """
+        thread = request.env["llm.thread"].browse(thread_id).exists()
+        if not thread:
+            raise MissingError(_("LLM Thread not found."))
+        # Dictating into a thread is only for users who could post in it.
+        thread.check_access("write")
+
+        if audio is None:
+            return request.make_json_response(
+                {"error": _("No audio was received.")}, status=400
+            )
+
+        content = audio.read()
+        if not content:
+            return request.make_json_response(
+                {"error": _("The recording was empty.")}, status=400
+            )
+        if len(content) > MAX_TRANSCRIBE_BYTES:
+            return request.make_json_response(
+                {
+                    "error": _(
+                        "That recording is too long. Please keep dictation "
+                        "under a couple of minutes."
+                    )
+                },
+                status=413,
+            )
+
+        try:
+            text = thread.provider_id.transcribe(
+                content, audio.mimetype or "audio/wav"
+            )
+        except (UserError, NotImplementedError) as e:
+            # Configuration problems must be visible, not silently swallowed.
+            _logger.warning(
+                "Transcription unavailable for thread %s: %s", thread_id, e
+            )
+            return request.make_json_response(
+                {"error": str(e) or _("Voice dictation is not available.")},
+                status=400,
+            )
+
+        return request.make_json_response({"text": text})
