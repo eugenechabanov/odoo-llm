@@ -249,6 +249,7 @@
           >
                         <Composer
               t-if="threadComposer"
+              t-key="activeThread.localId"
               composer="threadComposer"
               mode="'compact'"
               sidebar="false"
