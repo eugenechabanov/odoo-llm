@@ -8,6 +8,23 @@
       "core-footer" !important;
   }
 
+  // Mail fades the composer toolbar to 35% (25% while unfocused) so it recedes
+  // behind a chatter. Here the composer IS the feature, and at that opacity the
+  // emoji / GIF / attach / expand icons read as disabled. Keep them legible;
+  // genuinely disabled buttons still fade via mail's :disabled rule.
+  .o-llm-composer-area {
+    .o-mail-Composer .o-mail-Composer-actions button:not(:disabled),
+    .o-mail-Composer:not(.o-focused)
+      .o-mail-Composer-actions
+      button:not(:hover):not(.o-active):not(.show):not(:disabled) {
+      opacity: 75%;
+    }
+
+    .o-mail-Composer .o-mail-Composer-actions button:not(:disabled):hover {
+      opacity: 100%;
+    }
+  }
+
   .o-llm-sidebar {
     flex-shrink: 0; // Prevent shrinking
     min-width: 48px; // Minimum width when collapsed
