@@ -23,6 +23,12 @@ class LLMProvider(models.Model):
     )
     api_key = fields.Char()
     api_base = fields.Char()
+    transcription_model = fields.Char(
+        string="Transcription Model",
+        help="Model identifier used to turn recorded speech into text for voice "
+        "dictation, e.g. 'google/gemini-3.8-flash'. Leave empty to disable "
+        "voice dictation for this provider.",
+    )
     model_ids = fields.One2many("llm.model", "provider_id", string="Models")
 
     @api.constrains("name")
@@ -71,6 +77,24 @@ class LLMProvider(models.Model):
     def _get_available_services(self):
         """Hook method for registering provider services"""
         return []
+
+    def transcribe(self, audio_bytes, mimetype):
+        """Turn recorded speech into text (voice dictation).
+
+        Provider-agnostic entry point: the actual API call lives in the
+        provider module, reached through the usual dispatch pattern. Providers
+        that cannot do speech-to-text simply do not implement
+        ``<service>_transcribe``, and _dispatch raises NotImplementedError.
+
+        Args:
+            audio_bytes: raw audio content of the recording
+            mimetype: mimetype of the recording, e.g. 'audio/wav'
+
+        Returns:
+            str: the transcribed text
+        """
+        self.ensure_one()
+        return self._dispatch("transcribe", audio_bytes, mimetype)
 
     def chat(
         self,

@@ -23,6 +23,26 @@
     .o-mail-Composer .o-mail-Composer-actions button:not(:disabled):hover {
       opacity: 100%;
     }
+
+    // While recording, the mic must be unmistakably live - a faded icon is
+    // exactly what someone leaving a recording running would miss.
+    .o-mail-Composer .o-mail-Composer-actions button.o-llm-Composer-dictate {
+      &.o-llm-recording {
+        opacity: 100% !important;
+        color: #d9534f;
+        animation: o-llm-dictate-pulse 1.2s ease-in-out infinite;
+      }
+    }
+  }
+
+  @keyframes o-llm-dictate-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
   }
 
   .o-llm-sidebar {

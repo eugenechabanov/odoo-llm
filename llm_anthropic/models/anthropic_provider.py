@@ -1,12 +1,22 @@
+import base64
 import json
 import logging
 
+import requests
 from anthropic import Anthropic
 
 from odoo import _, api, models
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
+
+TRANSCRIBE_TIMEOUT = 120
+
+TRANSCRIBE_PROMPT = (
+    "Transcribe the speech in this audio verbatim. Return only the transcript, "
+    "with no preamble, commentary or quotation marks. If there is no "
+    "intelligible speech, return an empty string."
+)
 
 
 class LLMProvider(models.Model):
@@ -17,6 +27,117 @@ class LLMProvider(models.Model):
         """Register Anthropic as an available service."""
         services = super()._get_available_services()
         return services + [("anthropic", "Anthropic")]
+
+    def anthropic_transcribe(self, audio_bytes, mimetype):
+        """Turn recorded speech into text.
+
+        Anthropic's own API accepts no audio input, so this is only possible
+        when the provider is routed through an OpenAI-compatible gateway (the
+        api_base field, e.g. OpenRouter) that also serves audio-capable models.
+        Talking to api.anthropic.com directly cannot work, so say so plainly
+        rather than failing with an opaque API error.
+        """
+        self.ensure_one()
+
+        if not self.api_base:
+            raise UserError(
+                _(
+                    "Voice dictation needs a provider routed through a gateway "
+                    "that offers audio-capable models. The Anthropic API does "
+                    "not accept audio itself, so set an API Base on provider "
+                    "'%s' (for example an OpenRouter endpoint).",
+                    self.name,
+                )
+            )
+        if not self.transcription_model:
+            raise UserError(
+                _(
+                    "No Transcription Model is set on provider '%s', so voice "
+                    "dictation is disabled. Set one (for example "
+                    "'google/gemini-3.8-flash') to enable it.",
+                    self.name,
+                )
+            )
+        if not self.api_key:
+            raise UserError(
+                _("API key is required for provider '%s'.", self.name)
+            )
+
+        payload = {
+            "model": self.transcription_model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": TRANSCRIBE_PROMPT},
+                        {
+                            "type": "input_audio",
+                            "input_audio": {
+                                "data": base64.b64encode(audio_bytes).decode(),
+                                "format": self._transcription_audio_format(mimetype),
+                            },
+                        },
+                    ],
+                }
+            ],
+        }
+        response = requests.post(
+            f"{self.api_base.rstrip('/')}/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            data=json.dumps(payload),
+            timeout=TRANSCRIBE_TIMEOUT,
+        )
+        if response.status_code != 200:
+            _logger.warning(
+                "Transcription failed for provider %s (model %s): %s %s",
+                self.name,
+                self.transcription_model,
+                response.status_code,
+                response.text[:500],
+            )
+            raise UserError(
+                _(
+                    "The transcription service returned an error (%s). Please "
+                    "try again.",
+                    response.status_code,
+                )
+            )
+
+        data = response.json()
+        choices = data.get("choices") or []
+        if not choices:
+            _logger.warning(
+                "Transcription returned no choices for provider %s: %s",
+                self.name,
+                str(data)[:500],
+            )
+            raise UserError(_("The transcription service returned no result."))
+
+        return (choices[0].get("message") or {}).get("content", "").strip()
+
+    @api.model
+    def _transcription_audio_format(self, mimetype):
+        """Map a recording mimetype to the gateway's audio format name.
+
+        The browser always sends WAV (it re-encodes whatever MediaRecorder
+        produced), which keeps this independent of per-browser codecs.
+        """
+        base = (mimetype or "").split(";")[0].strip().lower()
+        formats = {
+            "audio/wav": "wav",
+            "audio/x-wav": "wav",
+            "audio/wave": "wav",
+            "audio/mpeg": "mp3",
+            "audio/mp3": "mp3",
+        }
+        if base not in formats:
+            raise UserError(
+                _("Unsupported audio format for transcription: %s", base or "unknown")
+            )
+        return formats[base]
 
     def anthropic_get_client(self):
         """Get Anthropic client instance."""

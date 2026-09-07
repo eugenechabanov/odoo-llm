@@ -48,6 +48,10 @@
                 name="api_base"
                 placeholder="http://localhost:11434"
               />
+                            <field
+                name="transcription_model"
+                placeholder="google/gemini-3.8-flash"
+              />
                         </group>
                     </group>
                     <notebook>

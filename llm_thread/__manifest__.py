@@ -47,6 +47,8 @@ Contact: support@apexive.com
         "web.assets_backend": [
             # Services - LLM store service for integration with mail.store
             "llm_thread/static/src/services/llm_store_service.js",
+            # Voice dictation recorder used by the composer mic button
+            "llm_thread/static/src/components/llm_dictation/llm_dictation.js",
             # Components - LLM Chat Container using existing mail components
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.js",
             "llm_thread/static/src/components/llm_chat_container/llm_chat_container.xml",

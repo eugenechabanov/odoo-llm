@@ -1,5 +1,36 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <templates xml:space="preserve">
+    <!-- Add a dictation mic next to the attach button, LLM threads only -->
+    <t
+    t-name="mail.Composer.attachFiles"
+    t-inherit="mail.Composer.attachFiles"
+    t-inherit-mode="extension"
+  >
+        <xpath expr="//FileUploader" position="after">
+            <button
+        t-if="showDictation"
+        class="o-llm-Composer-dictate btn border-0 rounded-circle p-0"
+        t-att-class="{ 'o-llm-recording': dictation.recording }"
+        t-att-disabled="dictation.transcribing"
+        t-att-title="dictationTitle"
+        t-att-aria-label="dictationTitle"
+        t-att-aria-pressed="dictation.recording"
+        type="button"
+        t-on-click="onClickDictate"
+      >
+                <i
+          t-if="dictation.transcribing"
+          class="fa fa-fw fa-lg fa-circle-o-notch fa-spin"
+        />
+                <i
+          t-elif="dictation.recording"
+          class="fa fa-fw fa-lg fa-stop"
+        />
+                <i t-else="" class="fa fa-fw fa-lg fa-microphone" />
+            </button>
+        </xpath>
+    </t>
+
     <!-- Patch Composer send button template to add stop button for LLM threads -->
     <t
     t-name="mail.Composer.sendButton"
