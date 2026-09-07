@@ -43,8 +43,10 @@
         t-att-disabled="isSendButtonDisabled"
         t-att-aria-label="SEND_TEXT"
       >
+                <!-- LLM threads use the paper-plane icon like discuss.channel:
+                     the round compact send button has no room for the word. -->
                 <t
-          t-if="thread and thread.model !== 'discuss.channel'"
+          t-if="thread and thread.model !== 'discuss.channel' and thread.model !== 'llm.thread'"
           t-out="SEND_TEXT"
         />
                 <t t-else=""><i class="fa fa-fw fa-lg fa-paper-plane-o" /></t>
