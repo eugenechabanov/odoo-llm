@@ -183,6 +183,66 @@ run_test "List Available Tools" "200" \
         "params": {}
     }'
 
+# Test 5b: Protocol version negotiation and Mcp-Protocol-Version header
+print_header "PROTOCOL VERSION"
+run_test "Initialize with unsupported version falls back to server version" "200" \
+    -X POST "$BASE_URL" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "jsonrpc": "2.0",
+        "method": "initialize",
+        "id": 10,
+        "params": {
+            "protocolVersion": "2099-01-01",
+            "capabilities": {},
+            "clientInfo": {"name": "test-client", "version": "1.0.0"}
+        }
+    }'
+if echo "$response_body" | grep -q '"protocolVersion": "2099-01-01"'; then
+    print_failure "Server echoed an unsupported protocol version"
+fi
+
+run_test "Initialize with unsupported Mcp-Protocol-Version header is negotiated, not rejected" "200" \
+    -X POST "$BASE_URL" \
+    -H "Content-Type: application/json" \
+    -H "Mcp-Protocol-Version: 2099-01-01" \
+    -d '{
+        "jsonrpc": "2.0",
+        "method": "initialize",
+        "id": 13,
+        "params": {
+            "protocolVersion": "2099-01-01",
+            "capabilities": {},
+            "clientInfo": {"name": "test-client", "version": "1.0.0"}
+        }
+    }'
+
+run_test "tools/list with Mcp-Protocol-Version header (pre-auth config read)" "200" \
+    -X POST "$BASE_URL" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $API_KEY" \
+    -H "Mcp-Session-Id: $SESSION_ID" \
+    -H "Mcp-Protocol-Version: 2025-06-18" \
+    -d '{
+        "jsonrpc": "2.0",
+        "method": "tools/list",
+        "id": 11,
+        "params": {}
+    }'
+
+run_test "tools/list with unsupported Mcp-Protocol-Version header" "400" \
+    -X POST "$BASE_URL" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $API_KEY" \
+    -H "Mcp-Session-Id: $SESSION_ID" \
+    -H "Mcp-Protocol-Version: 2099-01-01" \
+    -d '{
+        "jsonrpc": "2.0",
+        "method": "tools/list",
+        "id": 12,
+        "params": {}
+    }'
+
 # Test 6: Ping
 run_test "Ping Server" "200" \
     -X POST "$BASE_URL" \

@@ -92,7 +92,13 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
             # 2. MCP validations BEFORE endpoint execution
             if method:
                 self._validate_session_requirements(method, session_id)
-            self._validate_protocol_version()
+            # The Mcp-Protocol-Version header only carries meaning once a
+            # version has been negotiated. Clients (claude.ai's connector
+            # check among them) send their preferred version on the
+            # initialize call itself; that is negotiated in the handler,
+            # never rejected here.
+            if method != "initialize":
+                self._validate_protocol_version()
 
         except (ValueError, AttributeError):
             # Let parent handle JSON parsing errors properly
@@ -227,8 +233,9 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
         if not protocol_version:
             return
 
-        # Get supported versions from config
-        config = request.env["llm.mcp.server.config"].get_active_config()
+        # Get supported versions from config. This runs before bearer auth,
+        # so request.env is still the public user: read the config with sudo.
+        config = request.env["llm.mcp.server.config"].sudo().get_active_config()
 
         if not config.is_protocol_version_supported(protocol_version):
             supported_versions = config.get_supported_versions_string()

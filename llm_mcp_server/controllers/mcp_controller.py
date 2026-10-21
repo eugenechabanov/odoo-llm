@@ -132,8 +132,17 @@ class MCPController(http.Controller):
             MCP_PROTOCOL_VERSION_HEADER
         ) or params.get("protocolVersion")
 
-        # Use default if no version requested
-        negotiated_version = requested_version or config.get_default_protocol_version()
+        # Per MCP spec: if the client requests a version the server does not
+        # support, respond with the latest version the server does support.
+        # Echoing an unsupported version back would make every follow-up
+        # request (sent with that version in the Mcp-Protocol-Version header)
+        # fail validation.
+        if requested_version and config.is_protocol_version_supported(
+            requested_version
+        ):
+            negotiated_version = requested_version
+        else:
+            negotiated_version = config.get_default_protocol_version()
 
         # Get server response using the negotiated version
         result = config.handle_initialize_request(
