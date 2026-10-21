@@ -227,8 +227,9 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
         if not protocol_version:
             return
 
-        # Get supported versions from config
-        config = request.env["llm.mcp.server.config"].get_active_config()
+        # Get supported versions from config. This runs before bearer auth,
+        # so request.env is still the public user: read the config with sudo.
+        config = request.env["llm.mcp.server.config"].sudo().get_active_config()
 
         if not config.is_protocol_version_supported(protocol_version):
             supported_versions = config.get_supported_versions_string()
