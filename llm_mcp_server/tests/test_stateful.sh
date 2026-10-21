@@ -205,6 +205,7 @@ fi
 run_test "tools/list with Mcp-Protocol-Version header (pre-auth config read)" "200" \
     -X POST "$BASE_URL" \
     -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $API_KEY" \
     -H "Mcp-Session-Id: $SESSION_ID" \
     -H "Mcp-Protocol-Version: 2025-06-18" \
     -d '{
@@ -217,6 +218,7 @@ run_test "tools/list with Mcp-Protocol-Version header (pre-auth config read)" "2
 run_test "tools/list with unsupported Mcp-Protocol-Version header" "400" \
     -X POST "$BASE_URL" \
     -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $API_KEY" \
     -H "Mcp-Session-Id: $SESSION_ID" \
     -H "Mcp-Protocol-Version: 2099-01-01" \
     -d '{
