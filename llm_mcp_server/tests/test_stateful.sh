@@ -202,6 +202,21 @@ if echo "$response_body" | grep -q '"protocolVersion": "2099-01-01"'; then
     print_failure "Server echoed an unsupported protocol version"
 fi
 
+run_test "Initialize with unsupported Mcp-Protocol-Version header is negotiated, not rejected" "200" \
+    -X POST "$BASE_URL" \
+    -H "Content-Type: application/json" \
+    -H "Mcp-Protocol-Version: 2099-01-01" \
+    -d '{
+        "jsonrpc": "2.0",
+        "method": "initialize",
+        "id": 13,
+        "params": {
+            "protocolVersion": "2099-01-01",
+            "capabilities": {},
+            "clientInfo": {"name": "test-client", "version": "1.0.0"}
+        }
+    }'
+
 run_test "tools/list with Mcp-Protocol-Version header (pre-auth config read)" "200" \
     -X POST "$BASE_URL" \
     -H "Content-Type: application/json" \

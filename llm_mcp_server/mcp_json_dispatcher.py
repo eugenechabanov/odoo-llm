@@ -92,7 +92,13 @@ class MCPJsonRPCDispatcher(JsonRPCDispatcher):
             # 2. MCP validations BEFORE endpoint execution
             if method:
                 self._validate_session_requirements(method, session_id)
-            self._validate_protocol_version()
+            # The Mcp-Protocol-Version header only carries meaning once a
+            # version has been negotiated. Clients (claude.ai's connector
+            # check among them) send their preferred version on the
+            # initialize call itself; that is negotiated in the handler,
+            # never rejected here.
+            if method != "initialize":
+                self._validate_protocol_version()
 
         except (ValueError, AttributeError):
             # Let parent handle JSON parsing errors properly
